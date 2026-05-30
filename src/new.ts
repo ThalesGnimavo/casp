@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
-import { c, todayISO } from './shared.ts';
+import { c, todayISO } from './shared.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

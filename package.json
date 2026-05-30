@@ -23,12 +23,15 @@
     "session",
     "cockpit"
   ],
+  "main": "dist/cli.js",
   "bin": {
-    "cockpit": "src/cli.ts"
+    "cockpit": "dist/cli.js"
   },
   "scripts": {
     "cockpit": "tsx src/cli.ts",
-    "test": "tsx src/cli.ts --version"
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "smoke": "tsx src/cli.ts --version",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "yaml": "^2.7.0"
@@ -39,7 +42,7 @@
     "typescript": "^5.7.3"
   },
   "files": [
-    "src",
+    "dist",
     "templates",
     "skills",
     "README.md",

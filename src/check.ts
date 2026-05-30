@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, loadState, readFrontmatter } from './shared.ts';
+import { c, git, loadState, readFrontmatter } from './shared.js';
 
 const ROOT = process.cwd();
 const STATE_PATH = join(ROOT, 'cockpit', 'state.json');

@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { c, git, loadState, readFrontmatter, setColor } from './shared.ts';
+import { c, git, loadState, readFrontmatter, setColor } from './shared.js';
 
 const ROOT = process.cwd();
 const STATE = join(ROOT, 'cockpit', 'state.json');

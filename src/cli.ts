@@ -1,16 +1,16 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env node
 /**
  * cockpit — a 200-line discipline for AI-coding sessions.
  *
- * https://thalesandhisaictoclaude.com
+ * https://github.com/justethales/cockpit-skill
  * MIT License.
  */
 
 import { argv, exit } from 'node:process';
-import { runInit } from './init.ts';
-import { runCheck } from './check.ts';
-import { runStatus } from './status.ts';
-import { runNew } from './new.ts';
+import { runInit } from './init.js';
+import { runCheck } from './check.js';
+import { runStatus } from './status.js';
+import { runNew } from './new.js';
 
 const VERSION = '0.1.0';
 
