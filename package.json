@@ -5,7 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Thales (Juste Gnimavo) — ZeroSuite",
-  "homepage": "https://thalesandhisaictoclaude.com",
+  "homepage": "https://github.com/justethales/cockpit-skill",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justethales/cockpit-skill.git"
+  },
+  "bugs": {
+    "url": "https://github.com/justethales/cockpit-skill/issues"
+  },
   "keywords": [
     "ai",
     "claude",

@@ -1,7 +1,7 @@
 # Cockpit
 
 > **Scaffolded** : {{TODAY}} via `npx cockpit init`.
-> **Source** : `@thales/cockpit` — https://github.com/zerosuite-inc/cockpit
+> **Source** : `@thales/cockpit` — https://github.com/justethales/cockpit-skill
 > **License** : MIT.
 
 This directory is the **single source of short-term truth** for this project's AI-driven engineering sessions. It costs ~3-5 k tokens to load, far less than re-reading the codebase.
@@ -102,6 +102,6 @@ For each : prevention beats detection. Templates + protocol + validator are the 
 
 ## Learn more
 
-- Source : https://github.com/zerosuite-inc/cockpit
+- Source : https://github.com/justethales/cockpit-skill
 - Blog post : https://thalesandhisaictoclaude.com
-- Issues / feedback : https://github.com/zerosuite-inc/cockpit/issues
+- Issues / feedback : https://github.com/justethales/cockpit-skill/issues

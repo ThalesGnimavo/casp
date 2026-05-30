@@ -239,7 +239,7 @@ The cockpit uses "phase" as a generic word for "unit of work that ships together
 No. Zero network calls. Zero telemetry. The cockpit reads your filesystem and your `git`. Nothing leaves your machine.
 
 **Q : Where do I report bugs / feature requests?**
-https://github.com/zerosuite-inc/cockpit/issues
+https://github.com/justethales/cockpit-skill/issues
 
 ---
 

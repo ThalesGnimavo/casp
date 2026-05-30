@@ -39,7 +39,7 @@ EXAMPLES
   cockpit new prompt --slug phase-2-auth-flow
 
 LEARN MORE
-  https://github.com/zerosuite-inc/cockpit
+  https://github.com/justethales/cockpit-skill
   https://thalesandhisaictoclaude.com
 `;
 
