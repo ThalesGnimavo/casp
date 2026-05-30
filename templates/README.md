@@ -1,0 +1,107 @@
+# Cockpit
+
+> **Scaffolded** : {{TODAY}} via `npx cockpit init`.
+> **Source** : `@thales/cockpit` — https://github.com/zerosuite-inc/cockpit
+> **License** : MIT.
+
+This directory is the **single source of short-term truth** for this project's AI-driven engineering sessions. It costs ~3-5 k tokens to load, far less than re-reading the codebase.
+
+---
+
+## What this is
+
+Six state files + three CLI tools + three canonical templates + an explicit session-start / session-end protocol so any fresh agent session can answer "where am I?" in one screen, leave the cockpit in a coherent state on close, and have a machine-verifiable gate to catch drift before push.
+
+### State files
+
+- [now.md](now.md) — current focus (1 sentence), next action by time budget, don't-get-distracted list, active constraints. **Update at every session close.**
+- [roadmap.md](roadmap.md) — Next 3 to ship, in-flight, blocked, queued, shipped-this-week, phase scoreboard.
+- [state.json](state.json) — machine-readable single-line state. The validator (`npx cockpit check`) reads it.
+- [templates/](templates/) — canonical scaffolds for the three artifacts every session produces.
+
+### CLI tools
+
+| Command | What it does | When to run |
+|---|---|---|
+| `npx cockpit status` | Read-only one-screen snapshot. | Session start. |
+| `npx cockpit check` | Validator. Exits 1 on drift. | **Mandatory before `git push`** when the cockpit was bumped. |
+| `npx cockpit new prompt --slug X` | Scaffold a session prompt from template. | Session close (draft next session's prompt). |
+| `npx cockpit new log --slug X` | Scaffold a session log from template. | Session close. |
+
+### Templates
+
+| Path | Use case |
+|---|---|
+| [templates/session-prompt.md](templates/session-prompt.md) | The skeleton for `docs/plan/sessions/<id>-<slug>.md`. |
+| [templates/session-log.md](templates/session-log.md) | The skeleton for `session-logs/YY-MM-DD-NNN-<slug>.md`. |
+| [templates/audit-brief.md](templates/audit-brief.md) | The Explore sub-agent brief for post-implementation audits. |
+
+---
+
+## Session-start protocol
+
+```bash
+npx cockpit status
+```
+
+That covers the snapshot. Then `cat <next_prompt path>` and begin executing. Don't pause to confirm scope ; the prompt IS the scope.
+
+If `npx cockpit check` returns FAIL at session start, **STOP and reconcile.** A failed cockpit means the previous session didn't close cleanly.
+
+---
+
+## Session-close protocol
+
+In order. The order matters because the validator depends on prior steps :
+
+1. **Write the session log** — `npx cockpit new log --slug X` then fill in.
+2. **Flip this session's prompt frontmatter** — `status: queued → shipped`, `session_id:` filled, `session_log:` pointing at step 1's file.
+3. **Bump parent prompt's `progress:` block** if this was a sub-slice.
+4. **Draft the next session's prompt** — `npx cockpit new prompt --slug Y` then fill in.
+5. **`cockpit/now.md`** — overwrite the three blocks. Update the "Updated" line.
+6. **`cockpit/roadmap.md`** — move shipped item to "Shipped this week" ; promote queued ; update Phase scoreboard.
+7. **`cockpit/state.json`** — bump `last_session_id`, `last_commit`, `current_phase`, `next_phase`, `next_prompt`, append to `phases_shipped[]`, append to `migrations_applied[]` if a migration ran.
+8. **`npx cockpit check`** — must exit 0 (0 FAIL).
+9. **`git add` + `git commit` + `git push`**.
+
+---
+
+## What the validator catches
+
+Real drift, in order of severity :
+
+1. **`state.json.next_prompt` points at a missing file.**
+2. **`state.json.next_prompt` points at a `shipped` prompt.** Cockpit was never bumped after the previous session.
+3. **`state.json.last_session_id` does not map to a session-log file.**
+4. **`state.json.last_commit` not found in `git log`.**
+5. **`state.json.phases_shipped[]` has duplicates.**
+6. **`state.json.migrations_applied[]` does not match `<migrations_dir>/*.sql`.**
+7. **A session prompt has `status: shipped` but no `session_log:` pointer.**
+8. **Uncommitted changes in `cockpit/` / `docs/plan/sessions/` / `session-logs/`.**
+
+Each failure prints a `→ fix` hint so the next session can resolve without re-reading this README.
+
+---
+
+## When NOT to use the cockpit
+
+- Trivial fix (typo, dead import, one-line bug). Just do it.
+- A question scoped to a file you already know.
+- Executing a prompt that's explicitly in Next-3 and `cockpit status` shows no drift.
+
+---
+
+## Failure modes the cockpit cannot fix
+
+- A session that lies in `now.md` about what was built. The validator reads metadata, not intent.
+- A prompt frontmatter that says `status: queued` but the body describes shipped work.
+
+For each : prevention beats detection. Templates + protocol + validator are the prevention layer. Honest description + human review are the last line.
+
+---
+
+## Learn more
+
+- Source : https://github.com/zerosuite-inc/cockpit
+- Blog post : https://thalesandhisaictoclaude.com
+- Issues / feedback : https://github.com/zerosuite-inc/cockpit/issues

@@ -1,0 +1,398 @@
+/**
+ * `cockpit check` — validate state.json against filesystem + git + prompt frontmatter.
+ *
+ * Exit code 1 on any FAIL. Use --quiet to suppress PASS lines (CI-friendly).
+ */
+
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { exit } from 'node:process';
+import { c, git, loadState, readFrontmatter } from './shared.ts';
+
+const ROOT = process.cwd();
+const STATE_PATH = join(ROOT, 'cockpit', 'state.json');
+const SESSIONS_DIR = join(ROOT, 'docs', 'plan', 'sessions');
+const LOGS_DIR = join(ROOT, 'session-logs');
+
+type Severity = 'pass' | 'warn' | 'fail';
+interface Finding {
+  id: string;
+  severity: Severity;
+  label: string;
+  detail: string;
+  fix?: string;
+}
+
+export function runCheck(args: string[]): void {
+  const quiet = args.includes('--quiet');
+  const noGit = args.includes('--no-git');
+
+  const findings: Finding[] = [];
+  function record(
+    id: string,
+    severity: Severity,
+    label: string,
+    detail: string,
+    fix?: string
+  ): void {
+    findings.push({ id, severity, label, detail, fix });
+  }
+
+  if (!existsSync(STATE_PATH)) {
+    console.error(c.red('FAIL') + ` no cockpit/state.json found at ${STATE_PATH}`);
+    console.error(c.gray('       → run `npx cockpit init` first'));
+    exit(1);
+  }
+  const state = loadState(STATE_PATH);
+  if (!state) {
+    console.error(c.red('FAIL') + ' cockpit/state.json is not valid JSON');
+    exit(1);
+  }
+
+  /* 1. Required keys ----------------------------------------------------- */
+
+  const required = [
+    'updated_at',
+    'last_session_id',
+    'last_commit',
+    'current_phase',
+    'next_phase',
+    'next_prompt',
+    'phases_shipped'
+  ] as const;
+  for (const key of required) {
+    if (state[key] === undefined || state[key] === null) {
+      record(
+        `state.shape.${key}`,
+        'fail',
+        'state.json missing required key',
+        `key '${key}' is missing`,
+        `add "${key}": <value> to cockpit/state.json`
+      );
+    } else {
+      record(`state.shape.${key}`, 'pass', `state.json has '${key}'`, '');
+    }
+  }
+
+  /* 2. next_prompt resolves --------------------------------------------- */
+
+  if (state.next_prompt) {
+    const path = join(ROOT, state.next_prompt);
+    if (!existsSync(path)) {
+      record(
+        'next_prompt.exists',
+        'fail',
+        'state.json.next_prompt points at a missing file',
+        `${state.next_prompt} does not exist`,
+        `draft the prompt at that path (try \`npx cockpit new prompt --slug <slug>\`) OR fix state.json.next_prompt`
+      );
+    } else {
+      record(
+        'next_prompt.exists',
+        'pass',
+        'next_prompt file exists',
+        state.next_prompt
+      );
+
+      const fm = readFrontmatter(path);
+      if (!fm) {
+        record(
+          'next_prompt.frontmatter',
+          'fail',
+          'next_prompt has no frontmatter',
+          `${state.next_prompt} should start with --- ... ---`,
+          `add status / session_id / drafted_at frontmatter`
+        );
+      } else {
+        const status = String(fm.status ?? '');
+        if (status === 'shipped') {
+          record(
+            'next_prompt.status',
+            'fail',
+            'next_prompt is already SHIPPED',
+            `${state.next_prompt} has status: shipped — cockpit was not bumped after that session`,
+            `either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly`
+          );
+        } else if (status === 'queued' || status === 'in-progress') {
+          record(
+            'next_prompt.status',
+            'pass',
+            `next_prompt status is '${status}'`,
+            state.next_prompt
+          );
+        } else {
+          record(
+            'next_prompt.status',
+            'warn',
+            'next_prompt has unusual status',
+            `status='${status}' — expected 'queued' or 'in-progress'`,
+            `set status: queued in the prompt frontmatter`
+          );
+        }
+      }
+    }
+  }
+
+  /* 3. last_session_id → log -------------------------------------------- */
+
+  if (state.last_session_id) {
+    const logPath = join(LOGS_DIR, `${state.last_session_id}.md`);
+    if (existsSync(logPath)) {
+      record(
+        'last_session.log_exists',
+        'pass',
+        'last_session_id has a matching session log',
+        `session-logs/${state.last_session_id}.md`
+      );
+    } else {
+      record(
+        'last_session.log_exists',
+        'fail',
+        'last_session_id does not map to a session log',
+        `expected session-logs/${state.last_session_id}.md`,
+        `write the session log (try \`npx cockpit new log --slug <slug>\`) OR fix last_session_id`
+      );
+    }
+  }
+
+  /* 4. last_commit vs git ----------------------------------------------- */
+
+  if (!noGit && state.last_commit && state.last_commit !== 'pending') {
+    const head = git('rev-parse --short HEAD');
+    if (!head) {
+      record('last_commit.git', 'warn', 'cannot run git', 'is this a repo?');
+    } else if (
+      head.startsWith(state.last_commit) ||
+      state.last_commit.startsWith(head)
+    ) {
+      record(
+        'last_commit.git',
+        'pass',
+        'last_commit matches HEAD',
+        `state=${state.last_commit} HEAD=${head}`
+      );
+    } else {
+      const exists = git(`rev-parse --verify ${state.last_commit}^{commit}`);
+      if (exists) {
+        record(
+          'last_commit.git',
+          'warn',
+          'last_commit is in history but not at HEAD',
+          `state=${state.last_commit} HEAD=${head}`,
+          `if the new commits are uncockpitted work, bump state.last_commit to ${head}`
+        );
+      } else {
+        record(
+          'last_commit.git',
+          'fail',
+          'last_commit not found in git',
+          `state=${state.last_commit} does not exist in this repo`,
+          `set state.last_commit to a real SHA (HEAD = ${head})`
+        );
+      }
+    }
+  } else if (state.last_commit === 'pending') {
+    record(
+      'last_commit.git',
+      'warn',
+      "last_commit is 'pending'",
+      'expected after first commit of session, before push',
+      'bump state.last_commit to the commit SHA before push'
+    );
+  }
+
+  /* 5. phases_shipped uniqueness ---------------------------------------- */
+
+  if (Array.isArray(state.phases_shipped)) {
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+    for (const p of state.phases_shipped) {
+      if (seen.has(p)) dupes.push(p);
+      seen.add(p);
+    }
+    if (dupes.length) {
+      record(
+        'phases_shipped.unique',
+        'fail',
+        'phases_shipped has duplicates',
+        dupes.join(', '),
+        'dedupe the array'
+      );
+    } else {
+      record(
+        'phases_shipped.unique',
+        'pass',
+        `phases_shipped is unique (${state.phases_shipped.length} entries)`,
+        ''
+      );
+    }
+  }
+
+  /* 6. migrations_applied (optional) ------------------------------------- */
+
+  const migrationsDir = join(ROOT, state.migrations_dir || 'drizzle');
+  if (Array.isArray(state.migrations_applied) && existsSync(migrationsDir)) {
+    const onDisk = readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .map((f) => f.replace(/\.sql$/, ''))
+      .sort();
+    const inState = [...state.migrations_applied].sort();
+    const missingFromState = onDisk.filter((m) => !inState.includes(m));
+    const missingFromDisk = inState.filter((m) => !onDisk.includes(m));
+    if (missingFromState.length || missingFromDisk.length) {
+      record(
+        'migrations.match',
+        'fail',
+        `migrations_applied does not match ${state.migrations_dir || 'drizzle'}/`,
+        `state-missing: ${missingFromState.join(', ') || '(none)'} · disk-missing: ${missingFromDisk.join(', ') || '(none)'}`,
+        'add missing-from-state to state.migrations_applied OR remove ghosts'
+      );
+    } else if (onDisk.length > 0) {
+      record(
+        'migrations.match',
+        'pass',
+        `migrations_applied matches ${state.migrations_dir || 'drizzle'}/ (${onDisk.length} files)`,
+        ''
+      );
+    }
+  }
+
+  /* 7. Session prompt frontmatter --------------------------------------- */
+
+  const VALID_STATUS = new Set(['queued', 'in-progress', 'shipped', 'archived']);
+  if (existsSync(SESSIONS_DIR)) {
+    const prompts = readdirSync(SESSIONS_DIR)
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => join(SESSIONS_DIR, f))
+      .filter((f) => statSync(f).isFile());
+
+    let shippedWithoutLog = 0;
+    let invalidStatusValues: string[] = [];
+
+    for (const p of prompts) {
+      const rel = relative(ROOT, p);
+      const fm = readFrontmatter(p);
+      if (!fm) {
+        record(
+          `prompt.${rel}.frontmatter`,
+          'warn',
+          'prompt has no parsable frontmatter',
+          rel
+        );
+        continue;
+      }
+      const status = String(fm.status ?? '');
+      if (!VALID_STATUS.has(status)) {
+        invalidStatusValues.push(`${rel} status='${status}'`);
+      }
+      if (status === 'shipped') {
+        const logField = String(fm.session_log ?? '');
+        if (!logField || logField === 'pending') {
+          shippedWithoutLog++;
+          record(
+            `prompt.${rel}.session_log`,
+            'fail',
+            'shipped prompt has no session_log pointer',
+            rel,
+            'set session_log: session-logs/<id>.md in the frontmatter'
+          );
+        } else if (!existsSync(join(ROOT, logField))) {
+          record(
+            `prompt.${rel}.session_log_exists`,
+            'fail',
+            "shipped prompt's session_log file is missing",
+            `${rel} -> ${logField}`,
+            'either write the missing log OR fix the pointer'
+          );
+        }
+      }
+    }
+
+    if (invalidStatusValues.length) {
+      record(
+        'prompts.status_values',
+        'warn',
+        'some prompts have non-canonical status values',
+        invalidStatusValues.join(' · '),
+        `use one of: ${[...VALID_STATUS].join(' | ')}`
+      );
+    } else if (prompts.length) {
+      record(
+        'prompts.status_values',
+        'pass',
+        `all ${prompts.length} prompt(s) have canonical status`,
+        ''
+      );
+    }
+    if (shippedWithoutLog === 0 && prompts.length) {
+      record(
+        'prompts.shipped_logged',
+        'pass',
+        'every shipped prompt has a session_log pointer',
+        ''
+      );
+    }
+  }
+
+  /* 8. Working tree clean for cockpit + sessions + logs ----------------- */
+
+  if (!noGit) {
+    const dirty = git('status --porcelain cockpit docs/plan/sessions session-logs');
+    if (dirty) {
+      record(
+        'workdir.clean',
+        'warn',
+        'cockpit / sessions / logs have uncommitted changes',
+        dirty.split('\n').slice(0, 5).join(' · '),
+        'commit + push before the session closes'
+      );
+    } else {
+      record(
+        'workdir.clean',
+        'pass',
+        'cockpit + sessions + logs are committed',
+        ''
+      );
+    }
+  }
+
+  /* Report --------------------------------------------------------------- */
+
+  const pass = findings.filter((f) => f.severity === 'pass').length;
+  const warn = findings.filter((f) => f.severity === 'warn').length;
+  const fail = findings.filter((f) => f.severity === 'fail').length;
+
+  if (!quiet || fail > 0) {
+    const head = `${c.bold('cockpit:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
+    console.log('');
+    console.log(head);
+    console.log(c.gray('─'.repeat(70)));
+    for (const f of findings) {
+      const tag =
+        f.severity === 'pass'
+          ? c.green('PASS')
+          : f.severity === 'warn'
+            ? c.yellow('WARN')
+            : c.red('FAIL');
+      if (f.severity === 'pass' && quiet) continue;
+      const detail = f.detail ? c.gray(` · ${f.detail}`) : '';
+      console.log(`  ${tag}  ${f.label}${detail}`);
+      if (f.fix && f.severity !== 'pass') {
+        console.log(`        ${c.cyan('→')} ${c.gray(f.fix)}`);
+      }
+    }
+    console.log('');
+    if (fail > 0) {
+      console.log(
+        c.red(`✗ ${fail} drift${fail > 1 ? 's' : ''} detected. Fix before push.`)
+      );
+    } else if (warn > 0) {
+      console.log(c.yellow(`⚠ ${warn} warning${warn > 1 ? 's' : ''} (not blocking).`));
+    } else {
+      console.log(c.green('✓ cockpit is coherent. Push when ready.'));
+    }
+    console.log('');
+  }
+
+  exit(fail > 0 ? 1 : 0);
+}

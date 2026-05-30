@@ -1,0 +1,14 @@
+{
+  "updated_at": "{{TODAY}}",
+  "last_session_id": "pending",
+  "last_commit": "pending",
+  "current_phase": "phase-0-init",
+  "next_phase": "phase-1-first-slice",
+  "next_prompt": "docs/plan/sessions/PHASE-1-FIRST-SLICE.md",
+  "phases_shipped": [],
+  "phases_queued": ["phase-1-first-slice"],
+  "phases_backlog": [],
+  "migrations_applied": [],
+  "migrations_dir": "drizzle",
+  "notes": "Bump every section at session close. Replace last_session_id + last_commit + current_phase + next_phase + next_prompt as appropriate. Run `npx cockpit check` before push."
+}

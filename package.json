@@ -1,0 +1,45 @@
+{
+  "name": "@thales/cockpit",
+  "version": "0.1.0",
+  "description": "A 200-line discipline for AI-coding sessions: machine-verifiable session state + drift validator + canonical templates. Works with Claude Code, Cursor, or anything that drives a repo with a session loop.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Thales (Juste Gnimavo) — ZeroSuite",
+  "homepage": "https://thalesandhisaictoclaude.com",
+  "keywords": [
+    "ai",
+    "claude",
+    "claude-code",
+    "cursor",
+    "workflow",
+    "developer-experience",
+    "session",
+    "cockpit"
+  ],
+  "bin": {
+    "cockpit": "src/cli.ts"
+  },
+  "scripts": {
+    "cockpit": "tsx src/cli.ts",
+    "test": "tsx src/cli.ts --version"
+  },
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "files": [
+    "src",
+    "templates",
+    "skills",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
