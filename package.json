@@ -1,5 +1,5 @@
 {
-  "name": "@thales/cockpit",
+  "name": "@justethales/cockpit",
   "version": "0.1.0",
   "description": "A 200-line discipline for AI-coding sessions: machine-verifiable session state + drift validator + canonical templates. Works with Claude Code, Cursor, or anything that drives a repo with a session loop.",
   "type": "module",
