@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1 — 2026-05-31
+
+- **Docs only.** No code changes.
+- README rewritten for clarity + npm/Google discoverability: stronger H1, badges, npm-friendly elevator pitch, agent compatibility matrix (Claude Code, Cursor, Aider, Continue), CLI reference table, citation block, public roadmap.
+- `package.json` description rewritten and `keywords` expanded.
+- Dropped the inflated "200-line discipline" claim from description and README — the validator alone is ~500 lines.
+- Fixed the dead `@thales/cockpit` install commands left in the README. Everything now points at `@justethales/cockpit`.
+- Bumped CHANGELOG to reflect that `check` ships 9 categories (the 0.1.0 entry said 7).
+
 ## 0.1.0 — 2026-05-30
 
 Initial release.
