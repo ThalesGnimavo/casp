@@ -1,17 +1,17 @@
 {
   "name": "@justethales/cockpit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cockpit keeps AI coding sessions coherent across days. State validator + drift detector + canonical templates for Claude Code, Cursor, Aider. MIT, zero telemetry.",
   "type": "module",
   "license": "MIT",
   "author": "Thales (Juste Gnimavo) — ZeroSuite",
-  "homepage": "https://github.com/justethales/cockpit-skill#readme",
+  "homepage": "https://github.com/ThalesGnimavo/cockpit-skill#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/justethales/cockpit-skill.git"
+    "url": "git+https://github.com/ThalesGnimavo/cockpit-skill.git"
   },
   "bugs": {
-    "url": "https://github.com/justethales/cockpit-skill/issues"
+    "url": "https://github.com/ThalesGnimavo/cockpit-skill/issues"
   },
   "keywords": [
     "ai",

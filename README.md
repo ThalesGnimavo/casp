@@ -4,8 +4,8 @@
 
 [![npm version](https://img.shields.io/npm/v/@justethales/cockpit.svg)](https://www.npmjs.com/package/@justethales/cockpit)
 [![npm downloads](https://img.shields.io/npm/dm/@justethales/cockpit.svg)](https://www.npmjs.com/package/@justethales/cockpit)
-[![license](https://img.shields.io/npm/l/@justethales/cockpit.svg)](https://github.com/justethales/cockpit-skill/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/justethales/cockpit-skill?style=social)](https://github.com/justethales/cockpit-skill)
+[![license](https://img.shields.io/npm/l/@justethales/cockpit.svg)](https://github.com/ThalesGnimavo/cockpit-skill/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/ThalesGnimavo/cockpit-skill?style=social)](https://github.com/ThalesGnimavo/cockpit-skill)
 
 ```bash
 npx @justethales/cockpit init      # scaffold cockpit/ in any project
@@ -299,10 +299,10 @@ No. Zero network calls. Zero telemetry. Cockpit reads your filesystem and your `
 Before every flight, pilots run a pre-flight checklist from the cockpit panel. Same idea: a small, dense, mandatory check before every push.
 
 **Where do I report bugs or feature requests?**
-[github.com/justethales/cockpit-skill/issues](https://github.com/justethales/cockpit-skill/issues)
+[github.com/ThalesGnimavo/cockpit-skill/issues](https://github.com/ThalesGnimavo/cockpit-skill/issues)
 
 **How do I cite this in a blog post or paper?**
-`Gnimavo, J. (2026). Cockpit: state management for AI coding sessions. https://github.com/justethales/cockpit-skill`
+`Gnimavo, J. (2026). Cockpit: state management for AI coding sessions. https://github.com/ThalesGnimavo/cockpit-skill`
 
 ---
 
@@ -314,7 +314,7 @@ Before every flight, pilots run a pre-flight checklist from the cockpit panel. S
 - **0.5** — Optional pre-push git hook installer (`cockpit install-hook`).
 - **Long-term** — `cockpit lint` for prose-vs-reality checks via local LLM.
 
-Vote on the roadmap with [GitHub issues / reactions](https://github.com/justethales/cockpit-skill/issues).
+Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGnimavo/cockpit-skill/issues).
 
 ---
 
@@ -322,7 +322,7 @@ Vote on the roadmap with [GitHub issues / reactions](https://github.com/justetha
 
 MIT. Use it, fork it, ship it.
 
-If Cockpit saves you 30 minutes a week, that is enough payback. If you want to say thanks: star the [GitHub repo](https://github.com/justethales/cockpit-skill), share the [blog post](https://thalesandhisaictoclaude.com), or [say hi on X](https://x.com/JusteThales).
+If Cockpit saves you 30 minutes a week, that is enough payback. If you want to say thanks: star the [GitHub repo](https://github.com/ThalesGnimavo/cockpit-skill), share the [blog post](https://thalesandhisaictoclaude.com), or [say hi on X](https://x.com/ThalesGnimavo).
 
 ---
 

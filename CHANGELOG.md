@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 — 2026-06-04
+
+- **Docs only.** No code or CLI behavior change. Existing installs at 0.1.1 keep working unchanged.
+- Repository migrated from `github.com/justethales/cockpit-skill` to `github.com/ThalesGnimavo/cockpit-skill` (GitHub username rename). All README badges, links, `package.json` repository/homepage/bugs, and source-file references updated.
+- npm package name unchanged: still `@justethales/cockpit`. `npm i @justethales/cockpit` continues to work for all users.
+- Fixed stale `VERSION = '0.1.0'` constant in `src/cli.ts` so `cockpit --version` now reports the correct release.
+- Fixed dead `@thales/cockpit` reference still present in `templates/README.md` (the 0.1.1 cleanup missed this one).
+- X/Twitter handle in README updated to `@ThalesGnimavo`.
+
 ## 0.1.1 — 2026-05-31
 
 - **Docs only.** No code changes.

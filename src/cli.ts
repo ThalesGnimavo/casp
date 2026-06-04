@@ -2,7 +2,7 @@
 /**
  * cockpit — a 200-line discipline for AI-coding sessions.
  *
- * https://github.com/justethales/cockpit-skill
+ * https://github.com/ThalesGnimavo/cockpit-skill
  * MIT License.
  */
 
@@ -12,7 +12,7 @@ import { runCheck } from './check.js';
 import { runStatus } from './status.js';
 import { runNew } from './new.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.2';
 
 const HELP = `
 cockpit ${VERSION} — a 200-line discipline for AI-coding sessions
@@ -39,7 +39,7 @@ EXAMPLES
   cockpit new prompt --slug phase-2-auth-flow
 
 LEARN MORE
-  https://github.com/justethales/cockpit-skill
+  https://github.com/ThalesGnimavo/cockpit-skill
   https://thalesandhisaictoclaude.com
 `;
 
