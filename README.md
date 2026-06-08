@@ -1,320 +1,285 @@
-# Cockpit — state management for AI coding sessions
+# CASP — the Coding-Agent State Protocol
 
-> **Stop losing 30 minutes to context drift every morning.** Cockpit is a small CLI that keeps Claude Code, Cursor, and Aider sessions coherent across days, weeks, and feature gaps. State validator, drift detector, canonical templates. MIT, zero telemetry, no SaaS.
+> **The protocol that refuses to let your state lie.** A tiny, git-native, local-only state file every AI coding agent can read — plus a validator that **blocks the push the moment your project drifts**. Everyone *stores* context; CASP **validates** it against git. MIT, zero telemetry, no SaaS.
 
-[![npm version](https://img.shields.io/npm/v/@justethales/cockpit.svg)](https://www.npmjs.com/package/@justethales/cockpit)
-[![npm downloads](https://img.shields.io/npm/dm/@justethales/cockpit.svg)](https://www.npmjs.com/package/@justethales/cockpit)
-[![license](https://img.shields.io/npm/l/@justethales/cockpit.svg)](https://github.com/ThalesGnimavo/cockpit-skill/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/ThalesGnimavo/cockpit-skill?style=social)](https://github.com/ThalesGnimavo/cockpit-skill)
+[![npm version](https://img.shields.io/npm/v/casp.svg)](https://www.npmjs.com/package/casp)
+[![npm downloads](https://img.shields.io/npm/dm/casp.svg)](https://www.npmjs.com/package/casp)
+[![license](https://img.shields.io/npm/l/casp.svg)](https://github.com/ThalesGnimavo/casp/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/ThalesGnimavo/casp?style=social)](https://github.com/ThalesGnimavo/casp)
 
 ```bash
-npx @justethales/cockpit init      # scaffold cockpit/ in any project
-npx @justethales/cockpit status    # one-screen "where am I"
-npx @justethales/cockpit check     # validate state before push
+npm i -g casp        # or: npx casp <command>
+casp init            # scaffold the casp/ layer in any repo
+casp status          # one-screen "where am I"
+casp check           # validate the state against git — exits 1 on drift
 ```
 
-Works with **Claude Code**, **Cursor**, **Aider**, **Continue**, or any agent that can run a CLI. Node ≥ 20. No account, no telemetry, nothing leaves your machine.
+**C**oding-Agent · **S**tate · **P**rotocol. Works with **Claude Code**, **Cursor**, **Aider**, **Continue**, or any agent that can run a CLI. Node ≥ 20. No account, no telemetry, nothing leaves your machine.
 
-Built by [Thales (Juste Gnimavo)](https://thalesandhisaictoclaude.com) — solo CEO running six production products (Déblo, sh0, FLIN, 0fee, 0cron, 0diff) with Claude as the only engineer. The cockpit is the layer that keeps months of AI-driven sessions from collapsing into drift.
+Built by [Thales (Juste Gnimavo)](https://thalesandhisaictoclaude.com) — a solo CEO running six production products with Claude as the only engineer. CASP is the layer that keeps months of AI-driven sessions from collapsing into drift.
+
+> Pre-flight check + black box for AI coding sessions.
 
 ---
 
-## The bug Cockpit was built to kill
+## 01 · The thread you keep losing
 
-You finish a Claude Code session at 11 pm. You ship a feature. You think you closed your project's state files cleanly.
+You come back to a project after a week — or you juggle five at once. The agent reads a state file that no longer matches reality, **confidently starts work that already shipped**, and you burn an afternoon undoing it.
 
-You open a fresh session at 9 am. The agent reads your project. It says "I see you shipped X yesterday, should I start Y?" You say yes.
+Boards, cards and spreadsheets don't save you: reconstructing context is manual, and the agent can't read any of it. The state needs to be machine-readable, git-native — and **provably true**.
 
-Halfway through Y, the agent realises Y was already shipped two days ago. The state file pointed at the wrong next thing. You just burned 90 minutes on duplicate work.
-
-**That is drift.** It is the single most common failure mode of long-running AI coding workflows — not bad code, not security holes, just the slow accumulation of "the project state says X but git history says Y" errors. Every wrong session starts with 30 minutes of re-orientation. Multiply by 200 sessions a year.
-
-Cockpit fixes drift in four moves:
-
-1. **Centralises session state** in one `state.json` (machine-readable single source of truth).
-2. **Validates that state** against the filesystem and `git` on every push: `npx cockpit check`.
-3. **Surfaces the state** in one screen for any fresh session: `npx cockpit status`.
-4. **Templates the artifacts** every session produces (session prompt, session log, audit brief).
-
-That is the whole product. No tracking pixels, no SaaS, no required login. MIT.
-
----
-
-## Install
-
-### Quickest path: no install
-
-```bash
-npx @justethales/cockpit init       # scaffold cockpit/ in current directory
-npx @justethales/cockpit status     # one-screen snapshot
-npx @justethales/cockpit check      # validate state.json against the world
-```
-
-Works in any directory. Requires Node ≥ 20.
-
-### Global install
-
-```bash
-npm install -g @justethales/cockpit
-cockpit init
-cockpit status
-cockpit check
-```
-
-### Project install (committed to package.json)
-
-```bash
-npm install --save-dev @justethales/cockpit
-```
-
-Add to `package.json` scripts:
-
-```json
+```jsonc
+// casp/state.json  ● DRIFTED
 {
-  "scripts": {
-    "cockpit:status": "cockpit status",
-    "cockpit:check": "cockpit check"
-  }
+  "phase":       "13 — camera streaming",
+  "next_prompt": "phases/14-camera.md",   // already shipped in v13.4
+  "last_commit": "a1f3c9",                // not in git history
+  "migrations":  ["0001"…"0007"]          // git stops at 0006
 }
 ```
 
-Then `pnpm cockpit:status` / `pnpm cockpit:check` from any session.
-
-### Claude Code skills (slash commands)
-
-Cockpit ships two ready-to-drop [Claude Code skills](https://docs.claude.com/en/docs/claude-code/skills): `/cockpit` (read-only KPI lookups) and `/next` (auto-start the next session from `state.next_prompt`).
-
-```bash
-cp -r node_modules/@justethales/cockpit/skills/cockpit ~/.claude/skills/
-cp -r node_modules/@justethales/cockpit/skills/next   ~/.claude/skills/
-```
-
-Now type `/cockpit` or `/next` in any Claude Code session. The skills wrap the CLI with the right pre-flight, fallback paths, and execution posture.
+A stale state file makes your agent confidently wrong. **CASP gives every project one thread that survives across sessions — and can't drift silently.**
 
 ---
 
-## 60-second quickstart
+## 02 · The wedge — everyone *stores* context, CASP *validates* it
+
+The adjacent space — Mem0, Letta, Zep, the new git-native "memory" projects — all **store** what happened. Almost none **verify** that the stored state still matches git reality.
+
+That verification is **`casp check`** — and it's mandatory before every push. It catches:
+
+- **next-prompt drift** — your `next_prompt` points at a file that's already shipped, or doesn't exist. CASP refuses to start the wrong session.
+- **git ground-truth** — `last_commit` not in history, migrations list out of sync, uncommitted state — checked against git itself, not a guess.
+- **push, blocked** — no fuzzy similarity scores. A hard, repeatable pass/fail gate that stops the push while the state is lying. `casp check` **exits non-zero on drift**, so it works as a real CI status check, not a decorative log.
+
+---
+
+## 03 · Beside your existing stack
+
+CASP replaces nothing in your workflow. It fills the one gap nothing else covers — the **validated present tense** of a project, in a form your agent can read and act on.
+
+| Layer | Tool | What it holds | The gap |
+|---|---|---|---|
+| **Intent** | Jira · Linear | What you *plan* to do | Drifts from reality, lives in the cloud, your agent can't reliably read it. |
+| **Validated present** | **CASP** | Where the project **stands** now — and the **exact next move**, proven against git | *(this is the gap nothing else fills)* |
+| **History & verification** | git · PR · CI | What changed · is it reviewed · does it build | A perfect record of the past — silent about what comes next. |
+
+Git, PRs and CI don't know what ships next. CASP does.
+
+---
+
+## 04 · Three files. One thread.
+
+No database. No service. No vector store. Three plain files an agent can read on the first line of any session, scaffolded by `casp init` into `casp/`:
+
+| File | Role | What it holds |
+|---|---|---|
+| `state.json` | source of truth | Machine-readable, per project: current phase, next phase, the exact next-prompt to execute, phases shipped, migrations applied, last commit, last session id. |
+| `now.md` | for humans | The one-screen "where am I right now." Open it, get the thread back in five seconds — no archaeology. |
+| `roadmap.md` | what ships next | The Next-3 to ship plus a phase scoreboard. The agent always knows the order of work. |
+
+**Templates are gates, not guidance.** Canonical `session-prompt`, `session-log` and `audit-brief` templates mean every session — human or agent — produces the same-shaped artifacts. Structure is enforced, not suggested. Draft them with `casp new prompt|log` — don't copy-paste a prior one.
+
+---
+
+## 05 · Built for big roadmaps
+
+A real product isn't one feature. It's dozens of phases across API, web client and mobile, shipped over weeks by rotating sessions and agents. CASP keeps a single validated order across all of it — so any agent knows which phase is next, and **never re-ships a shipped one**.
+
+```
+roadmap.md — phase scoreboard            13 shipped ▰▰▰▰▱▱ 22 total
+
+  10  api     Realtime sync engine        shipped
+  11  mobile  Push notifications          shipped
+  12  mobile  Offline-first cache         shipped
+  13  web     Team permissions            shipped
+  14  web     Analytics dashboard ◂ NEXT  active
+  15  api     Per-seat billing            queued
+  16  mobile  Biometric login             queued
+```
+
+One ordered thread across forty phases — web *and* mobile.
+
+---
+
+## 06 · State, not memory
+
+CASP is **not** an AI memory layer. Memory tools remember **who you are**. CASP tracks **where your project stands** — and proves it. Different artifact, different operation, different failure it prevents.
+
+| | **CASP** | Memory layers · Mem0 / Letta / git-native "soul" |
+|---|---|---|
+| What it holds | **Project execution state** | User facts & preferences |
+| Core operation | **Validates against git** | Stores & recalls |
+| On conflict | **Deterministic check vs ground-truth** | Fuzzy similarity guess |
+| When it runs | **Synchronous gate — blocks the push** | Async / eventual recall |
+| Leaves your machine | **Never · zero telemetry** | Varies / cloud |
+
+---
+
+## 07 · The command deck
+
+Five verbs. Trivially typed — one syllable, no homographs, the same in English, French or Spanish.
+
+| Command | What it does |
+|---|---|
+| `casp init` | Scaffold the continuity layer (`casp/`) into any repo. Idempotent — re-running never overwrites existing files. |
+| `casp status` | One-screen snapshot: phase, next, what's shipped, last 10 commits. `--plain` strips ANSI. |
+| `casp check` | The drift validator. Validates `state.json` against the filesystem and git. **Exits 1 on drift.** `--quiet` only prints on FAIL (CI-friendly); `--no-git` skips git-dependent checks. |
+| `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. |
+| `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/`. |
+| `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/`. |
+
+---
+
+## 08 · In your editor
+
+CASP ships Claude Code slash-commands so the state lives where you already work. Drop them in once:
 
 ```bash
+cp -r node_modules/casp/skills/casp ~/.claude/skills/
+cp -r node_modules/casp/skills/next ~/.claude/skills/
+```
+
+| Command | What it does |
+|---|---|
+| `/casp` | Read-only status — the agent reads the current thread before it writes a single line. |
+| `/next` | Auto-start the next session straight from `state.next_prompt`. No copy-paste, no guessing. |
+
+Works with **Claude Code** · **Cursor** · **Aider** · **Continue** — anything that reads files. The CLI is the contract; the slash-commands are an optional convenience.
+
+---
+
+## 09 · For engineering orgs
+
+One agent doing the wrong thing costs an afternoon. A hundred agents doing it across a hundred repos costs a quarter. CASP is the deterministic guardrail you drop into the automation loop — the same shape in every project.
+
+- **A required CI status check.** `casp check` sits in the same slot as lint and tests. A state that lies can't merge — drift is blocked at the org level, not left to anyone's discipline.
+- **A guardrail for agent fleets.** Autonomous agents multiply mistakes. CASP hands every one of them the same validated thread to read and the same hard gate before it pushes. Automation without the duplicate-work tax.
+- **An audit trail, for free.** Every state transition is a git commit. A complete, diffable, revertable record of how each project moved — `git log` *is* your compliance trail.
+- **Passes infosec by design.** Local-only, zero telemetry, no cloud, no account. Nothing to vet, nothing to exfiltrate. The security review is one line: it never leaves the machine.
+
+```yaml
+# .github/workflows/ci.yml
+jobs:
+  state-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # casp checks against full git history
+      - run: npx casp check        # ✗ fails the build the moment state drifts
+```
+
+One protocol, every repo. **The same validated shape, org-wide.**
+
+---
+
+## 10 · The contract
+
+A protocol earns adoption by being predictable. These don't bend.
+
+1. **Validate state, not intent.** CASP checks what your repo *is*, never what you meant to do. Facts against git, every time.
+2. **Templates are gates.** Canonical artifacts are enforced, not suggested. Every session comes out the same shape.
+3. **`check` before every push.** The validator is not optional. A lying state never reaches your remote.
+4. **Nothing leaves your machine.** Deterministic, git-native, local-only. Zero telemetry. No cloud, no account, no bill.
+
+---
+
+## Quickstart
+
+```bash
+npm i -g casp
 cd my-project
-npx @justethales/cockpit init
+casp init                 # scaffold the layer
+casp status               # where am I right now
+casp check                # prove the state is true (exits 1 on drift)
 ```
 
-Creates:
+`casp init` creates:
 
 ```
-cockpit/
-├── state.json          # machine-readable session state
+casp/
+├── state.json          # machine-readable session state (the validator reads this)
 ├── now.md              # current focus (human-readable, one paragraph)
 ├── roadmap.md          # Next-3 to ship + phase scoreboard
-├── README.md           # the protocol for your project
+├── README.md           # the protocol, in your repo
 └── templates/
     ├── session-prompt.md
     ├── session-log.md
     └── audit-brief.md
 ```
 
-Edit `cockpit/now.md` and `cockpit/roadmap.md` to describe your project. Edit `cockpit/state.json` to set the initial `current_phase` / `next_phase` / `next_prompt`.
-
-Draft your first session prompt:
-
-```bash
-npx @justethales/cockpit new prompt --slug phase-1-first-slice
-# edit docs/plan/sessions/PHASE-1-FIRST-SLICE.md
-```
-
-**At session start**, the agent runs:
-
-```bash
-npx @justethales/cockpit status
-```
-
-…which prints the snapshot and tells the agent which prompt file to open.
-
-**At session close**, the agent runs (in order):
-
-```bash
-npx @justethales/cockpit new log --slug what-shipped       # write the log
-# (edit the log, the prompt's frontmatter, now.md, roadmap.md, state.json)
-npx @justethales/cockpit check                              # must hit 0 FAIL before push
-git add . && git commit && git push
-```
-
-That is the whole loop.
-
----
-
-## CLI reference
-
-| Command | What it does |
-|---|---|
-| `cockpit init` | Scaffold `cockpit/` in the current directory. Idempotent — re-running it never overwrites existing files. |
-| `cockpit status` | One-screen snapshot: package + branch + HEAD + current/next phase + next-prompt preview + last 10 commits + `now.md` focus + Next-3 from `roadmap.md`. `--plain` strips ANSI. |
-| `cockpit check` | Validates `state.json` against the filesystem and `git`. Exits 1 on any FAIL. `--quiet` only prints on FAIL (CI-friendly). `--no-git` skips git-dependent checks. |
-| `cockpit new prompt --slug X` | Copies the session-prompt template to `docs/plan/sessions/PHASE-<X>.md`. |
-| `cockpit new log --slug X` | Copies the session-log template to `session-logs/YY-MM-DD-NNN-<X>.md`. |
-| `cockpit --version` | Prints the installed version. |
-
-Four verbs. None does anything magical.
+Edit `casp/now.md`, `casp/roadmap.md` and `casp/state.json` to describe your project, draft your first session prompt with `casp new prompt --slug phase-1-first-slice`, and run `casp check` before every push. That is the whole loop.
 
 ---
 
 ## What the validator catches
 
 ```
-$ npx @justethales/cockpit check
+$ npx casp check
 
-cockpit:check · 22 PASS · 2 WARN · 1 FAIL
+casp:check · 22 PASS · 2 WARN · 1 FAIL
 ──────────────────────────────────────────────────────────────────────
-  PASS  state.json has 'next_prompt'
-  PASS  next_prompt file exists · docs/plan/sessions/PHASE-1-AUTH.md
-  FAIL  next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped — cockpit was not bumped after that session
-        → either (a) update state.json.next_prompt to the real next slice, or (b) re-execute the shipped prompt explicitly
+  FAIL  next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped
+        → either update state.json.next_prompt to the real next slice, or re-execute it explicitly
   WARN  last_commit is in history but not at HEAD · state=abc1234 HEAD=def5678
         → bump state.last_commit to def5678
   ...
 
-✗ 1 drift detected. Fix before push.
+✗ 1 drift detected. Push blocked — fix before push.
 ```
 
-Nine check categories, each with a one-line `→ fix` hint so the agent can resolve without re-reading docs:
+Eight check categories, each with a one-line `→ fix` hint so the agent can resolve without re-reading docs:
 
 1. `state.json.next_prompt` points at a missing file.
-2. `state.json.next_prompt` points at a prompt with `status: shipped`. *(The exact bug Cockpit was built to catch.)*
+2. `state.json.next_prompt` points at a prompt with `status: shipped`. *(The exact bug CASP was built to catch.)*
 3. `state.json.last_session_id` does not map to a session-log file.
 4. `state.json.last_commit` not in `git log`.
 5. `state.json.phases_shipped[]` has duplicates.
 6. `state.json.migrations_applied[]` does not match the migrations directory.
 7. A session prompt has `status: shipped` but `session_log: pending`.
-8. A shipped prompt's `session_log:` points at a missing file.
-9. Uncommitted changes in `cockpit/`, `docs/plan/sessions/`, or `session-logs/`.
+8. Uncommitted changes in `casp/`, `docs/plan/sessions/`, or `session-logs/`.
 
----
-
-## Works with your agent
-
-| Agent | Status | Notes |
-|---|---|---|
-| **Claude Code** | First-class | Ships `/cockpit` and `/next` slash-command skills. Drop into `~/.claude/skills/`. |
-| **Cursor** | Works | The CLI is just a CLI. Cursor agents can call it via terminal tools. |
-| **Aider** | Works | Run `cockpit status` / `cockpit check` as shell commands inside the chat. |
-| **Continue** | Works | Same: shell-command tool wraps the CLI. |
-| **Plain shell + your favourite model** | Works | Cockpit was designed before slash-commands existed. The CLI is the contract. |
-
-The discipline transfers to anything that drives a repo in a session loop. The Claude Code skills bundle is the only agent-specific piece, and it is optional.
-
----
-
-## Philosophy
-
-Three opinions baked into Cockpit. Take them or fork it.
-
-### 1. Templates are gates, not guidance.
-
-Every session produces three artifacts: the session prompt (drafted at the end of the *previous* session), the session log (written at the end of *this* session), and the audit brief (for the post-implementation auditor). All three have an implicit shape that prior projects had to discover by mirroring earlier files. Cockpit's templates make the shape explicit. When you draft a new prompt, run `cockpit new prompt --slug X`. Do not copy-paste a prior one.
-
-### 2. Validate state, not intent.
-
-The validator checks metadata: "does `state.json.next_prompt` point at a queued prompt, and does that prompt's frontmatter say `queued`?". It cannot check intent — whether your `now.md` paragraph accurately describes what was built. That is a humans-and-honest-self-review job. The post-implementation audit catches code-vs-spec drift. Nothing catches description-vs-reality drift. Acknowledge this. Do not over-engineer it.
-
-### 3. `cockpit check` is mandatory before push, no exceptions.
-
-The ~200 ms cost of the validator is negligible. The cost of drift surfacing at session-start the next day is real (10–30 minutes of confusion). Make the validator a `pre-push` gate (manually, via a hook, or via team discipline). The day you skip it is the day you ship a `state.json` that lies about what was done.
+The exit-code contract — clean → exit 0, drift → exit 1 — is covered by `npm test`, so the CI gate stays real.
 
 ---
 
 ## What this is NOT
 
-- **Not a task tracker.** Use Linear, Jira, GitHub Issues. Cockpit is about *which session ships next*, not *which issues are open*.
-- **Not a project management tool.** No timelines, no story points, no burndown charts.
-- **Not a CI tool.** It runs locally. You can wire it into CI as a pre-push check, but it does not replace your test runner.
-- **Not opinionated about your code.** Cockpit cares about session state. Your code can be Rust, Python, TypeScript, Go, anything.
-- **Not a replacement for `CLAUDE.md`.** `CLAUDE.md` is your project's constitution (rules, conventions, do/don't). Cockpit is the operating state on top of it.
-
----
-
-## Project structure conventions
-
-Cockpit assumes:
-
-```
-your-project/
-├── cockpit/                    # the cockpit
-│   ├── state.json
-│   ├── now.md
-│   ├── roadmap.md
-│   ├── README.md
-│   └── templates/
-├── docs/plan/sessions/         # session prompts
-│   ├── PHASE-1-AUTH.md
-│   ├── PHASE-2-PROFILE.md
-│   └── ...
-├── session-logs/               # session logs
-│   ├── 26-05-30-001-phase-1-auth.md
-│   ├── 26-05-30-002-phase-2-profile.md
-│   └── ...
-└── (your code)
-```
-
-Paths are currently hardcoded in the validator. Configurable paths are tracked for v0.2 if there is demand — open an issue if your project layout differs.
-
----
-
-## Real-world example
-
-Cockpit was extracted from the workflow that ships [ZeroSuite](https://thalesandhisaictoclaude.com) — six production products built solo with Claude as the only engineer:
-
-- [Déblo](https://deblo.ai) — AI tutor for African students, FastAPI + SvelteKit + React Native.
-- [sh0](https://sh0.dev) — voice-first commerce, Rust microservices.
-- [FLIN](https://flin.dev) — compiler tooling.
-- [0fee](https://0fee.dev) — fee aggregator, FastAPI + SolidJS.
-- [0cron](https://0cron.dev) — cron-as-a-service.
-- [0diff](https://0diff.dev) — diff visualisation.
-
-Each project has its own `cockpit/`. Every session ends with `pnpm cockpit:check` exiting 0. The validator has caught a real bug at least once a week — see the [introduction post](https://thalesandhisaictoclaude.com) for the story behind v0.1.
-
----
-
-## FAQ
-
-**Does this require Claude Code?**
-No. The CLI works standalone with any agent that runs shell commands. The `/cockpit` and `/next` slash-command skills are an optional bundle for Claude Code users.
-
-**Does this work for Cursor, Aider, Continue, or other AI coding agents?**
-Yes. The CLI is just a CLI. Any agent that can run shell commands and read files can use it.
-
-**What about Python, Rust, Go projects?**
-The CLI is Node-only (TypeScript via `tsx`). You can use it via `npx` without committing Node as a project dependency. A binary distribution is a one-day port — file an issue if you want it.
-
-**Can I customise the templates?**
-Yes. After `cockpit init`, the templates live in your project at `cockpit/templates/`. Edit them freely. `cockpit new prompt|log` copies from your project's templates first, falling back to the bundled defaults.
-
-**What if my project does not have phases?**
-Cockpit uses "phase" as a generic word for "unit of work that ships together." Map it to epic, milestone, sprint, or release — same machinery.
-
-**Is the cockpit data sent anywhere?**
-No. Zero network calls. Zero telemetry. Cockpit reads your filesystem and your `git`. Nothing leaves your machine.
-
-**Why "Cockpit"?**
-Before every flight, pilots run a pre-flight checklist from the cockpit panel. Same idea: a small, dense, mandatory check before every push.
-
-**Where do I report bugs or feature requests?**
-[github.com/ThalesGnimavo/cockpit-skill/issues](https://github.com/ThalesGnimavo/cockpit-skill/issues)
-
-**How do I cite this in a blog post or paper?**
-`Gnimavo, J. (2026). Cockpit: state management for AI coding sessions. https://github.com/ThalesGnimavo/cockpit-skill`
+- **Not a task tracker.** Use Linear, Jira, GitHub Issues. CASP is about *which session ships next*, not *which issues are open*.
+- **Not an AI memory / RAG layer.** It validates project state against git; it doesn't store user facts or do similarity recall.
+- **Not a CI tool.** It runs locally. You can wire `casp check` into CI as a pre-push gate, but it doesn't replace your test runner.
+- **Not opinionated about your code.** Rust, Python, TypeScript, Go — CASP cares about session state, not your stack.
+- **Not a replacement for `CLAUDE.md`.** That's your project's constitution (rules, conventions). CASP is the operating state on top of it.
 
 ---
 
 ## Roadmap
 
-- **0.2** — Configurable paths (move `docs/plan/sessions/`, `session-logs/`, `drizzle/` per project).
-- **0.3** — Native binaries for Python / Rust / Go shops that do not want Node.
-- **0.4** — `cockpit rollback` for un-shipping a phase that turned out broken in production.
-- **0.5** — Optional pre-push git hook installer (`cockpit install-hook`).
-- **Long-term** — `cockpit lint` for prose-vs-reality checks via local LLM.
+- **0.3** — Configurable paths (move `docs/plan/sessions/`, `session-logs/`, `<migrations_dir>/` per project).
+- **0.4** — Native binaries for Python / Rust / Go shops that don't want Node.
+- **0.5** — `casp rollback` for un-shipping a phase that turned out broken in production.
+- **0.6** — Optional pre-push git hook installer (`casp install-hook`).
+- **Long-term** — `casp lint` for prose-vs-reality checks via local LLM.
 
-Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGnimavo/cockpit-skill/issues).
+Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGnimavo/casp/issues).
+
+---
+
+## FAQ
+
+**Does this require Claude Code?** No. The CLI works standalone with any agent that runs shell commands. The `/casp` and `/next` slash-commands are an optional bundle for Claude Code users.
+
+**Is CASP an AI memory product?** No — that's the wedge. Memory tools (Mem0, Letta, Zep) *store and recall*. CASP *validates project execution state against git* and blocks the push on drift. Different artifact, different operation.
+
+**Does it work for Cursor, Aider, Continue?** Yes. The CLI is just a CLI; any agent that runs shell commands and reads files can use it.
+
+**What about Python, Rust, Go projects?** The CLI is Node-only (TypeScript via `tsx`). Use it via `npx` without committing Node as a project dependency. A binary distribution is on the roadmap.
+
+**Is any data sent anywhere?** No. Zero network calls. Zero telemetry. CASP reads your filesystem and your `git`. Nothing leaves your machine.
+
+**Why "CASP"?** **C**oding-**A**gent **S**tate **P**rotocol — the name says exactly what the artifact is. An earlier name for this tool collided with a well-known Red Hat project of the same name; CASP relaunches it as a *protocol*, the way MCP did for model context.
+
+**Where do I report bugs or request features?** [github.com/ThalesGnimavo/casp/issues](https://github.com/ThalesGnimavo/casp/issues)
 
 ---
 
@@ -322,8 +287,8 @@ Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGn
 
 MIT. Use it, fork it, ship it.
 
-If Cockpit saves you 30 minutes a week, that is enough payback. If you want to say thanks: star the [GitHub repo](https://github.com/ThalesGnimavo/cockpit-skill), share the [blog post](https://thalesandhisaictoclaude.com), or [say hi on X](https://x.com/ThalesGnimavo).
+If CASP saves you 30 minutes a week, that's enough payback. If you want to say thanks: star the [GitHub repo](https://github.com/ThalesGnimavo/casp), or [say hi on X](https://x.com/ThalesGnimavo).
 
 ---
 
-*Cockpit is a small CLI. Most of the value is in the discipline it forces, not in the lines of code. Read the [blog post](https://thalesandhisaictoclaude.com) for the full story behind the pattern.*
+*CASP — the Coding-Agent State Protocol. The protocol that refuses to let your state lie.*

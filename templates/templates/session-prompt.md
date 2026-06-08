@@ -77,7 +77,7 @@ Concrete smoke checks — each one a verb + expected envelope.
 - **<Invariant 1>.** `<concrete test>` → `<expected envelope>`.
 - **<Invariant 2>.** Same shape.
 - **<No regression>.** List the surfaces this session must not break.
-- **`npx cockpit check`** 0 FAIL before push.
+- **`npx casp check`** 0 FAIL before push.
 
 ---
 
@@ -100,10 +100,10 @@ Anti-patterns + scope creep guards.
    ```
    feat(<phase>): <one-line — what shipped>
    ```
-5. **Post-implementation audit** (REQUIRED for : multi-tenancy on a new entity / schema / auth / billing / voice ; SKIP for pure UI / doc-only / trivial). Use `cockpit/templates/audit-brief.md`. Apply findings inline.
-6. Write **`session-logs/YY-MM-DD-NNN-<slug>.md`** : `npx cockpit new log --slug <slug>`, then fill.
-7. **Draft next session's prompt** : `npx cockpit new prompt --slug <next-slug>`, then fill.
-8. **`npx cockpit check`** — must exit 0 FAIL. Fix any drift inline.
+5. **Post-implementation audit** (REQUIRED for : multi-tenancy on a new entity / schema / auth / billing / voice ; SKIP for pure UI / doc-only / trivial). Use `casp/templates/audit-brief.md`. Apply findings inline.
+6. Write **`session-logs/YY-MM-DD-NNN-<slug>.md`** : `npx casp new log --slug <slug>`, then fill.
+7. **Draft next session's prompt** : `npx casp new prompt --slug <next-slug>`, then fill.
+8. **`npx casp check`** — must exit 0 FAIL. Fix any drift inline.
 9. `git push`.
 
 ---
@@ -111,11 +111,11 @@ Anti-patterns + scope creep guards.
 ## EXPECTED OUTPUT
 
 - **New files :** `<path>` + the next-session prompt.
-- **Updated :** `<path>` + `cockpit/state.json` + `cockpit/now.md` + `cockpit/roadmap.md`.
+- **Updated :** `<path>` + `casp/state.json` + `casp/now.md` + `casp/roadmap.md`.
 - **Commit count :** `<N>`.
 - **Migration count :** `<N>`.
 - **Session log :** one written.
 
 ---
 
-*Self-contained. A fresh agent reads this prompt + the reference files + the closest analogue, ships every MUST first, the SHOULDs if time, defers the rest with explicit rationale, writes the log, drafts the next prompt, commits + pushes after `npx cockpit check` is green. No regression on prior phases.*
+*Self-contained. A fresh agent reads this prompt + the reference files + the closest analogue, ships every MUST first, the SHOULDs if time, defers the rest with explicit rationale, writes the log, drafts the next prompt, commits + pushes after `npx casp check` is green. No regression on prior phases.*

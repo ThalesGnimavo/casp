@@ -1,19 +1,25 @@
 {
-  "name": "@justethales/cockpit",
-  "version": "0.1.2",
-  "description": "Cockpit keeps AI coding sessions coherent across days. State validator + drift detector + canonical templates for Claude Code, Cursor, Aider. MIT, zero telemetry.",
+  "name": "casp",
+  "version": "0.2.0",
+  "description": "CASP — the Coding-Agent State Protocol. The protocol that refuses to let your state lie: a git-native, local-only state file every AI coding agent can read, plus a validator that blocks the push the moment your project drifts. Validates state against git — it doesn't just store it. Works with Claude Code, Cursor, Aider. MIT, zero telemetry.",
   "type": "module",
   "license": "MIT",
   "author": "Thales (Juste Gnimavo) — ZeroSuite",
-  "homepage": "https://github.com/ThalesGnimavo/cockpit-skill#readme",
+  "homepage": "https://casp.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ThalesGnimavo/cockpit-skill.git"
+    "url": "git+https://github.com/ThalesGnimavo/casp.git"
   },
   "bugs": {
-    "url": "https://github.com/ThalesGnimavo/cockpit-skill/issues"
+    "url": "https://github.com/ThalesGnimavo/casp/issues"
   },
   "keywords": [
+    "casp",
+    "protocol",
+    "coding-agent",
+    "agent-state",
+    "state-validation",
+    "drift-detection",
     "ai",
     "claude",
     "claude-code",
@@ -29,26 +35,25 @@
     "agentic-workflow",
     "ai-workflow",
     "ai-pair-programming",
-    "session",
     "session-state",
     "session-management",
     "context-management",
-    "drift-detection",
     "developer-experience",
     "dx",
     "cli",
-    "cockpit",
     "ai-cto",
     "vibe-coding"
   ],
   "main": "dist/cli.js",
   "bin": {
-    "cockpit": "dist/cli.js"
+    "casp": "dist/cli.js"
   },
   "scripts": {
-    "cockpit": "tsx src/cli.ts",
+    "casp": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
     "smoke": "tsx src/cli.ts --version",
+    "pretest": "npm run build",
+    "test": "node --test",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

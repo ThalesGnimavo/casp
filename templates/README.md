@@ -1,32 +1,33 @@
-# Cockpit
+# CASP — project state
 
-> **Scaffolded** : {{TODAY}} via `npx cockpit init`.
-> **Source** : `@justethales/cockpit` — https://github.com/ThalesGnimavo/cockpit-skill
+> **Scaffolded** : {{TODAY}} via `npx casp init`.
+> **Source** : `casp` (the Coding-Agent State Protocol) — https://github.com/ThalesGnimavo/casp
 > **License** : MIT.
 
-This directory is the **single source of short-term truth** for this project's AI-driven engineering sessions. It costs ~3-5 k tokens to load, far less than re-reading the codebase.
+This directory is the **single source of short-term truth** for this project's AI-driven engineering sessions — the validated present tense your agent reads on the first line of any session. It costs ~3-5 k tokens to load, far less than re-reading the codebase.
 
 ---
 
 ## What this is
 
-Six state files + three CLI tools + three canonical templates + an explicit session-start / session-end protocol so any fresh agent session can answer "where am I?" in one screen, leave the cockpit in a coherent state on close, and have a machine-verifiable gate to catch drift before push.
+The whole protocol fits in your repo: state files + a CLI + canonical templates + an explicit session-start / session-end protocol, so any fresh agent session can answer "where am I?" in one screen, leave the state coherent on close, and have a machine-verifiable gate that catches drift before push.
 
 ### State files
 
 - [now.md](now.md) — current focus (1 sentence), next action by time budget, don't-get-distracted list, active constraints. **Update at every session close.**
 - [roadmap.md](roadmap.md) — Next 3 to ship, in-flight, blocked, queued, shipped-this-week, phase scoreboard.
-- [state.json](state.json) — machine-readable single-line state. The validator (`npx cockpit check`) reads it.
+- [state.json](state.json) — machine-readable single-line state. The validator (`npx casp check`) reads it.
 - [templates/](templates/) — canonical scaffolds for the three artifacts every session produces.
 
-### CLI tools
+### CLI
 
 | Command | What it does | When to run |
 |---|---|---|
-| `npx cockpit status` | Read-only one-screen snapshot. | Session start. |
-| `npx cockpit check` | Validator. Exits 1 on drift. | **Mandatory before `git push`** when the cockpit was bumped. |
-| `npx cockpit new prompt --slug X` | Scaffold a session prompt from template. | Session close (draft next session's prompt). |
-| `npx cockpit new log --slug X` | Scaffold a session log from template. | Session close. |
+| `npx casp status` | Read-only one-screen snapshot. | Session start. |
+| `npx casp next` | Print the next session's prompt from `state.next_prompt`. | Session start. |
+| `npx casp check` | The drift validator. Validates state against git — **exits 1 on drift**. | **Mandatory before `git push`** when the state was bumped. |
+| `npx casp new prompt --slug X` | Scaffold a session prompt from template. | Session close (draft next session's prompt). |
+| `npx casp new log --slug X` | Scaffold a session log from template. | Session close. |
 
 ### Templates
 
@@ -41,12 +42,13 @@ Six state files + three CLI tools + three canonical templates + an explicit sess
 ## Session-start protocol
 
 ```bash
-npx cockpit status
+npx casp status      # the snapshot
+npx casp next        # the canonical next-session prompt
 ```
 
-That covers the snapshot. Then `cat <next_prompt path>` and begin executing. Don't pause to confirm scope ; the prompt IS the scope.
+Then begin executing. Don't pause to confirm scope ; the prompt IS the scope.
 
-If `npx cockpit check` returns FAIL at session start, **STOP and reconcile.** A failed cockpit means the previous session didn't close cleanly.
+If `npx casp check` exits non-zero at session start, **STOP and reconcile.** A failed check means the previous session didn't close cleanly.
 
 ---
 
@@ -54,14 +56,14 @@ If `npx cockpit check` returns FAIL at session start, **STOP and reconcile.** A 
 
 In order. The order matters because the validator depends on prior steps :
 
-1. **Write the session log** — `npx cockpit new log --slug X` then fill in.
+1. **Write the session log** — `npx casp new log --slug X` then fill in.
 2. **Flip this session's prompt frontmatter** — `status: queued → shipped`, `session_id:` filled, `session_log:` pointing at step 1's file.
 3. **Bump parent prompt's `progress:` block** if this was a sub-slice.
-4. **Draft the next session's prompt** — `npx cockpit new prompt --slug Y` then fill in.
-5. **`cockpit/now.md`** — overwrite the three blocks. Update the "Updated" line.
-6. **`cockpit/roadmap.md`** — move shipped item to "Shipped this week" ; promote queued ; update Phase scoreboard.
-7. **`cockpit/state.json`** — bump `last_session_id`, `last_commit`, `current_phase`, `next_phase`, `next_prompt`, append to `phases_shipped[]`, append to `migrations_applied[]` if a migration ran.
-8. **`npx cockpit check`** — must exit 0 (0 FAIL).
+4. **Draft the next session's prompt** — `npx casp new prompt --slug Y` then fill in.
+5. **`casp/now.md`** — overwrite the three blocks. Update the "Updated" line.
+6. **`casp/roadmap.md`** — move shipped item to "Shipped this week" ; promote queued ; update Phase scoreboard.
+7. **`casp/state.json`** — bump `last_session_id`, `last_commit`, `current_phase`, `next_phase`, `next_prompt`, append to `phases_shipped[]`, append to `migrations_applied[]` if a migration ran.
+8. **`npx casp check`** — must exit 0 (0 FAIL).
 9. **`git add` + `git commit` + `git push`**.
 
 ---
@@ -71,27 +73,27 @@ In order. The order matters because the validator depends on prior steps :
 Real drift, in order of severity :
 
 1. **`state.json.next_prompt` points at a missing file.**
-2. **`state.json.next_prompt` points at a `shipped` prompt.** Cockpit was never bumped after the previous session.
+2. **`state.json.next_prompt` points at a `shipped` prompt.** State was never bumped after the previous session.
 3. **`state.json.last_session_id` does not map to a session-log file.**
 4. **`state.json.last_commit` not found in `git log`.**
 5. **`state.json.phases_shipped[]` has duplicates.**
 6. **`state.json.migrations_applied[]` does not match `<migrations_dir>/*.sql`.**
 7. **A session prompt has `status: shipped` but no `session_log:` pointer.**
-8. **Uncommitted changes in `cockpit/` / `docs/plan/sessions/` / `session-logs/`.**
+8. **Uncommitted changes in `casp/` / `docs/plan/sessions/` / `session-logs/`.**
 
 Each failure prints a `→ fix` hint so the next session can resolve without re-reading this README.
 
 ---
 
-## When NOT to use the cockpit
+## When NOT to use the protocol
 
 - Trivial fix (typo, dead import, one-line bug). Just do it.
 - A question scoped to a file you already know.
-- Executing a prompt that's explicitly in Next-3 and `cockpit status` shows no drift.
+- Executing a prompt that's explicitly in Next-3 and `casp status` shows no drift.
 
 ---
 
-## Failure modes the cockpit cannot fix
+## Failure modes the protocol cannot fix
 
 - A session that lies in `now.md` about what was built. The validator reads metadata, not intent.
 - A prompt frontmatter that says `status: queued` but the body describes shipped work.
@@ -102,6 +104,6 @@ For each : prevention beats detection. Templates + protocol + validator are the 
 
 ## Learn more
 
-- Source : https://github.com/ThalesGnimavo/cockpit-skill
-- Blog post : https://thalesandhisaictoclaude.com
-- Issues / feedback : https://github.com/ThalesGnimavo/cockpit-skill/issues
+- Source : https://github.com/ThalesGnimavo/casp
+- Docs : https://casp.dev
+- Issues / feedback : https://github.com/ThalesGnimavo/casp/issues

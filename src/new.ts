@@ -1,5 +1,5 @@
 /**
- * `cockpit new prompt|log --slug <kebab-id>` — copy a template, interpolate.
+ * `casp new prompt|log --slug <kebab-id>` — copy a template, interpolate.
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 // Sub-templates (session-prompt, session-log, audit-brief) live at
 // templates/templates/ — the same path they end up at inside the user's
-// scaffolded cockpit/. Init copies the whole tree ; `new` reads from the
+// scaffolded casp/. Init copies the whole tree ; `new` reads from the
 // nested sub-dir only.
 const TEMPLATES = join(__dirname, '..', 'templates', 'templates');
 
@@ -41,7 +41,7 @@ export function runNew(args: string[]): void {
   const [kind, ...rest] = args;
   if (kind !== 'prompt' && kind !== 'log') {
     console.error(c.red(`unknown new kind: ${kind}`));
-    console.error(c.gray('  → use `cockpit new prompt --slug X` or `cockpit new log --slug X`'));
+    console.error(c.gray('  → use `casp new prompt --slug X` or `casp new log --slug X`'));
     exit(1);
   }
   const slug = getArg(rest, '--slug');
@@ -75,7 +75,7 @@ export function runNew(args: string[]): void {
     console.log(`${c.green('write')}   ${relative(root, dest)}`);
     console.log('');
     console.log(c.gray('next: edit the prompt to fill the <placeholders>'));
-    console.log(c.gray('      then update cockpit/state.json next_prompt to point at this file'));
+    console.log(c.gray('      then update casp/state.json next_prompt to point at this file'));
     return;
   }
 
@@ -99,7 +99,7 @@ export function runNew(args: string[]): void {
     console.log(`${c.green('write')}   ${relative(root, dest)}`);
     console.log('');
     console.log(c.gray(`session id: ${yymmdd}-${nnn}-${slug}`));
-    console.log(c.gray('next: edit the log, then update cockpit/state.json last_session_id'));
+    console.log(c.gray('next: edit the log, then update casp/state.json last_session_id'));
     return;
   }
 }

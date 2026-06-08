@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-06-08
+
+- **BREAKING — renamed Cockpit → CASP (Coding-Agent State Protocol).** The name "Cockpit" collided head-on with Red Hat Cockpit (cockpit-project.org); CASP relaunches the tool as a *protocol*, positioned the way MCP positioned itself.
+- **npm package renamed `@justethales/cockpit` → `casp`** (bare, unscoped). Install is now `npm i -g casp`. The old package is unpublished/frozen; existing installs must reinstall under the new name.
+- **CLI binary renamed `cockpit` → `casp`.** All verbs keep their names: `casp init | status | check | next | new prompt | new log`.
+- **Slash-command `/cockpit` → `/casp`** (read-only status). `/next` is unchanged. The skills bundle directory moved `skills/cockpit/` → `skills/casp/`.
+- **Scaffolded directory renamed `cockpit/` → `casp/`.** `casp init` now writes `casp/state.json`, `casp/now.md`, `casp/roadmap.md`, `casp/README.md`. Projects on the old layout should `git mv cockpit casp` once.
+- **New verb `casp next`** — prints the next session's prompt straight from `state.next_prompt` (the CLI analogue of `/next`), pipe-friendly and non-zero when there is no actionable prompt.
+- **`casp check` exit-code contract is now tested** (`npm test`): clean state → exit 0, drifted state → exit 1. The CI status check is real, not decorative.
+- Repository moved to `github.com/ThalesGnimavo/casp`; homepage is `https://casp.dev`. Positioning, README and `package.json` description now lead with drift-detection / state-validation ("validates state against git — doesn't just store it"), not "memory".
+
 ## 0.1.2 — 2026-06-04
 
 - **Docs only.** No code or CLI behavior change. Existing installs at 0.1.1 keep working unchanged.

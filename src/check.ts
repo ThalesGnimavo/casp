@@ -1,7 +1,10 @@
 /**
- * `cockpit check` — validate state.json against filesystem + git + prompt frontmatter.
+ * `casp check` — validate state.json against filesystem + git + prompt frontmatter.
  *
- * Exit code 1 on any FAIL. Use --quiet to suppress PASS lines (CI-friendly).
+ * The wedge of the whole protocol: everyone STORES state, CASP VALIDATES it
+ * against git ground-truth. Exits 1 on any FAIL so it works as a real CI status
+ * check / pre-push gate — not a decorative log. Use --quiet to suppress PASS
+ * lines (CI-friendly).
  */
 
 import { existsSync, readdirSync, statSync } from 'node:fs';
@@ -10,7 +13,7 @@ import { exit } from 'node:process';
 import { c, git, loadState, readFrontmatter } from './shared.js';
 
 const ROOT = process.cwd();
-const STATE_PATH = join(ROOT, 'cockpit', 'state.json');
+const STATE_PATH = join(ROOT, 'casp', 'state.json');
 const SESSIONS_DIR = join(ROOT, 'docs', 'plan', 'sessions');
 const LOGS_DIR = join(ROOT, 'session-logs');
 
@@ -39,13 +42,13 @@ export function runCheck(args: string[]): void {
   }
 
   if (!existsSync(STATE_PATH)) {
-    console.error(c.red('FAIL') + ` no cockpit/state.json found at ${STATE_PATH}`);
-    console.error(c.gray('       → run `npx cockpit init` first'));
+    console.error(c.red('FAIL') + ` no casp/state.json found at ${STATE_PATH}`);
+    console.error(c.gray('       → run `npx casp init` first'));
     exit(1);
   }
   const state = loadState(STATE_PATH);
   if (!state) {
-    console.error(c.red('FAIL') + ' cockpit/state.json is not valid JSON');
+    console.error(c.red('FAIL') + ' casp/state.json is not valid JSON');
     exit(1);
   }
 
@@ -67,7 +70,7 @@ export function runCheck(args: string[]): void {
         'fail',
         'state.json missing required key',
         `key '${key}' is missing`,
-        `add "${key}": <value> to cockpit/state.json`
+        `add "${key}": <value> to casp/state.json`
       );
     } else {
       record(`state.shape.${key}`, 'pass', `state.json has '${key}'`, '');
@@ -84,7 +87,7 @@ export function runCheck(args: string[]): void {
         'fail',
         'state.json.next_prompt points at a missing file',
         `${state.next_prompt} does not exist`,
-        `draft the prompt at that path (try \`npx cockpit new prompt --slug <slug>\`) OR fix state.json.next_prompt`
+        `draft the prompt at that path (try \`npx casp new prompt --slug <slug>\`) OR fix state.json.next_prompt`
       );
     } else {
       record(
@@ -110,7 +113,7 @@ export function runCheck(args: string[]): void {
             'next_prompt.status',
             'fail',
             'next_prompt is already SHIPPED',
-            `${state.next_prompt} has status: shipped — cockpit was not bumped after that session`,
+            `${state.next_prompt} has status: shipped — casp was not bumped after that session`,
             `either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly`
           );
         } else if (status === 'queued' || status === 'in-progress') {
@@ -150,7 +153,7 @@ export function runCheck(args: string[]): void {
         'fail',
         'last_session_id does not map to a session log',
         `expected session-logs/${state.last_session_id}.md`,
-        `write the session log (try \`npx cockpit new log --slug <slug>\`) OR fix last_session_id`
+        `write the session log (try \`npx casp new log --slug <slug>\`) OR fix last_session_id`
       );
     }
   }
@@ -179,7 +182,7 @@ export function runCheck(args: string[]): void {
           'warn',
           'last_commit is in history but not at HEAD',
           `state=${state.last_commit} HEAD=${head}`,
-          `if the new commits are uncockpitted work, bump state.last_commit to ${head}`
+          `if the new commits are out-of-band work, bump state.last_commit to ${head}`
         );
       } else {
         record(
@@ -334,15 +337,15 @@ export function runCheck(args: string[]): void {
     }
   }
 
-  /* 8. Working tree clean for cockpit + sessions + logs ----------------- */
+  /* 8. Working tree clean for casp + sessions + logs -------------------- */
 
   if (!noGit) {
-    const dirty = git('status --porcelain cockpit docs/plan/sessions session-logs');
+    const dirty = git('status --porcelain casp docs/plan/sessions session-logs');
     if (dirty) {
       record(
         'workdir.clean',
         'warn',
-        'cockpit / sessions / logs have uncommitted changes',
+        'casp / sessions / logs have uncommitted changes',
         dirty.split('\n').slice(0, 5).join(' · '),
         'commit + push before the session closes'
       );
@@ -350,7 +353,7 @@ export function runCheck(args: string[]): void {
       record(
         'workdir.clean',
         'pass',
-        'cockpit + sessions + logs are committed',
+        'casp + sessions + logs are committed',
         ''
       );
     }
@@ -363,7 +366,7 @@ export function runCheck(args: string[]): void {
   const fail = findings.filter((f) => f.severity === 'fail').length;
 
   if (!quiet || fail > 0) {
-    const head = `${c.bold('cockpit:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
+    const head = `${c.bold('casp:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
     console.log('');
     console.log(head);
     console.log(c.gray('─'.repeat(70)));
@@ -384,12 +387,12 @@ export function runCheck(args: string[]): void {
     console.log('');
     if (fail > 0) {
       console.log(
-        c.red(`✗ ${fail} drift${fail > 1 ? 's' : ''} detected. Fix before push.`)
+        c.red(`✗ ${fail} drift${fail > 1 ? 's' : ''} detected. Push blocked — fix before push.`)
       );
     } else if (warn > 0) {
       console.log(c.yellow(`⚠ ${warn} warning${warn > 1 ? 's' : ''} (not blocking).`));
     } else {
-      console.log(c.green('✓ cockpit is coherent. Push when ready.'));
+      console.log(c.green('✓ state in sync with git. Clear for push.'));
     }
     console.log('');
   }

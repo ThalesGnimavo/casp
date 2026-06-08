@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
- * cockpit — a 200-line discipline for AI-coding sessions.
+ * casp — the Coding-Agent State Protocol.
  *
- * https://github.com/ThalesGnimavo/cockpit-skill
+ * A git-native, local-only state file every AI coding agent can read, plus a
+ * validator that blocks the push the moment your project drifts.
+ *
+ * https://github.com/ThalesGnimavo/casp
  * MIT License.
  */
 
@@ -11,20 +14,26 @@ import { runInit } from './init.js';
 import { runCheck } from './check.js';
 import { runStatus } from './status.js';
 import { runNew } from './new.js';
+import { runNext } from './next.js';
 
-const VERSION = '0.1.2';
+const VERSION = '0.2.0';
 
 const HELP = `
-cockpit ${VERSION} — a 200-line discipline for AI-coding sessions
+casp ${VERSION} — the Coding-Agent State Protocol
+
+The protocol that refuses to let your state lie: a git-native, local-only state
+file every AI coding agent can read, plus a validator that blocks the push the
+moment your project drifts.
 
 USAGE
-  cockpit <command> [options]
+  casp <command> [options]
 
 COMMANDS
-  init                          Scaffold cockpit/ in the current directory
+  init                          Scaffold the casp/ continuity layer in this repo
   status                        Print one-screen snapshot (use --plain for no color)
-  check                         Validate state.json against filesystem + git
-  check --quiet                 Same, suppress output unless FAIL
+  check                         Validate state.json against git — exits 1 on drift
+  check --quiet                 Same, suppress output unless FAIL (CI-friendly)
+  next                          Print the next session's prompt from state.next_prompt
   new prompt --slug <kebab-id>  Copy session-prompt template to docs/plan/sessions/
   new log --slug <kebab-id>     Copy session-log template to session-logs/
 
@@ -33,14 +42,15 @@ GLOBAL
   -V, --version                 Print version
 
 EXAMPLES
-  cockpit init                  # in a fresh repo
-  cockpit status                # at session start
-  cockpit check                 # before git push
-  cockpit new prompt --slug phase-2-auth-flow
+  casp init                     # in a fresh repo
+  casp status                   # at session start
+  casp check                    # before git push — mandatory, blocks on drift
+  casp next                     # surface the exact next move
+  casp new prompt --slug phase-2-auth-flow
 
 LEARN MORE
-  https://github.com/ThalesGnimavo/cockpit-skill
-  https://thalesandhisaictoclaude.com
+  https://casp.dev
+  https://github.com/ThalesGnimavo/casp
 `;
 
 function main(): void {
@@ -66,6 +76,9 @@ function main(): void {
       break;
     case 'check':
       runCheck(rest);
+      break;
+    case 'next':
+      runNext(rest);
       break;
     case 'new':
       runNew(rest);

@@ -60,5 +60,5 @@ If you reach for anything BELOW Next-3, stop and check why.
 
 | Phase | Status | Session log | Notes |
 |-------|--------|-------------|-------|
-| Phase 0 — Init | shipped | — | Cockpit scaffolded |
+| Phase 0 — Init | shipped | — | CASP state scaffolded |
 | Phase 1 — First slice | queued | _(pending)_ | First real piece of work |

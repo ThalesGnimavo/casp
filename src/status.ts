@@ -1,5 +1,5 @@
 /**
- * `cockpit status` — read-only one-screen snapshot.
+ * `casp status` — read-only one-screen snapshot.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -7,9 +7,9 @@ import { join } from 'node:path';
 import { c, git, loadState, readFrontmatter, setColor } from './shared.js';
 
 const ROOT = process.cwd();
-const STATE = join(ROOT, 'cockpit', 'state.json');
-const NOW = join(ROOT, 'cockpit', 'now.md');
-const ROADMAP = join(ROOT, 'cockpit', 'roadmap.md');
+const STATE = join(ROOT, 'casp', 'state.json');
+const NOW = join(ROOT, 'casp', 'now.md');
+const ROADMAP = join(ROOT, 'casp', 'roadmap.md');
 
 function section(label: string, body: string): void {
   console.log('');
@@ -22,13 +22,13 @@ export function runStatus(args: string[]): void {
   if (args.includes('--plain')) setColor(false);
 
   if (!existsSync(STATE)) {
-    console.error(c.red('no cockpit/state.json found'));
-    console.error(c.gray('  → run `npx cockpit init` first'));
+    console.error(c.red('no casp/state.json found'));
+    console.error(c.gray('  → run `npx casp init` first'));
     process.exit(1);
   }
   const state = loadState(STATE);
   if (!state) {
-    console.error(c.red('cockpit/state.json is not valid JSON'));
+    console.error(c.red('casp/state.json is not valid JSON'));
     process.exit(1);
   }
 
@@ -38,7 +38,7 @@ export function runStatus(args: string[]): void {
   const ahead = git('rev-list --count @{u}..HEAD').trim();
   const log10 = git('log --oneline -10');
 
-  let pkgName = 'cockpit-managed-project';
+  let pkgName = 'casp-managed-project';
   let pkgVersion = '';
   const pkgPath = join(ROOT, 'package.json');
   if (existsSync(pkgPath)) {
@@ -153,7 +153,7 @@ export function runStatus(args: string[]): void {
 
   console.log('');
   console.log(
-    c.gray('run `npx cockpit check` to validate, `npx cockpit status` to refresh')
+    c.gray('run `npx casp check` to validate, `npx casp status` to refresh')
   );
   console.log('');
 }
