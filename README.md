@@ -2,13 +2,13 @@
 
 > **The protocol that refuses to let your state lie.** A tiny, git-native, local-only state file every AI coding agent can read — plus a validator that **blocks the push the moment your project drifts**. Everyone *stores* context; CASP **validates** it against git. MIT, zero telemetry, no SaaS.
 
-[![npm version](https://img.shields.io/npm/v/casp.svg)](https://www.npmjs.com/package/casp)
-[![npm downloads](https://img.shields.io/npm/dm/casp.svg)](https://www.npmjs.com/package/casp)
-[![license](https://img.shields.io/npm/l/casp.svg)](https://github.com/ThalesGnimavo/casp/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
+[![npm downloads](https://img.shields.io/npm/dm/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
+[![license](https://img.shields.io/npm/l/@justethales/casp.svg)](https://github.com/ThalesGnimavo/casp/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/ThalesGnimavo/casp?style=social)](https://github.com/ThalesGnimavo/casp)
 
 ```bash
-npm i -g casp        # or: npx casp <command>
+npm i -g @justethales/casp        # or: npx @justethales/casp <command>
 casp init            # scaffold the casp/ layer in any repo
 casp status          # one-screen "where am I"
 casp check           # validate the state against git — exits 1 on drift
@@ -136,8 +136,8 @@ Five verbs. Trivially typed — one syllable, no homographs, the same in English
 CASP ships Claude Code slash-commands so the state lives where you already work. Drop them in once:
 
 ```bash
-cp -r node_modules/casp/skills/casp ~/.claude/skills/
-cp -r node_modules/casp/skills/next ~/.claude/skills/
+cp -r node_modules/@justethales/casp/skills/casp ~/.claude/skills/
+cp -r node_modules/@justethales/casp/skills/next ~/.claude/skills/
 ```
 
 | Command | What it does |
@@ -166,7 +166,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }   # casp checks against full git history
-      - run: npx casp check        # ✗ fails the build the moment state drifts
+      - run: npx @justethales/casp check        # ✗ fails the build the moment state drifts
 ```
 
 One protocol, every repo. **The same validated shape, org-wide.**
@@ -187,7 +187,7 @@ A protocol earns adoption by being predictable. These don't bend.
 ## Quickstart
 
 ```bash
-npm i -g casp
+npm i -g @justethales/casp
 cd my-project
 casp init                 # scaffold the layer
 casp status               # where am I right now
@@ -215,7 +215,7 @@ Edit `casp/now.md`, `casp/roadmap.md` and `casp/state.json` to describe your pro
 ## What the validator catches
 
 ```
-$ npx casp check
+$ npx @justethales/casp check
 
 casp:check · 22 PASS · 2 WARN · 1 FAIL
 ──────────────────────────────────────────────────────────────────────

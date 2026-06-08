@@ -43,13 +43,13 @@ These items are NOT on the Next-3 (still or newly) :
 - TODO — date-bound constraints (launch deadlines, freezes, SLAs).
 - TODO — environment constraints (envs missing, pending deploys).
 - TODO — discipline constraints (rules that apply across all sessions).
-- TODO — `npx casp check` is mandatory before push when the casp state was bumped.
+- TODO — `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 
 ---
 
 ## How to use this file
 
-- **Start of session** : `npx casp status` reads this + state.json + the next-prompt preview + last 10 commits in one command.
+- **Start of session** : `npx @justethales/casp status` reads this + state.json + the next-prompt preview + last 10 commits in one command.
 - **End of session** : overwrite the three blocks (focus, next-actions-by-budget, don't-get-distracted). No paragraphs, no narrative — mirror the shape of this file.
-- **Before push** : `npx casp check` exits 0. If FAIL, fix inline.
+- **Before push** : `npx @justethales/casp check` exits 0. If FAIL, fix inline.
 - **When "don't get distracted" feels limiting** : that's the point. If you need to break it, justify in `roadmap.md` first.

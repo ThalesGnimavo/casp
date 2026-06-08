@@ -23,7 +23,7 @@ export function runStatus(args: string[]): void {
 
   if (!existsSync(STATE)) {
     console.error(c.red('no casp/state.json found'));
-    console.error(c.gray('  → run `npx casp init` first'));
+    console.error(c.gray('  → run `npx @justethales/casp init` first'));
     process.exit(1);
   }
   const state = loadState(STATE);
@@ -153,7 +153,7 @@ export function runStatus(args: string[]): void {
 
   console.log('');
   console.log(
-    c.gray('run `npx casp check` to validate, `npx casp status` to refresh')
+    c.gray('run `npx @justethales/casp check` to validate, `npx @justethales/casp status` to refresh')
   );
   console.log('');
 }

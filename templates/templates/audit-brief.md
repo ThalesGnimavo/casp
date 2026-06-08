@@ -72,7 +72,7 @@ For each item, write PASS / WARN / FAIL + `file:line` + one-sentence justificati
 
 22. No existing files modified except the explicit surface this session shipped.
 23. Tests + build + typecheck green.
-24. `npx casp check` ran 0 FAIL.
+24. `npx @justethales/casp check` ran 0 FAIL.
 
 ## Output format
 
@@ -104,4 +104,4 @@ Keep the report under 600 words. Skip generic boilerplate. If everything is PASS
 - **Spawn in foreground** when you need the verdict before pushing.
 - **Apply findings inline.** Don't ship "GO-WITH-FIXES" and defer the fixes ; they ride the same commit family as the implementation.
 - **Document deferred items in the session log** under `## Deferred / risks`.
-- **Re-run tests + `npx casp check`** after fixes.
+- **Re-run tests + `npx @justethales/casp check`** after fixes.

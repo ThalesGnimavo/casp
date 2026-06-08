@@ -37,7 +37,7 @@ Surface the project name + commit + branch at the top of your reply (one line).
 ## Validate the state first
 
 ```bash
-npx casp check --quiet 2>&1 | tail -5
+npx @justethales/casp check --quiet 2>&1 | tail -5
 echo "exit:$?"
 ```
 
@@ -59,7 +59,7 @@ test -f casp/state.json && jq -r '.current_phase, .next_phase' casp/state.json
 When `next_prompt` is a real path (not `"none"`, not empty, not null) :
 
 ```bash
-npx casp next      # prints the canonical next-session prompt
+npx @justethales/casp next      # prints the canonical next-session prompt
 ```
 
 The file is the canonical instruction for this session. Read it fully.
@@ -91,7 +91,7 @@ test -d docs/plan/sessions && ls docs/plan/sessions/*.md 2>/dev/null
 git log --oneline -10
 ```
 
-Report what you see + suggest `npx casp init`. The skill is degraded but useful — at least it does the inspection legwork.
+Report what you see + suggest `npx @justethales/casp init`. The skill is degraded but useful — at least it does the inspection legwork.
 
 ---
 
@@ -108,7 +108,7 @@ Report what you see + suggest `npx casp init`. The skill is degraded but useful 
 
 The prompt's `## AT END OF SESSION` already covers commit + push + casp state bump + next-session prompt drafting + `casp check`. Don't add extra ceremony.
 
-If the prompt is silent on the next-session prompt draft, draft it anyway via `npx casp new prompt --slug <next-slug>`.
+If the prompt is silent on the next-session prompt draft, draft it anyway via `npx @justethales/casp new prompt --slug <next-slug>`.
 
 ---
 
@@ -125,7 +125,7 @@ If the prompt is silent on the next-session prompt draft, draft it anyway via `n
 ## Failure modes
 
 - **`pwd` is not in a git repo** : print "_not in a git repository ; `/next` needs a project root_" and stop.
-- **No `casp/`, no `docs/plan/sessions/`, no obvious next work** : print "_no casp state, no session prompts ; tell me what to start_" and suggest `npx casp init`.
+- **No `casp/`, no `docs/plan/sessions/`, no obvious next work** : print "_no casp state, no session prompts ; tell me what to start_" and suggest `npx @justethales/casp init`.
 - **`next_prompt` points at a missing file** : the `casp check` above catches this. Surface + ask whether to draft the missing prompt or fix state.json.
 - **`next_prompt` points at a `shipped` prompt** : `casp check` catches this. Surface + ask whether to update state.json to the real next slice OR re-execute the shipped prompt.
 - **The prompt's MUST is obviously infeasible in one session** : propose the cut to the user before starting.

@@ -43,7 +43,7 @@ export function runCheck(args: string[]): void {
 
   if (!existsSync(STATE_PATH)) {
     console.error(c.red('FAIL') + ` no casp/state.json found at ${STATE_PATH}`);
-    console.error(c.gray('       → run `npx casp init` first'));
+    console.error(c.gray('       → run `npx @justethales/casp init` first'));
     exit(1);
   }
   const state = loadState(STATE_PATH);
@@ -87,7 +87,7 @@ export function runCheck(args: string[]): void {
         'fail',
         'state.json.next_prompt points at a missing file',
         `${state.next_prompt} does not exist`,
-        `draft the prompt at that path (try \`npx casp new prompt --slug <slug>\`) OR fix state.json.next_prompt`
+        `draft the prompt at that path (try \`npx @justethales/casp new prompt --slug <slug>\`) OR fix state.json.next_prompt`
       );
     } else {
       record(
@@ -153,7 +153,7 @@ export function runCheck(args: string[]): void {
         'fail',
         'last_session_id does not map to a session log',
         `expected session-logs/${state.last_session_id}.md`,
-        `write the session log (try \`npx casp new log --slug <slug>\`) OR fix last_session_id`
+        `write the session log (try \`npx @justethales/casp new log --slug <slug>\`) OR fix last_session_id`
       );
     }
   }

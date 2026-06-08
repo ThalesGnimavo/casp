@@ -49,7 +49,7 @@ EXAMPLES
   casp new prompt --slug phase-2-auth-flow
 
 LEARN MORE
-  https://casp.dev
+  https://casp.sh
   https://github.com/ThalesGnimavo/casp
 `;
 

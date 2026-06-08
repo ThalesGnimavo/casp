@@ -33,7 +33,7 @@ function runCheck(cwd) {
 function scaffold() {
   const dir = mkdtempSync(join(tmpdir(), 'casp-test-'));
   git(dir, 'init', '-q');
-  git(dir, 'config', 'user.email', 'test@casp.dev');
+  git(dir, 'config', 'user.email', 'test@casp.sh');
   git(dir, 'config', 'user.name', 'casp test');
 
   mkdirSync(join(dir, 'casp'), { recursive: true });
