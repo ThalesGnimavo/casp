@@ -83,9 +83,9 @@ export function runInit(args: string[]): void {
   console.log(`  ${c.cyan('2.')} edit ${c.gray('casp/roadmap.md')} — fill the Next 3 to ship`);
   console.log(`  ${c.cyan('3.')} edit ${c.gray('casp/state.json')} — fill current_phase / next_phase / next_prompt`);
   console.log(`  ${c.cyan('4.')} draft your first session prompt :`);
-  console.log(`     ${c.gray('npx casp new prompt --slug my-first-session')}`);
+  console.log(`     ${c.gray('npx @justethales/casp new prompt --slug my-first-session')}`);
   console.log(`  ${c.cyan('5.')} validate before push :`);
-  console.log(`     ${c.gray('npx casp check')}`);
+  console.log(`     ${c.gray('npx @justethales/casp check')}`);
   console.log('');
   console.log(c.gray('full protocol → casp/README.md'));
   console.log('');

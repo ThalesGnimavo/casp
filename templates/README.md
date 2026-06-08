@@ -1,6 +1,6 @@
 # CASP — project state
 
-> **Scaffolded** : {{TODAY}} via `npx casp init`.
+> **Scaffolded** : {{TODAY}} via `npx @justethales/casp init`.
 > **Source** : `casp` (the Coding-Agent State Protocol) — https://github.com/ThalesGnimavo/casp
 > **License** : MIT.
 
@@ -16,18 +16,18 @@ The whole protocol fits in your repo: state files + a CLI + canonical templates 
 
 - [now.md](now.md) — current focus (1 sentence), next action by time budget, don't-get-distracted list, active constraints. **Update at every session close.**
 - [roadmap.md](roadmap.md) — Next 3 to ship, in-flight, blocked, queued, shipped-this-week, phase scoreboard.
-- [state.json](state.json) — machine-readable single-line state. The validator (`npx casp check`) reads it.
+- [state.json](state.json) — machine-readable single-line state. The validator (`npx @justethales/casp check`) reads it.
 - [templates/](templates/) — canonical scaffolds for the three artifacts every session produces.
 
 ### CLI
 
 | Command | What it does | When to run |
 |---|---|---|
-| `npx casp status` | Read-only one-screen snapshot. | Session start. |
-| `npx casp next` | Print the next session's prompt from `state.next_prompt`. | Session start. |
-| `npx casp check` | The drift validator. Validates state against git — **exits 1 on drift**. | **Mandatory before `git push`** when the state was bumped. |
-| `npx casp new prompt --slug X` | Scaffold a session prompt from template. | Session close (draft next session's prompt). |
-| `npx casp new log --slug X` | Scaffold a session log from template. | Session close. |
+| `npx @justethales/casp status` | Read-only one-screen snapshot. | Session start. |
+| `npx @justethales/casp next` | Print the next session's prompt from `state.next_prompt`. | Session start. |
+| `npx @justethales/casp check` | The drift validator. Validates state against git — **exits 1 on drift**. | **Mandatory before `git push`** when the state was bumped. |
+| `npx @justethales/casp new prompt --slug X` | Scaffold a session prompt from template. | Session close (draft next session's prompt). |
+| `npx @justethales/casp new log --slug X` | Scaffold a session log from template. | Session close. |
 
 ### Templates
 
@@ -42,13 +42,13 @@ The whole protocol fits in your repo: state files + a CLI + canonical templates 
 ## Session-start protocol
 
 ```bash
-npx casp status      # the snapshot
-npx casp next        # the canonical next-session prompt
+npx @justethales/casp status      # the snapshot
+npx @justethales/casp next        # the canonical next-session prompt
 ```
 
 Then begin executing. Don't pause to confirm scope ; the prompt IS the scope.
 
-If `npx casp check` exits non-zero at session start, **STOP and reconcile.** A failed check means the previous session didn't close cleanly.
+If `npx @justethales/casp check` exits non-zero at session start, **STOP and reconcile.** A failed check means the previous session didn't close cleanly.
 
 ---
 
@@ -56,14 +56,14 @@ If `npx casp check` exits non-zero at session start, **STOP and reconcile.** A f
 
 In order. The order matters because the validator depends on prior steps :
 
-1. **Write the session log** — `npx casp new log --slug X` then fill in.
+1. **Write the session log** — `npx @justethales/casp new log --slug X` then fill in.
 2. **Flip this session's prompt frontmatter** — `status: queued → shipped`, `session_id:` filled, `session_log:` pointing at step 1's file.
 3. **Bump parent prompt's `progress:` block** if this was a sub-slice.
-4. **Draft the next session's prompt** — `npx casp new prompt --slug Y` then fill in.
+4. **Draft the next session's prompt** — `npx @justethales/casp new prompt --slug Y` then fill in.
 5. **`casp/now.md`** — overwrite the three blocks. Update the "Updated" line.
 6. **`casp/roadmap.md`** — move shipped item to "Shipped this week" ; promote queued ; update Phase scoreboard.
 7. **`casp/state.json`** — bump `last_session_id`, `last_commit`, `current_phase`, `next_phase`, `next_prompt`, append to `phases_shipped[]`, append to `migrations_applied[]` if a migration ran.
-8. **`npx casp check`** — must exit 0 (0 FAIL).
+8. **`npx @justethales/casp check`** — must exit 0 (0 FAIL).
 9. **`git add` + `git commit` + `git push`**.
 
 ---
@@ -105,5 +105,5 @@ For each : prevention beats detection. Templates + protocol + validator are the 
 ## Learn more
 
 - Source : https://github.com/ThalesGnimavo/casp
-- Docs : https://casp.dev
+- Docs : https://casp.sh
 - Issues / feedback : https://github.com/ThalesGnimavo/casp/issues

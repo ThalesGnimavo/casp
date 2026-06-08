@@ -46,7 +46,7 @@ No deletions. No renames.
 ### Inline
 
 - Tests / build / typecheck green.
-- `npx casp check` — 0 FAIL, `<N>` warnings.
+- `npx @justethales/casp check` — 0 FAIL, `<N>` warnings.
 
 ### Post-implementation audit (Explore sub-agent)
 
@@ -75,12 +75,12 @@ If the prompt's spec didn't match reality, document here with the "why no code c
 - `casp/now.md` rewritten — Focus = "<one-paragraph reality check>".
 - `casp/roadmap.md` Next-3 + Phase scoreboard updated.
 - `docs/plan/sessions/<this-prompt>.md` frontmatter flipped queued → shipped.
-- `npx casp check` — green before push.
+- `npx @justethales/casp check` — green before push.
 
 ## End-of-session
 
 - Tests + build + typecheck ran inline. All green.
-- `npx casp check` ran — 0 FAIL.
+- `npx @justethales/casp check` ran — 0 FAIL.
 - Post-implementation audit ran (or skipped because <reason>) — verdict noted above.
 - Next-session prompt drafted at `docs/plan/sessions/<next>.md`.
 - Commit + `git push` next.

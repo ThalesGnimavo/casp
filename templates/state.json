@@ -10,5 +10,5 @@
   "phases_backlog": [],
   "migrations_applied": [],
   "migrations_dir": "drizzle",
-  "notes": "Bump every section at session close. Replace last_session_id + last_commit + current_phase + next_phase + next_prompt as appropriate. Run `npx casp check` before push."
+  "notes": "Bump every section at session close. Replace last_session_id + last_commit + current_phase + next_phase + next_prompt as appropriate. Run `npx @justethales/casp check` before push."
 }

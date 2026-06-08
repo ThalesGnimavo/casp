@@ -26,7 +26,7 @@ test -f package.json && jq -r '.name + "@" + (.version // "unversioned")' packag
 
 ## Path A — `casp/` directory present
 
-Prefer the CLI : `npx casp status` (or `pnpm casp:status` / `bun casp:status` if the project has wired it). The CLI output is the canonical snapshot — surface it verbatim, don't paraphrase.
+Prefer the CLI : `npx @justethales/casp status` (or `pnpm casp:status` / `bun casp:status` if the project has wired it). The CLI output is the canonical snapshot — surface it verbatim, don't paraphrase.
 
 If the CLI fails or isn't installed, fall back to reading the casp files directly :
 
@@ -39,21 +39,21 @@ If the CLI fails or isn't installed, fall back to reading the casp files directl
 Degraded mode :
 - `git log --oneline -10` — recent activity.
 - `cat README.md | head -30` — what the project is.
-- Suggest `npx casp init` to scaffold.
+- Suggest `npx @justethales/casp init` to scaffold.
 
 ## Subcommands
 
 | Invocation | Returns |
 |---|---|
-| `/casp` | Full snapshot (state + next prompt preview + last 10 commits + current focus + Next-3). Same as `npx casp status`. |
+| `/casp` | Full snapshot (state + next prompt preview + last 10 commits + current focus + Next-3). Same as `npx @justethales/casp status`. |
 | `/casp where` | `casp/now.md` — current focus + 15-min next + don't-do list. |
 | `/casp roadmap` | `casp/roadmap.md` Next-3 + in-flight + blocked. |
 | `/casp changelog` | `git log --oneline -20` + `git log --since='7 days ago' --oneline` count. |
 | `/casp version` | `pkg@version` + commit SHA + branch + unpushed count + dirty count + state.json migration count + current_phase. |
-| `/casp ship` | Ship-readiness card : working tree, unpushed, blockers (from roadmap), in-flight, verdict line ("safe to push" / "FAIL : <reason>"). Run `npx casp check` and fold in its verdict. |
+| `/casp ship` | Ship-readiness card : working tree, unpushed, blockers (from roadmap), in-flight, verdict line ("safe to push" / "FAIL : <reason>"). Run `npx @justethales/casp check` and fold in its verdict. |
 | `/casp stack` | `package.json` runtime deps + scripts + 1-line architecture from `casp/architecture.md` if present. |
 | `/casp status` | Synonym for `/casp` (no args). |
-| `/casp check` | Run `npx casp check` and surface the result (the drift validator — exits 1 on drift). |
+| `/casp check` | Run `npx @justethales/casp check` and surface the result (the drift validator — exits 1 on drift). |
 
 ## Rules
 
