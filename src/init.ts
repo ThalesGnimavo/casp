@@ -1,5 +1,5 @@
 /**
- * `cockpit init` — scaffold a cockpit/ directory in the current repo.
+ * `casp init` — scaffold a casp/ directory in the current repo.
  */
 
 import {
@@ -50,15 +50,15 @@ function interpolate(filePath: string, vars: Record<string, string>): void {
 export function runInit(args: string[]): void {
   const force = args.includes('--force') || args.includes('-f');
   const root = process.cwd();
-  const target = join(root, 'cockpit');
+  const target = join(root, 'casp');
 
   if (existsSync(target) && !force) {
-    console.log(c.yellow(`cockpit/ already exists at ${target}`));
+    console.log(c.yellow(`casp/ already exists at ${target}`));
     console.log(c.gray('use --force to overwrite, or edit the existing files'));
     exit(0);
   }
 
-  console.log(`${c.bold('cockpit init')} · scaffolding ${c.cyan(relative(root, target) || 'cockpit/')}`);
+  console.log(`${c.bold('casp init')} · scaffolding ${c.cyan(relative(root, target) || 'casp/')}`);
   console.log('');
 
   copyDir(TEMPLATES, target, force);
@@ -76,17 +76,17 @@ export function runInit(args: string[]): void {
   }
 
   console.log('');
-  console.log(c.green('✓ cockpit scaffolded.'));
+  console.log(c.green('✓ casp scaffolded.'));
   console.log('');
   console.log('Next steps :');
-  console.log(`  ${c.cyan('1.')} edit ${c.gray('cockpit/now.md')} — describe your current focus`);
-  console.log(`  ${c.cyan('2.')} edit ${c.gray('cockpit/roadmap.md')} — fill the Next 3 to ship`);
-  console.log(`  ${c.cyan('3.')} edit ${c.gray('cockpit/state.json')} — fill current_phase / next_phase / next_prompt`);
+  console.log(`  ${c.cyan('1.')} edit ${c.gray('casp/now.md')} — describe your current focus`);
+  console.log(`  ${c.cyan('2.')} edit ${c.gray('casp/roadmap.md')} — fill the Next 3 to ship`);
+  console.log(`  ${c.cyan('3.')} edit ${c.gray('casp/state.json')} — fill current_phase / next_phase / next_prompt`);
   console.log(`  ${c.cyan('4.')} draft your first session prompt :`);
-  console.log(`     ${c.gray('npx cockpit new prompt --slug my-first-session')}`);
+  console.log(`     ${c.gray('npx casp new prompt --slug my-first-session')}`);
   console.log(`  ${c.cyan('5.')} validate before push :`);
-  console.log(`     ${c.gray('npx cockpit check')}`);
+  console.log(`     ${c.gray('npx casp check')}`);
   console.log('');
-  console.log(c.gray('full protocol → cockpit/README.md'));
+  console.log(c.gray('full protocol → casp/README.md'));
   console.log('');
 }
