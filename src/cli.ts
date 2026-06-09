@@ -10,13 +10,31 @@
  */
 
 import { argv, exit } from 'node:process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { runInit } from './init.js';
 import { runCheck } from './check.js';
 import { runStatus } from './status.js';
 import { runNew } from './new.js';
 import { runNext } from './next.js';
 
-const VERSION = '0.2.0';
+// Single source of truth: read the version from package.json at runtime so the
+// CLI string can never drift from the published package again. dist/cli.js lives
+// in dist/, package.json one level up (npm always ships package.json).
+function readVersion(): string {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(
+      readFileSync(join(here, '..', 'package.json'), 'utf8')
+    ) as { version?: string };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
+const VERSION = readVersion();
 
 const HELP = `
 casp ${VERSION} — the Coding-Agent State Protocol

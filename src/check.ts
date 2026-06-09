@@ -54,16 +54,15 @@ export function runCheck(args: string[]): void {
 
   /* 1. Required keys ----------------------------------------------------- */
 
-  const required = [
+  // Keys that must be present AND non-null.
+  const requiredNonNull = [
     'updated_at',
     'last_session_id',
     'last_commit',
     'current_phase',
-    'next_phase',
-    'next_prompt',
     'phases_shipped'
   ] as const;
-  for (const key of required) {
+  for (const key of requiredNonNull) {
     if (state[key] === undefined || state[key] === null) {
       record(
         `state.shape.${key}`,
@@ -71,6 +70,31 @@ export function runCheck(args: string[]): void {
         'state.json missing required key',
         `key '${key}' is missing`,
         `add "${key}": <value> to casp/state.json`
+      );
+    } else {
+      record(`state.shape.${key}`, 'pass', `state.json has '${key}'`, '');
+    }
+  }
+
+  // next_phase / next_prompt MUST be present as keys, but may be null — a
+  // project can legitimately have no queued next slice (parked, launch hold,
+  // roadmap complete). The key being absent is still a shape error; an explicit
+  // null is a valid "parked" state, not drift.
+  for (const key of ['next_phase', 'next_prompt'] as const) {
+    if (!(key in state)) {
+      record(
+        `state.shape.${key}`,
+        'fail',
+        'state.json missing required key',
+        `key '${key}' is missing`,
+        `add "${key}": null to casp/state.json (use null when there is no queued next slice)`
+      );
+    } else if (state[key] === null) {
+      record(
+        `state.shape.${key}`,
+        'pass',
+        `state.json '${key}' is null (parked — no queued next slice)`,
+        ''
       );
     } else {
       record(`state.shape.${key}`, 'pass', `state.json has '${key}'`, '');
