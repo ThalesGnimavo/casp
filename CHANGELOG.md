@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-06-09
+
+- **Docs only.** No code or CLI behavior change. Existing installs at 0.2.0 keep working unchanged.
+- **Repositioned the README and `package.json` description.** The headline now leads with the outcome — *your AI agent runs the whole project roadmap across sessions, writes its own next-session prompt, logs every session, and can't lose the thread* — with drift-detection kept as the trust guarantee rather than the pitch. The old "refuses to let your state lie" tagline was a previous agent's framing that buried the actual value.
+
 ## 0.2.0 — 2026-06-08
 
 - **BREAKING — renamed Cockpit → CASP (Coding-Agent State Protocol).** The name "Cockpit" collided head-on with Red Hat Cockpit (cockpit-project.org); CASP relaunches the tool as a *protocol*, positioned the way MCP positioned itself.
