@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 — 2026-06-09
+
+- **Fix — `casp check` no longer FAILs a legitimately parked project.** `next_phase` and `next_prompt` may now be `null` (a project with no queued next slice — launch hold, roadmap complete, frozen). The keys must still be present, but an explicit `null` reports as PASS ("parked — no queued next slice") instead of a drift FAIL. Previously a parked `state.json` (e.g. a project in launch-mode hold) produced two false FAILs and blocked the push.
+- **Fix — `casp --version` derives from `package.json` at runtime.** The version is no longer a hardcoded constant in `src/cli.ts` (which had silently desynced: the CLI reported `0.2.0` while npm shipped `0.2.1`). This is the same class of bug fixed by hand in 0.1.2 and regressed in 0.2.0; reading `package.json` removes the manual step for good.
+- Exit-code contract still covered by `npm test` (clean → 0, drift → 1); both fixes verified green.
+
 ## 0.2.1 — 2026-06-09
 
 - **Docs only.** No code or CLI behavior change. Existing installs at 0.2.0 keep working unchanged.
