@@ -1,6 +1,6 @@
 # CASP — the Coding-Agent State Protocol
 
-> **The protocol that refuses to let your state lie.** A tiny, git-native, local-only state file every AI coding agent can read — plus a validator that **blocks the push the moment your project drifts**. Everyone *stores* context; CASP **validates** it against git. MIT, zero telemetry, no SaaS.
+> **Your AI agent runs the whole project roadmap — and can't lose the thread.** Point any coding agent at a CASP repo and it executes phase after phase across sessions, branches and a team: it writes its **own next-session prompt**, logs every session, and a validator **blocks the push the moment the state drifts from git**. Everyone *stores* context; CASP keeps the thread **and proves it**. MIT, zero telemetry, no SaaS.
 
 [![npm version](https://img.shields.io/npm/v/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
 [![npm downloads](https://img.shields.io/npm/dm/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
@@ -291,4 +291,4 @@ If CASP saves you 30 minutes a week, that's enough payback. If you want to say t
 
 ---
 
-*CASP — the Coding-Agent State Protocol. The protocol that refuses to let your state lie.*
+*CASP — the Coding-Agent State Protocol. Your AI agent runs the whole roadmap — and can't lose the thread.*
