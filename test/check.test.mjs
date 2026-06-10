@@ -30,6 +30,11 @@ function runCheck(cwd) {
   return r.status;
 }
 
+function runCheckJson(cwd) {
+  const r = spawnSync('node', [CLI, 'check', '--json'], { cwd, encoding: 'utf8' });
+  return { status: r.status, stdout: r.stdout };
+}
+
 function scaffold() {
   const dir = mkdtempSync(join(tmpdir(), 'casp-test-'));
   git(dir, 'init', '-q');
@@ -91,6 +96,88 @@ test('drifted state → exit 1 (push blocked)', () => {
     state.next_prompt = 'docs/plan/sessions/DOES-NOT-EXIST.md';
     writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
     assert.equal(runCheck(dir), 1, 'a drifted state must exit 1 so the CI gate fails');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/*
+ * `casp check --json` contract — same checks, same exit code, machine-readable
+ * format. Other tools (CI annotations, notification payloads, status roll-ups)
+ * consume this; the shape below is the documented v1 schema (docs/check-json.md).
+ */
+
+test('--json on clean state → exit 0, verdict clean, valid schema', () => {
+  const { dir } = scaffold();
+  try {
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'exit code must stay 0 on a clean state');
+    const report = JSON.parse(stdout);
+    assert.equal(report.schema_version, 1);
+    assert.match(report.casp_version, /^\d+\.\d+\.\d+/);
+    assert.equal(report.verdict, 'clean');
+    assert.equal(report.exit_code, 0);
+    assert.equal(report.summary.fail, 0);
+    assert.ok(Array.isArray(report.findings) && report.findings.length > 0);
+    assert.equal(
+      report.findings.length,
+      report.summary.pass + report.summary.warn + report.summary.fail,
+      'summary counts must add up to the findings array'
+    );
+    for (const f of report.findings) {
+      assert.equal(typeof f.id, 'string');
+      assert.ok(['pass', 'warn', 'fail'].includes(f.severity));
+      assert.equal(typeof f.label, 'string');
+      assert.equal(typeof f.detail, 'string');
+      assert.ok(f.fix === null || typeof f.fix === 'string');
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--json on drifted state → exit 1, verdict drift, failing finding present', () => {
+  const { dir, state } = scaffold();
+  try {
+    state.next_prompt = 'docs/plan/sessions/DOES-NOT-EXIST.md';
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'exit code must stay 1 on drift — --json never changes the verdict');
+    const report = JSON.parse(stdout);
+    assert.equal(report.verdict, 'drift');
+    assert.equal(report.exit_code, 1);
+    assert.ok(report.summary.fail > 0);
+    const failing = report.findings.find(
+      (f) => f.id === 'next_prompt.exists' && f.severity === 'fail'
+    );
+    assert.ok(failing, 'the missing next_prompt must surface as a fail finding');
+    assert.ok(failing.fix, 'fail findings carry their → fix hint');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--json with no casp/state.json → exit 1, still valid JSON', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'casp-test-'));
+  try {
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1);
+    const report = JSON.parse(stdout);
+    assert.equal(report.verdict, 'drift');
+    assert.equal(report.findings[0].id, 'state.file');
+    assert.equal(report.findings[0].severity, 'fail');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('default human-readable output carries no JSON braces (format untouched)', () => {
+  const { dir } = scaffold();
+  try {
+    const r = spawnSync('node', [CLI, 'check'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(r.status, 0);
+    assert.ok(r.stdout.includes('casp:check'), 'human header intact');
+    assert.ok(!r.stdout.trimStart().startsWith('{'), 'default output is not JSON');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
