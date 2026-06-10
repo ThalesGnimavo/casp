@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 — 2026-06-10
+
+- **Docs only.** No code or CLI behavior change. Existing installs at 0.2.2 keep working unchanged.
+- **Repositioned the README and `package.json` description for the autonomous-model era.** The headline now leads with the deterministic, model-agnostic wedge — *the model holds the context; CASP proves the state is true, against git* — and frames CASP as the **complement** to long-running autonomous coding models (Claude Code today, any model next), not a competitor to their in-session memory. The prior "runs the whole roadmap / never loses the thread" line collided with how the new model generation now markets itself.
+
 ## 0.2.2 — 2026-06-09
 
 - **Fix — `casp check` no longer FAILs a legitimately parked project.** `next_phase` and `next_prompt` may now be `null` (a project with no queued next slice — launch hold, roadmap complete, frozen). The keys must still be present, but an explicit `null` reports as PASS ("parked — no queued next slice") instead of a drift FAIL. Previously a parked `state.json` (e.g. a project in launch-mode hold) produced two false FAILs and blocked the push.
