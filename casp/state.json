@@ -1,7 +1,7 @@
 {
   "updated_at": "2026-06-10",
   "last_session_id": "26-06-10-002-false-green-and-state-bump-fixes",
-  "last_commit": "d164ae7",
+  "last_commit": "9b85080",
   "current_phase": "0.3.0-correctness-fixes",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
@@ -11,7 +11,8 @@
     "0.2.2-parked-state-and-version-fix",
     "0.2.3-autonomous-era-repositioning",
     "0.2.4-check-json",
-    "0.3.0-correctness-fixes"
+    "0.3.0-correctness-fixes",
+    "0.3.1-field-fixes"
   ],
   "phases_queued": [
     "install-hook",
