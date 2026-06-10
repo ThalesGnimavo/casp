@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — unreleased
+## 0.3.0 — 2026-06-10
 
 - **Fix (verdict-changing) — no more false green when a claimed directory is missing.** A check that cannot find what it needs no longer silently skips: when `state.json` makes a claim that requires a directory and that directory is absent, `casp check` now **FAILs** with a `cannot verify <claim>` finding. Three claims are enforced: a real `last_session_id` requires `session-logs/` (`last_session.logs_dir`), a non-empty `migrations_applied` requires the migrations directory (`migrations.dir` — the canonical drift example itself was a false green when the dir was missing), and a non-empty `phases_shipped` requires both `docs/plan/sessions/` and `session-logs/` (`shipped_history.*`). Fresh-init placeholders and empty arrays are not claims and do not FAIL. **Repos that previously reported green may now correctly report drift — re-run `casp check` everywhere after upgrading.** Minor version bump for exactly that reason.
 - **Fix — the canonical close loop no longer ends in a permanent WARN.** `last_commit` now reports **PASS** when it is the parent of HEAD and the HEAD commit touches only the state surface (`casp/`, `docs/plan/sessions/`, `session-logs/`) — the state-bump commit the protocol itself prescribes. Any other commit past `last_commit` stays WARN. `casp check` on CASP's own repo is now fully green (13 PASS · 0 WARN · 0 FAIL), previously a permanent explainable WARN.
