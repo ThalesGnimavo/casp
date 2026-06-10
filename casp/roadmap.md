@@ -3,7 +3,7 @@
 > **Updated** : 2026-06-10 (session 26-06-10-001).
 > **Source of truth** : this file + `docs/plan/sessions/*.md` (status frontmatter) + `session-logs/`.
 > **Maintenance rule** : update at the end of every session that ships something or surfaces a blocker.
-> **Note** : the full prioritized proposal (tiers, cuts, arguments) lives in `docs/ROADMAP-PROPOSAL.md` and is awaiting CEO validation. The Next-3 below mirrors its Tier 1 and only becomes executable once validated.
+> **Note** : the full prioritized proposal (tiers, cuts, arguments) lives in `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` and is awaiting CEO validation. The Next-3 below mirrors its Tier 1 and only becomes executable once validated.
 
 ---
 
@@ -31,7 +31,7 @@ If you reach for anything BELOW Next-3, stop and check why.
 
 | Item | Blocker | Unblock action |
 |------|---------|----------------|
-| Everything in Next-3 | `docs/ROADMAP-PROPOSAL.md` not yet validated | CEO reads + validates / amends the proposal |
+| Everything in Next-3 | `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` not yet validated | CEO reads + validates / amends the proposal |
 | 0.2.4 npm publish | branch not merged | audit passes → merge → `npm publish` |
 
 ---
@@ -56,7 +56,7 @@ If you reach for anything BELOW Next-3, stop and check why.
 | Date | Commit | Title | Notes |
 |------|--------|-------|-------|
 | 2026-06-10 | _(this branch)_ | `casp check --json` + stable v1 schema + 4 tests | additive; exit-code contract untouched |
-| 2026-06-10 | _(this branch)_ | `docs/ROADMAP-PROPOSAL.md` | tiers, cuts (lint, notify adapters, last-close.json), restraint section |
+| 2026-06-10 | _(this branch)_ | `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` | tiers, cuts (lint, notify adapters, last-close.json), restraint section |
 | 2026-06-10 | _(this branch)_ | CASP-on-CASP | this cockpit; `casp check` green on the CASP repo itself |
 | 2026-06-10 | _(this branch)_ | `casp init` `.DS_Store` fix | dogfooding catch |
 
