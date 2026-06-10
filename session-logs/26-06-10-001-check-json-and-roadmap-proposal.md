@@ -97,6 +97,27 @@ Verdict recorded in the final commit message; fixes applied inline before commit
 - This prompt's frontmatter: `status: shipped`, `session_log` pointing here.
 - `npx @justethales/casp check` — 0 FAIL before push.
 
+## Addendum — 2026-06-10, later same session
+
+The rails file `casp/private-docs/casp-optimized-roadmap.md` **was delivered by
+the CEO after the first draft** (it was genuinely absent from disk at session
+start — `find` over the workspace confirmed). `docs/ROADMAP-PROPOSAL.md` was
+rewritten as **v2**, reconciled against the real rails:
+
+- **Adopted from the rails (new since v1):** pre-session gate (`casp next`
+  validates before printing — promoted to Tier 1 #1), CI status-check
+  installer, slash-command distribution, `casp verify <commit>`, and the
+  rails' `phases_shipped ↔ session-log` check candidate (accepted; supersedes
+  v1's parked prompt↔phases cross-check).
+- **Held against the rails (five explicit dissents, argued in the proposal's
+  "Where I differ" table):** `last-close.json` cut with `casp status --json`
+  as substitute; notifications narrowed to a generic webhook (no named
+  adapters in core); `casp lint` cut entirely rather than kept as advisory;
+  `verify <commit>` demoted to Tier 2; enforcement pulled up from rails
+  Tier 3 into leverage-ordered Tier 1.
+- Cockpit mirrors updated (`casp/roadmap.md` Next-3, `casp/now.md`).
+- The v1 "dangling rails pointer" hygiene flag is resolved and removed.
+
 ## End-of-session
 
 - Tests + build green inline.

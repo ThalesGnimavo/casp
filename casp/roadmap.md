@@ -11,9 +11,9 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | `casp install-hook` — pre-push hook running `casp check` (P03 becomes mechanism) | (prompt not yet drafted — gated on validation) | not drafted |
-| 2 | Configurable paths — `sessions_dir` / `logs_dir` keys so the validator never false-greens on a different layout | (prompt not yet drafted — gated on validation) | not drafted |
-| 3 | State-bump commit recognized in check 4 — removes the permanent WARN the canonical close loop produces today | (prompt not yet drafted — gated on validation) | not drafted |
+| 1 | Pre-session gate — `casp next` validates before printing, refuses on drift (`--no-check` escape) | (prompt not yet drafted — gated on validation) | not drafted |
+| 2 | `casp install-hook` — pre-push hook running `casp check` (P03 becomes mechanism) | (prompt not yet drafted — gated on validation) | not drafted |
+| 3 | Configurable paths — `sessions_dir` / `logs_dir` keys so the validator never false-greens on a different layout | (prompt not yet drafted — gated on validation) | not drafted |
 
 If you reach for anything BELOW Next-3, stop and check why.
 
@@ -71,6 +71,7 @@ If you reach for anything BELOW Next-3, stop and check why.
 | 0.2.2 — parked-state fix + runtime version | shipped | — (pre-cockpit era) | 2026-06-09 |
 | 0.2.3 — autonomous-era repositioning (docs) | shipped | — (pre-cockpit era) | 2026-06-10 |
 | 0.2.4 — `check --json` + CASP-on-CASP + roadmap proposal | shipped (branch) | `session-logs/26-06-10-001-check-json-and-roadmap-proposal.md` | awaiting audit + validation |
-| install-hook | proposed | _(pending)_ | Tier 1 #1 |
-| configurable-paths | proposed | _(pending)_ | Tier 1 #2 |
-| state-bump-check-refinement | proposed | _(pending)_ | Tier 1 #3 |
+| pre-session-gate | proposed | _(pending)_ | Tier 1 #1 |
+| install-hook | proposed | _(pending)_ | Tier 1 #2 |
+| configurable-paths | proposed | _(pending)_ | Tier 1 #3 |
+| state-bump-check-refinement | proposed | _(pending)_ | Tier 1 #4 |
