@@ -20,6 +20,12 @@ const SESSIONS_DIR = join(ROOT, 'docs', 'plan', 'sessions');
 const LOGS_DIR = join(ROOT, 'session-logs');
 
 type Severity = 'pass' | 'warn' | 'fail';
+
+// A claim's backing path must be a real directory — a file squatting the path
+// is just as unverifiable as a missing dir (and crashes readdirSync).
+function isDir(p: string): boolean {
+  return existsSync(p) && statSync(p).isDirectory();
+}
 interface Finding {
   id: string;
   severity: Severity;
@@ -219,23 +225,77 @@ export function runCheck(args: string[]): void {
 
   /* 3. last_session_id → log -------------------------------------------- */
 
-  if (state.last_session_id) {
-    const logPath = join(LOGS_DIR, `${state.last_session_id}.md`);
-    if (existsSync(logPath)) {
+  // A state claim must be verifiable or the check FAILs — a check that cannot
+  // find what it needs never reports green. A placeholder ('pending', fresh
+  // init) is not a claim: WARN, consistent with last_commit='pending'.
+  if (state.last_session_id === 'pending') {
+    record(
+      'last_session.log_exists',
+      'warn',
+      "last_session_id is 'pending'",
+      'expected before the first session closes',
+      'set last_session_id when the first session log is written'
+    );
+  } else if (
+    typeof state.last_session_id === 'string' &&
+    state.last_session_id.trim() === ''
+  ) {
+    // Empty string is neither a session id nor the 'pending' placeholder —
+    // treating it as "no claim" would be a silent green.
+    record(
+      'last_session.id_empty',
+      'fail',
+      'last_session_id is empty',
+      `'' is neither a session id nor the 'pending' placeholder`,
+      "set last_session_id to the real session id (or 'pending' before the first session)"
+    );
+  } else if (state.last_session_id) {
+    if (!isDir(LOGS_DIR)) {
       record(
-        'last_session.log_exists',
-        'pass',
-        'last_session_id has a matching session log',
-        `session-logs/${state.last_session_id}.md`
+        'last_session.logs_dir',
+        'fail',
+        'cannot verify last_session_id: session-logs/ is not a directory',
+        `state claims session ${state.last_session_id} but session-logs/ is missing (or not a directory)`,
+        'create session-logs/ and write the log OR fix last_session_id'
       );
     } else {
-      record(
-        'last_session.log_exists',
-        'fail',
-        'last_session_id does not map to a session log',
-        `expected session-logs/${state.last_session_id}.md`,
-        `write the session log (try \`npx @justethales/casp new log --slug <slug>\`) OR fix last_session_id`
-      );
+      const logPath = join(LOGS_DIR, `${state.last_session_id}.md`);
+      if (existsSync(logPath)) {
+        record(
+          'last_session.log_exists',
+          'pass',
+          'last_session_id has a matching session log',
+          `session-logs/${state.last_session_id}.md`
+        );
+      } else {
+        record(
+          'last_session.log_exists',
+          'fail',
+          'last_session_id does not map to a session log',
+          `expected session-logs/${state.last_session_id}.md`,
+          `write the session log (try \`npx @justethales/casp new log --slug <slug>\`) OR fix last_session_id`
+        );
+      }
+    }
+  }
+
+  /* 3b. phases_shipped claims a history → its dirs must exist ------------ */
+
+  if (Array.isArray(state.phases_shipped) && state.phases_shipped.length > 0) {
+    const historyDirs: Array<[string, string, string]> = [
+      [SESSIONS_DIR, 'docs/plan/sessions/', 'sessions_dir'],
+      [LOGS_DIR, 'session-logs/', 'logs_dir']
+    ];
+    for (const [dir, name, key] of historyDirs) {
+      if (!isDir(dir)) {
+        record(
+          `shipped_history.${key}`,
+          'fail',
+          `cannot verify shipped history: ${name} not found`,
+          `state claims ${state.phases_shipped.length} shipped phase(s) but ${name} is missing (or not a directory)`,
+          `create ${name} (the protocol's prompts and logs live there) OR empty phases_shipped`
+        );
+      }
     }
   }
 
@@ -258,13 +318,39 @@ export function runCheck(args: string[]): void {
     } else {
       const exists = git(`rev-parse --verify ${state.last_commit}^{commit}`);
       if (exists) {
-        record(
-          'last_commit.git',
-          'warn',
-          'last_commit is in history but not at HEAD',
-          `state=${state.last_commit} HEAD=${head}`,
-          `if the new commits are out-of-band work, bump state.last_commit to ${head}`
-        );
+        // The canonical close loop ends with a state-bump commit: the session
+        // is committed, last_commit is set to that SHA, and the bump itself is
+        // committed — moving HEAD one past last_commit. That is not drift.
+        // PASS when last_commit is the parent of HEAD and HEAD touches only
+        // the state surface; anything else stays WARN.
+        const parent = git('rev-parse --short HEAD^');
+        const isParent =
+          parent.length > 0 &&
+          (parent.startsWith(state.last_commit) ||
+            state.last_commit.startsWith(parent));
+        const touched = git('diff-tree --no-commit-id --name-only -r HEAD')
+          .split('\n')
+          .filter(Boolean);
+        const STATE_SURFACE = ['casp/', 'docs/plan/sessions/', 'session-logs/'];
+        const bumpOnly =
+          touched.length > 0 &&
+          touched.every((f) => STATE_SURFACE.some((p) => f.startsWith(p)));
+        if (isParent && bumpOnly) {
+          record(
+            'last_commit.git',
+            'pass',
+            'last_commit is the parent of HEAD (state-bump commit)',
+            `state=${state.last_commit} HEAD=${head} touches only the state surface`
+          );
+        } else {
+          record(
+            'last_commit.git',
+            'warn',
+            'last_commit is in history but not at HEAD',
+            `state=${state.last_commit} HEAD=${head}`,
+            `if the new commits are out-of-band work, bump state.last_commit to ${head}`
+          );
+        }
       } else {
         record(
           'last_commit.git',
@@ -315,7 +401,20 @@ export function runCheck(args: string[]): void {
   /* 6. migrations_applied (optional) ------------------------------------- */
 
   const migrationsDir = join(ROOT, state.migrations_dir || 'drizzle');
-  if (Array.isArray(state.migrations_applied) && existsSync(migrationsDir)) {
+  const migrationsClaimed =
+    Array.isArray(state.migrations_applied) &&
+    state.migrations_applied.length > 0;
+  if (migrationsClaimed && !isDir(migrationsDir)) {
+    // The canonical false-green: state claims applied migrations, the dir is
+    // gone — the old behavior silently skipped and reported green.
+    record(
+      'migrations.dir',
+      'fail',
+      `cannot verify migrations_applied: ${state.migrations_dir || 'drizzle'}/ not found`,
+      `state claims ${(state.migrations_applied as string[]).length} migration(s) but the directory is missing`,
+      'create the migrations directory OR fix state.migrations_dir OR empty migrations_applied'
+    );
+  } else if (Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
     const onDisk = readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql'))
       .map((f) => f.replace(/\.sql$/, ''))
@@ -344,7 +443,7 @@ export function runCheck(args: string[]): void {
   /* 7. Session prompt frontmatter --------------------------------------- */
 
   const VALID_STATUS = new Set(['queued', 'in-progress', 'shipped', 'archived']);
-  if (existsSync(SESSIONS_DIR)) {
+  if (isDir(SESSIONS_DIR)) {
     const prompts = readdirSync(SESSIONS_DIR)
       .filter((f) => f.endsWith('.md'))
       .map((f) => join(SESSIONS_DIR, f))

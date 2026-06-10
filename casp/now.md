@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-10 (session 26-06-10-001).
+> **Updated** : 2026-06-10 (session 26-06-10-002).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**`casp check --json` shipped** (stable v1 schema, four new tests, docs in `docs/check-json.md`) on branch `feat/check-json-roadmap-proposal`, together with **`private-docs/casp-roadmap-proposal.md (internal, outside this repo)` v2** — reconciled against the CEO's rails (`casp-optimized-roadmap.md`, delivered mid-session) with five explicit dissents in the "Where I differ" table — and **CASP now manages itself** (this `casp/` cockpit is the recursive proof). The branch is deliberately **not merged**: the two-auditor post-implementation audit and the CEO's read of the proposal gate everything.
+**Roadmap proposal validated; the two correctness fixes shipped as 0.3.0** on branch `fix/false-green-and-state-bump`: the **false-green fix** (a claim whose backing dir is missing now FAILs — verdict-changing, 12/12 tests) and the **state-bump recognition** (the canonical close loop now reads PASS — `casp check` on this repo is **13 PASS · 0 WARN · 0 FAIL**, fully green for the first time). The validated queue is materialized as 7 drafted prompts in `docs/plan/sessions/`; `next_prompt` points at `PHASE-INSTALL-HOOK.md`. **Branch not merged**: the two-auditor review of the check-logic change gates everything.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-Read `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` top to bottom and mark each Tier-1 item validated / rejected / amended.
+Read the two auditor reports on the false-green fix; if both GO, merge `fix/false-green-and-state-bump` into main.
 
 ### 1 hour
 
-Validate the proposal, merge the branch, publish 0.2.4 to npm (`npm publish` runs build via `prepublishOnly`), and queue the next session prompt for `casp install-hook` (Tier 1 #1).
+Merge, publish 0.3.0 to npm, then **re-run `casp check` with the new binary on every ZeroSuite repo that uses CASP** (SENEBA, Conductor, …) — some greens may have been false-green.
 
 ### Half a day
 
-All of the above, plus ship `casp install-hook` end-to-end (verb + hook template + tests + README section) — it is ~30 LOC and converts P03 from discipline into mechanism.
+All of the above, then run `casp next` and execute `PHASE-INSTALL-HOOK.md`.
 
 ---
 
@@ -32,16 +32,17 @@ All of the above, plus ship `casp install-hook` end-to-end (verb + hook template
 
 These items are NOT on the Next-3 (still or newly) :
 
-- **Notification channel adapters** — proposed CUT in the roadmap proposal; `check --json` + a webhook one-liner covers the need without a second product in core.
-- **`casp lint` (local LLM)** — proposed CUT from the public README roadmap; it hands skeptics the "so you do use a model" reply. Decide in the proposal review, not in a session.
-- **`cockpit → casp` naming residue** (repo dir, old scaffolds across ZeroSuite) — real, but a separate cross-project chore.
+- **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; split + CEO trigger before any of it runs.
+- **`casp lint`** — cut for good; the rails doc amendment removes the advisory carve-out.
+- **Naming residue** (`/cockpit` surfaces) — bundled into the slash-command-distribution item, not before.
 
 ---
 
 ## Constraints active today
 
-- Branch `feat/check-json-roadmap-proposal` must NOT merge to main before the two-auditor post-implementation audit + CEO validation of the proposal.
-- The public README roadmap section stays untouched until the proposal is validated.
+- Branch `fix/false-green-and-state-bump` must NOT merge before the two independent auditors pass the check-logic change.
+- 0.3.0 must NOT publish before merge; **CHANGELOG carries a verdict-change warning** that must survive into the release notes.
+- After 0.3.0 ships: CEO action — re-run `casp check` across all CASP-managed repos (false-green may flip to red; that is the fix working).
 - `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 
 ---

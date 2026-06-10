@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — unreleased
+
+- **Fix (verdict-changing) — no more false green when a claimed directory is missing.** A check that cannot find what it needs no longer silently skips: when `state.json` makes a claim that requires a directory and that directory is absent, `casp check` now **FAILs** with a `cannot verify <claim>` finding. Three claims are enforced: a real `last_session_id` requires `session-logs/` (`last_session.logs_dir`), a non-empty `migrations_applied` requires the migrations directory (`migrations.dir` — the canonical drift example itself was a false green when the dir was missing), and a non-empty `phases_shipped` requires both `docs/plan/sessions/` and `session-logs/` (`shipped_history.*`). Fresh-init placeholders and empty arrays are not claims and do not FAIL. **Repos that previously reported green may now correctly report drift — re-run `casp check` everywhere after upgrading.** Minor version bump for exactly that reason.
+- **Fix — the canonical close loop no longer ends in a permanent WARN.** `last_commit` now reports **PASS** when it is the parent of HEAD and the HEAD commit touches only the state surface (`casp/`, `docs/plan/sessions/`, `session-logs/`) — the state-bump commit the protocol itself prescribes. Any other commit past `last_commit` stays WARN. `casp check` on CASP's own repo is now fully green (13 PASS · 0 WARN · 0 FAIL), previously a permanent explainable WARN.
+- **Change — `last_session_id: "pending"` is now a WARN, not a FAIL.** Consistent with `last_commit: "pending"`: a fresh-init placeholder is not a verifiable claim. A fresh parked cockpit checks clean.
+- **Hardening (from the two-auditor review).** An empty-string `last_session_id` now FAILs (`last_session.id_empty`) instead of silently skipping the check; every claim-backed path must be a real **directory** — a file squatting `session-logs/`, `docs/plan/sessions/` or the migrations dir reports a clean FAIL instead of crashing `readdirSync` (which also broke the `--json` always-valid guarantee).
+- Nine new regression tests (15 total) covering the false-green class, placeholder semantics, state-bump recognition, and the file-squatting crash paths.
+
+
 ## 0.2.4 — 2026-06-10
 
 - **New — `casp check --json`.** Machine-readable validator report: every check category as structured PASS/WARN/FAIL findings (stable `id`, `label`, `detail`, `fix`), plus `verdict`, `exit_code` and a `summary` block. The schema is documented in `docs/check-json.md` and versioned (`schema_version: 1`, bumps only on breaking changes). Strictly additive: the default human-readable output is unchanged, and the exit-code contract is identical — `--json` changes the *format* of the report, never the verdict. Even a missing or unparsable `casp/state.json` emits well-formed JSON (single `state.file` FAIL finding), so consumers never need a non-JSON fallback. Covered by four new tests in `npm test`.
