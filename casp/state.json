@@ -1,0 +1,28 @@
+{
+  "updated_at": "2026-06-10",
+  "last_session_id": "26-06-10-001-check-json-and-roadmap-proposal",
+  "last_commit": "f487e18",
+  "current_phase": "0.2.4-check-json",
+  "next_phase": null,
+  "next_prompt": null,
+  "phases_shipped": [
+    "0.1.0-initial-release",
+    "0.2.0-casp-rebrand",
+    "0.2.2-parked-state-and-version-fix",
+    "0.2.3-autonomous-era-repositioning",
+    "0.2.4-check-json"
+  ],
+  "phases_queued": [],
+  "phases_backlog": [
+    "pre-session-gate",
+    "install-hook",
+    "configurable-paths",
+    "state-bump-check-refinement",
+    "doctor",
+    "status-all",
+    "state-diff"
+  ],
+  "migrations_applied": [],
+  "migrations_dir": "drizzle",
+  "notes": "See CHANGELOG.md and the session log for this phase. State surface bumped at session close; run casp check before push."
+}

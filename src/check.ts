@@ -4,13 +4,15 @@
  * The wedge of the whole protocol: everyone STORES state, CASP VALIDATES it
  * against git ground-truth. Exits 1 on any FAIL so it works as a real CI status
  * check / pre-push gate — not a decorative log. Use --quiet to suppress PASS
- * lines (CI-friendly).
+ * lines (CI-friendly). Use --json for a machine-readable report (stable schema,
+ * documented in docs/check-json.md) — same checks, same exit code, different
+ * format only.
  */
 
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, loadState, readFrontmatter } from './shared.js';
+import { c, git, loadState, pkgVersion, readFrontmatter } from './shared.js';
 
 const ROOT = process.cwd();
 const STATE_PATH = join(ROOT, 'casp', 'state.json');
@@ -26,7 +28,46 @@ interface Finding {
   fix?: string;
 }
 
+/**
+ * The stable `--json` report contract (documented in docs/check-json.md).
+ * `schema_version` only bumps on a breaking change to this shape — additive
+ * fields do not bump it. The verdict logic is shared with the human report;
+ * `--json` changes the format, never the outcome.
+ */
+const JSON_SCHEMA_VERSION = 1;
+
+function emitJson(findings: Finding[]): never {
+  const summary = {
+    pass: findings.filter((f) => f.severity === 'pass').length,
+    warn: findings.filter((f) => f.severity === 'warn').length,
+    fail: findings.filter((f) => f.severity === 'fail').length
+  };
+  const exitCode = summary.fail > 0 ? 1 : 0;
+  console.log(
+    JSON.stringify(
+      {
+        schema_version: JSON_SCHEMA_VERSION,
+        casp_version: pkgVersion(),
+        verdict: exitCode === 0 ? 'clean' : 'drift',
+        exit_code: exitCode,
+        summary,
+        findings: findings.map((f) => ({
+          id: f.id,
+          severity: f.severity,
+          label: f.label,
+          detail: f.detail,
+          fix: f.fix ?? null
+        }))
+      },
+      null,
+      2
+    )
+  );
+  exit(exitCode);
+}
+
 export function runCheck(args: string[]): void {
+  const json = args.includes('--json');
   const quiet = args.includes('--quiet');
   const noGit = args.includes('--no-git');
 
@@ -42,12 +83,28 @@ export function runCheck(args: string[]): void {
   }
 
   if (!existsSync(STATE_PATH)) {
+    record(
+      'state.file',
+      'fail',
+      'no casp/state.json found',
+      STATE_PATH,
+      'run `npx @justethales/casp init` first'
+    );
+    if (json) emitJson(findings);
     console.error(c.red('FAIL') + ` no casp/state.json found at ${STATE_PATH}`);
     console.error(c.gray('       → run `npx @justethales/casp init` first'));
     exit(1);
   }
   const state = loadState(STATE_PATH);
   if (!state) {
+    record(
+      'state.file',
+      'fail',
+      'casp/state.json is not valid JSON',
+      STATE_PATH,
+      'fix the JSON syntax (a trailing comma or unquoted key, usually)'
+    );
+    if (json) emitJson(findings);
     console.error(c.red('FAIL') + ' casp/state.json is not valid JSON');
     exit(1);
   }
@@ -384,6 +441,8 @@ export function runCheck(args: string[]): void {
   }
 
   /* Report --------------------------------------------------------------- */
+
+  if (json) emitJson(findings);
 
   const pass = findings.filter((f) => f.severity === 'pass').length;
   const warn = findings.filter((f) => f.severity === 'warn').length;
