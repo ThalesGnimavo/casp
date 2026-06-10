@@ -1,27 +1,28 @@
 {
   "updated_at": "2026-06-10",
-  "last_session_id": "26-06-10-001-check-json-and-roadmap-proposal",
-  "last_commit": "d0d93e2",
-  "current_phase": "0.2.4-check-json",
-  "next_phase": null,
-  "next_prompt": null,
+  "last_session_id": "26-06-10-002-false-green-and-state-bump-fixes",
+  "last_commit": "d164ae7",
+  "current_phase": "0.3.0-correctness-fixes",
+  "next_phase": "install-hook",
+  "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
     "0.2.2-parked-state-and-version-fix",
     "0.2.3-autonomous-era-repositioning",
-    "0.2.4-check-json"
+    "0.2.4-check-json",
+    "0.3.0-correctness-fixes"
   ],
-  "phases_queued": [],
-  "phases_backlog": [
-    "pre-session-gate",
+  "phases_queued": [
     "install-hook",
+    "next-presession-gate",
     "configurable-paths",
-    "state-bump-check-refinement",
-    "doctor",
-    "status-all",
-    "state-diff"
+    "check-shipped-log",
+    "status-json",
+    "verify-and-state-diff",
+    "demand-gated-tail"
   ],
+  "phases_backlog": [],
   "migrations_applied": [],
   "migrations_dir": "drizzle",
   "notes": "See CHANGELOG.md and the session log for this phase. State surface bumped at session close; run casp check before push."
