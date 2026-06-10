@@ -1,6 +1,6 @@
 # CASP — the Coding-Agent State Protocol
 
-> **Your AI agent runs the whole project roadmap — and can't lose the thread.** Point any coding agent at a CASP repo and it executes phase after phase across sessions, branches and a team: it writes its **own next-session prompt**, logs every session, and a validator **blocks the push the moment the state drifts from git**. Everyone *stores* context; CASP keeps the thread **and proves it**. MIT, zero telemetry, no SaaS.
+> **The model holds the context. CASP proves the state is true — against git.** The new models run your whole roadmap for hours, even days, without losing the thread — which is exactly why state drift matters *more*, not less: the more an agent does between your checkpoints, the more its recorded state can quietly stop matching git. Point any coding agent at a CASP repo and it executes phase after phase across sessions, branches and a team — writing its **own next-session prompt**, logging every session — and `casp check` **blocks the push the moment the state drifts from git**. Everyone *stores* context; CASP **proves** it. The complement to long-running, autonomous models — with **Claude Code** today, and every model that ships next. MIT, zero telemetry, no SaaS.
 
 [![npm version](https://img.shields.io/npm/v/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
 [![npm downloads](https://img.shields.io/npm/dm/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
@@ -291,4 +291,4 @@ If CASP saves you 30 minutes a week, that's enough payback. If you want to say t
 
 ---
 
-*CASP — the Coding-Agent State Protocol. Your AI agent runs the whole roadmap — and can't lose the thread.*
+*CASP — the Coding-Agent State Protocol. The model holds the context; CASP proves the state is true — against git.*
