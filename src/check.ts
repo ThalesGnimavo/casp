@@ -415,9 +415,11 @@ export function runCheck(args: string[]): void {
       'create the migrations directory OR fix state.migrations_dir OR empty migrations_applied'
     );
   } else if (Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
+    // Migration files: SQL (drizzle, raw) or Python (alembic). Dunder entries
+    // (__init__.py, __pycache__) are infrastructure, not migrations.
     const onDisk = readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .map((f) => f.replace(/\.sql$/, ''))
+      .filter((f) => /\.(sql|py)$/.test(f) && !f.startsWith('__'))
+      .map((f) => f.replace(/\.(sql|py)$/, ''))
       .sort();
     const inState = [...state.migrations_applied].sort();
     const missingFromState = onDisk.filter((m) => !inState.includes(m));
@@ -479,14 +481,23 @@ export function runCheck(args: string[]): void {
             rel,
             'set session_log: session-logs/<id>.md in the frontmatter'
           );
-        } else if (!existsSync(join(ROOT, logField))) {
-          record(
-            `prompt.${rel}.session_log_exists`,
-            'fail',
-            "shipped prompt's session_log file is missing",
-            `${rel} -> ${logField}`,
-            'either write the missing log OR fix the pointer'
-          );
+        } else {
+          // A phase shipped across several sessions lists its logs as a
+          // comma-separated list. Every entry must resolve.
+          const entries = logField
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const missing = entries.filter((e) => !existsSync(join(ROOT, e)));
+          if (missing.length) {
+            record(
+              `prompt.${rel}.session_log_exists`,
+              'fail',
+              "shipped prompt's session_log file is missing",
+              `${rel} -> ${missing.join(', ')}`,
+              'either write the missing log(s) OR fix the pointer (repo-relative paths, comma-separated)'
+            );
+          }
         }
       }
     }

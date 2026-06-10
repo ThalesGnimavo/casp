@@ -355,6 +355,54 @@ test('non-bump commit past last_commit (source files touched) → still WARN', (
   }
 });
 
+/*
+ * Field-test fixes (0.3.1) — found by running 0.3.0 against a production
+ * Alembic repo: migrations are not always .sql, and a phase shipped across
+ * several sessions lists its logs comma-separated.
+ */
+
+test('alembic .py migrations match state (dunder files ignored)', () => {
+  const { dir, state } = scaffold();
+  try {
+    mkdirSync(join(dir, 'backend', 'alembic', 'versions', '__pycache__'), { recursive: true });
+    writeFileSync(join(dir, 'backend', 'alembic', 'versions', '1f106a2_module_vehicules.py'), '# rev\n');
+    writeFileSync(join(dir, 'backend', 'alembic', 'versions', '__init__.py'), '');
+    state.migrations_dir = 'backend/alembic/versions';
+    state.migrations_applied = ['1f106a2_module_vehicules'];
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'a matching alembic dir must not FAIL');
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'migrations.match');
+    assert.equal(f.severity, 'pass');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('comma-separated session_log: all entries exist → pass, one missing → FAIL', () => {
+  const { dir } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', 'part-a.md'), '# a\n');
+    writeFileSync(join(dir, 'session-logs', 'part-b.md'), '# b\n');
+    const prompt = (logs) =>
+      `---\nstatus: shipped\nsession_id: 26-01-01-001-first-slice\nsession_log: ${logs}\n---\n\n# Multi-session phase\n`;
+    const p = join(dir, 'docs', 'plan', 'sessions', 'PHASE-MULTI.md');
+    writeFileSync(p, prompt('session-logs/part-a.md, session-logs/part-b.md'));
+    let r = runCheckJson(dir);
+    assert.equal(r.status, 0, 'all listed logs exist — no FAIL');
+    writeFileSync(p, prompt('session-logs/part-a.md, session-logs/part-MISSING.md'));
+    r = runCheckJson(dir);
+    assert.equal(r.status, 1, 'one missing entry in the list must FAIL');
+    const report = JSON.parse(r.stdout);
+    const f = report.findings.find((x) => x.id.endsWith('session_log_exists') && x.severity === 'fail');
+    assert.ok(f && f.detail.includes('part-MISSING.md') && !f.detail.includes('part-a.md'),
+      'the FAIL names only the missing entries');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('default human-readable output carries no JSON braces (format untouched)', () => {
   const { dir } = scaffold();
   try {

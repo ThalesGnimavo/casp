@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-06-10
+
+- **Fix — Alembic (Python) migrations are now recognized.** The `migrations.match` check only counted `.sql` files, so a Python shop (`backend/alembic/versions/`) got a guaranteed false FAIL: every applied revision reported as missing from disk. The filter now accepts `.sql` and `.py`, ignoring dunder entries (`__init__.py`, `__pycache__`). Found within minutes of running 0.3.0 against a production FastAPI/Alembic repo (SENEBA).
+- **Fix — comma-separated `session_log` lists are supported.** A phase shipped across several sessions legitimately lists all its logs in one frontmatter value (`session_log: session-logs/a.md, session-logs/b.md`). The validator treated the whole string as a single path and FAILed. Each entry is now resolved independently (repo-relative), and a FAIL names only the entries that are actually missing.
+- Two new regression tests (17 total).
+
 ## 0.3.0 — 2026-06-10
 
 - **Fix (verdict-changing) — no more false green when a claimed directory is missing.** A check that cannot find what it needs no longer silently skips: when `state.json` makes a claim that requires a directory and that directory is absent, `casp check` now **FAILs** with a `cannot verify <claim>` finding. Three claims are enforced: a real `last_session_id` requires `session-logs/` (`last_session.logs_dir`), a non-empty `migrations_applied` requires the migrations directory (`migrations.dir` — the canonical drift example itself was a false green when the dir was missing), and a non-empty `phases_shipped` requires both `docs/plan/sessions/` and `session-logs/` (`shipped_history.*`). Fresh-init placeholders and empty arrays are not claims and do not FAIL. **Repos that previously reported green may now correctly report drift — re-run `casp check` everywhere after upgrading.** Minor version bump for exactly that reason.
