@@ -1,6 +1,6 @@
 # 26-06-10-001 — 0.2.4 : `casp check --json` + roadmap proposal + CASP-on-CASP
 
-**Session prompt :** `docs/plan/sessions/PHASE-0-2-4-CHECK-JSON-AND-ROADMAP-PROPOSAL.md` (formalized from the CEO brief `casp/private-docs/fable-brief-casp-roadmap-proposal.md`).
+**Session prompt :** `docs/plan/sessions/PHASE-0-2-4-CHECK-JSON-AND-ROADMAP-PROPOSAL.md` (formalized from the CEO brief `private-docs (internal)/fable-brief-casp-roadmap-proposal.md`).
 **Previous session end :** `321d4fb` (docs: 0.2.3 — publish the autonomous-model-era repositioning to npm).
 **Delegation :** Executed inline; read-only Explore sub-agent for the post-implementation audit. Reason: small blast radius, single-package change.
 **State at session start :** No `casp/` cockpit in the repo (CASP did not manage itself). Brief asked for (1) a roadmap *proposal* within stated rails, (2) shipping the one pre-agreed item, `casp check --json`.
@@ -25,7 +25,7 @@ Stable-schema documentation: stability contract (`schema_version` bumps only on 
 
 Four new tests: clean → valid schema + verdict `clean` + counts add up; drift → exit 1 + failing finding with `fix` hint; missing state.json → still valid JSON; default human output untouched (no JSON braces). 6/6 green.
 
-### D — `docs/ROADMAP-PROPOSAL.md` (NEW — the primary deliverable)
+### D — `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` (NEW — the primary deliverable)
 
 Every backlog item (README roadmap + `TODO.md`) tagged protocol/tooling, ordered by leverage. Tier 1: `install-hook` (argues the README's 0.6 ordering is wrong), configurable paths (the one protocol-bucket item — justified against the false-green failure mode), state-bump check refinement (found by dogfooding, see below). Cuts argued: `casp lint` (LLM verb dilutes the deterministic wedge), notification channel adapters in core (replaced by `--json` + webhook recipe), `last-close.json` (breaks "three files"). Restraint section: four new check-category candidates considered, one accepted.
 
@@ -53,7 +53,7 @@ Every backlog item (README roadmap + `TODO.md`) tagged protocol/tooling, ordered
 | `src/init.ts` | MODIFIED — skip `.DS_Store` when scaffolding. |
 | `test/check.test.mjs` | MODIFIED — 4 new JSON-contract tests. |
 | `docs/check-json.md` | NEW — schema documentation. |
-| `docs/ROADMAP-PROPOSAL.md` | NEW — the roadmap proposal. |
+| `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` | NEW — the roadmap proposal. |
 | `README.md` | MODIFIED — `--json` in command deck + validator section (roadmap section untouched). |
 | `CHANGELOG.md` | MODIFIED — 0.2.4 unreleased entry. |
 | `package.json` | MODIFIED — version 0.2.4. |
@@ -99,9 +99,9 @@ Verdict recorded in the final commit message; fixes applied inline before commit
 
 ## Addendum — 2026-06-10, later same session
 
-The rails file `casp/private-docs/casp-optimized-roadmap.md` **was delivered by
+The rails file `private-docs (internal)/casp-optimized-roadmap.md` **was delivered by
 the CEO after the first draft** (it was genuinely absent from disk at session
-start — `find` over the workspace confirmed). `docs/ROADMAP-PROPOSAL.md` was
+start — `find` over the workspace confirmed). `private-docs/casp-roadmap-proposal.md (internal, outside this repo)` was
 rewritten as **v2**, reconciled against the real rails:
 
 - **Adopted from the rails (new since v1):** pre-session gate (`casp next`
@@ -123,5 +123,5 @@ rewritten as **v2**, reconciled against the real rails:
 - Tests + build green inline.
 - `casp check` 0 FAIL.
 - Post-implementation audit ran (read-only Explore agent) — findings applied inline.
-- Next-session prompt deliberately NOT drafted — gated on CEO validation of `docs/ROADMAP-PROPOSAL.md`.
+- Next-session prompt deliberately NOT drafted — gated on CEO validation of `private-docs/casp-roadmap-proposal.md (internal, outside this repo)`.
 - Commit on `feat/check-json-roadmap-proposal` + push. No merge.

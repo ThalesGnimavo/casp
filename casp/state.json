@@ -24,5 +24,5 @@
   ],
   "migrations_applied": [],
   "migrations_dir": "drizzle",
-  "notes": "Parked on purpose: next_phase/next_prompt are null until the CEO validates docs/ROADMAP-PROPOSAL.md. Bump every section at session close. Run `npx @justethales/casp check` before push."
+  "notes": "Parked on purpose: next_phase/next_prompt are null until the CEO validates private-docs/casp-roadmap-proposal.md (internal, outside this repo). Bump every section at session close. Run `npx @justethales/casp check` before push."
 }
