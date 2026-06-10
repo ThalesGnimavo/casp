@@ -228,7 +228,7 @@ casp:check · 22 PASS · 2 WARN · 1 FAIL
 ✗ 1 drift detected. Push blocked — fix before push.
 ```
 
-Eight check categories, each with a one-line `→ fix` hint so the agent can resolve without re-reading docs:
+Nine check categories, each with a one-line `→ fix` hint so the agent can resolve without re-reading docs:
 
 1. `state.json.next_prompt` points at a missing file.
 2. `state.json.next_prompt` points at a prompt with `status: shipped`. *(The exact bug CASP was built to catch.)*
@@ -238,6 +238,7 @@ Eight check categories, each with a one-line `→ fix` hint so the agent can res
 6. `state.json.migrations_applied[]` does not match the migrations directory.
 7. A session prompt has `status: shipped` but `session_log: pending`.
 8. Uncommitted changes in `casp/`, `docs/plan/sessions/`, or `session-logs/`.
+9. A state claim whose backing directory is missing — claimed migrations, shipped phases, or a session id the validator cannot verify **FAIL**; a check that cannot find what it needs never reports green.
 
 The exit-code contract — clean → exit 0, drift → exit 1 — is covered by `npm test`, so the CI gate stays real.
 

@@ -171,6 +171,190 @@ test('--json with no casp/state.json → exit 1, still valid JSON', () => {
   }
 });
 
+/*
+ * False-green regression guards — a check that cannot find what it needs must
+ * never report green. A state CLAIM (real session id, non-empty migrations,
+ * shipped phases) whose backing dir is missing is a FAIL; a fresh-init
+ * placeholder is not a claim and must not FAIL.
+ */
+
+test('claimed last_session_id + missing session-logs/ → exit 1 (no silent green)', () => {
+  const { dir } = scaffold();
+  try {
+    rmSync(join(dir, 'session-logs'), { recursive: true, force: true });
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'a claim the validator cannot verify must FAIL');
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'last_session.logs_dir');
+    assert.ok(f && f.severity === 'fail', 'missing logs dir surfaces as its own fail finding');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('claimed migrations_applied + missing migrations dir → exit 1 (the canonical false-green)', () => {
+  const { dir, state } = scaffold();
+  try {
+    state.migrations_applied = ['0001_init', '0002_users'];
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'claimed migrations with no dir to verify against must FAIL');
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'migrations.dir');
+    assert.ok(f && f.severity === 'fail');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('claimed phases_shipped + missing dirs → exit 1', () => {
+  const { dir, state } = scaffold();
+  try {
+    rmSync(join(dir, 'docs'), { recursive: true, force: true });
+    rmSync(join(dir, 'session-logs'), { recursive: true, force: true });
+    // Park next_prompt and the session id so this test isolates the
+    // shipped-history claim from the other dir-backed claims.
+    state.next_prompt = null;
+    state.next_phase = null;
+    state.last_session_id = 'pending';
+    state.phases_shipped = ['phase-1-first-slice'];
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1);
+    const report = JSON.parse(stdout);
+    assert.ok(report.findings.some((x) => x.id === 'shipped_history.sessions_dir' && x.severity === 'fail'));
+    assert.ok(report.findings.some((x) => x.id === 'shipped_history.logs_dir' && x.severity === 'fail'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fresh parked state (placeholders, no claims, no dirs) → exit 0', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'casp-test-'));
+  try {
+    git(dir, 'init', '-q');
+    git(dir, 'config', 'user.email', 'test@casp.sh');
+    git(dir, 'config', 'user.name', 'casp test');
+    mkdirSync(join(dir, 'casp'), { recursive: true });
+    const state = {
+      updated_at: '2026-01-01',
+      last_session_id: 'pending',
+      last_commit: 'pending',
+      current_phase: 'phase-0-init',
+      next_phase: null,
+      next_prompt: null,
+      phases_shipped: [],
+      phases_queued: [],
+      migrations_applied: [],
+      migrations_dir: 'drizzle'
+    };
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'init');
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'placeholders are not claims — a fresh parked cockpit is clean');
+    const report = JSON.parse(stdout);
+    assert.equal(report.summary.fail, 0);
+    const pendingSession = report.findings.find((x) => x.id === 'last_session.log_exists');
+    assert.equal(pendingSession.severity, 'warn', "pending last_session_id is a WARN, not a FAIL");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("empty-string last_session_id → exit 1 (neither an id nor the 'pending' placeholder)", () => {
+  const { dir, state } = scaffold();
+  try {
+    state.last_session_id = '';
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'an empty id must FAIL, not silently skip the check');
+    const report = JSON.parse(stdout);
+    assert.ok(report.findings.some((x) => x.id === 'last_session.id_empty' && x.severity === 'fail'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migrations_dir path is a FILE → graceful FAIL, valid JSON, no crash', () => {
+  const { dir, state } = scaffold();
+  try {
+    state.migrations_applied = ['0001_init'];
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    writeFileSync(join(dir, 'drizzle'), 'not a directory\n');
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1);
+    const report = JSON.parse(stdout, undefined);
+    assert.ok(report.findings.some((x) => x.id === 'migrations.dir' && x.severity === 'fail'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('docs/plan/sessions path is a FILE → graceful report, no readdirSync crash', () => {
+  const { dir, state } = scaffold();
+  try {
+    rmSync(join(dir, 'docs'), { recursive: true, force: true });
+    mkdirSync(join(dir, 'docs', 'plan'), { recursive: true });
+    writeFileSync(join(dir, 'docs', 'plan', 'sessions'), 'not a directory\n');
+    // Park next_prompt so the missing prompt file doesn't dominate the test.
+    state.next_prompt = null;
+    state.next_phase = null;
+    state.phases_shipped = ['phase-1-first-slice'];
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'shipped-history claim against a file-squatted path must FAIL');
+    const report = JSON.parse(stdout);
+    assert.ok(report.findings.some((x) => x.id === 'shipped_history.sessions_dir' && x.severity === 'fail'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/*
+ * State-bump recognition — the canonical close loop (commit session → bump
+ * last_commit → commit the bump) must read as PASS, not a permanent WARN.
+ */
+
+test('state-bump commit (parent of HEAD, state-surface only) → last_commit PASS, exit 0', () => {
+  const { dir } = scaffold();
+  try {
+    // scaffold() left state.last_commit = SHA of the init commit, with the
+    // bumped state.json uncommitted. Commit that bump: HEAD moves one past
+    // last_commit, touching only casp/state.json.
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'chore(casp): bump state');
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0);
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'last_commit.git');
+    assert.equal(f.severity, 'pass', 'a state-bump commit is the canonical loop, not drift');
+    assert.match(f.label, /parent of HEAD/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('non-bump commit past last_commit (source files touched) → still WARN', () => {
+  const { dir } = scaffold();
+  try {
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'chore(casp): bump state');
+    // A second commit touching real source: last_commit is now two behind and
+    // the latest commit is not a state bump — must stay WARN.
+    writeFileSync(join(dir, 'app.js'), 'console.log("hi")\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'feat: app');
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'WARN does not block');
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'last_commit.git');
+    assert.equal(f.severity, 'warn');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('default human-readable output carries no JSON braces (format untouched)', () => {
   const { dir } = scaffold();
   try {
