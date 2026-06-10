@@ -23,6 +23,7 @@ const TEMPLATES = join(__dirname, '..', 'templates');
 function copyDir(src: string, dest: string, force: boolean): void {
   if (!existsSync(dest)) mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync(src)) {
+    if (entry === '.DS_Store') continue; // never scaffold Finder junk into a user's repo
     const s = join(src, entry);
     const d = join(dest, entry);
     if (statSync(s).isDirectory()) {

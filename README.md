@@ -124,7 +124,7 @@ Five verbs. Trivially typed — one syllable, no homographs, the same in English
 |---|---|
 | `casp init` | Scaffold the continuity layer (`casp/`) into any repo. Idempotent — re-running never overwrites existing files. |
 | `casp status` | One-screen snapshot: phase, next, what's shipped, last 10 commits. `--plain` strips ANSI. |
-| `casp check` | The drift validator. Validates `state.json` against the filesystem and git. **Exits 1 on drift.** `--quiet` only prints on FAIL (CI-friendly); `--no-git` skips git-dependent checks. |
+| `casp check` | The drift validator. Validates `state.json` against the filesystem and git. **Exits 1 on drift.** `--quiet` only prints on FAIL (CI-friendly); `--no-git` skips git-dependent checks; `--json` emits a machine-readable report with a stable schema ([docs/check-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/check-json.md)) — same checks, same exit code. |
 | `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. |
 | `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/`. |
 | `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/`. |
@@ -240,6 +240,8 @@ Eight check categories, each with a one-line `→ fix` hint so the agent can res
 8. Uncommitted changes in `casp/`, `docs/plan/sessions/`, or `session-logs/`.
 
 The exit-code contract — clean → exit 0, drift → exit 1 — is covered by `npm test`, so the CI gate stays real.
+
+Need the report as data instead of text? `casp check --json` emits the same findings as structured PASS/WARN/FAIL with a stable, documented schema — for CI annotations, webhooks, and roll-ups. See [docs/check-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/check-json.md).
 
 ---
 
