@@ -1,40 +1,40 @@
 # CASP — Roadmap Proposal (for CEO validation)
 
-> **Status: PROPOSAL.** Nothing here is committed work. Drafted 2026-06-10 on
+> **Status: PROPOSAL, v2.** Nothing here is committed work. Drafted 2026-06-10 on
 > branch `feat/check-json-roadmap-proposal`, alongside the one pre-agreed item
 > (`casp check --json`, shipped in the same branch). The public README roadmap
 > is untouched until this is validated.
 >
-> **Rails note.** The session brief designates `casp-optimized-roadmap.md` as
-> the constitution for this proposal. **That file does not exist** — not in this
-> repo, not in `casp/private-docs/`. The rails used here are the ones the brief
-> itself states inline: one job · gate-not-harness · protocol frozen, tooling
-> grows · deterministic stays deterministic · model-agnostic + zero-telemetry
-> non-negotiable · the anti-roadmap. Either write that file or adopt this
-> document as its replacement — right now it is a dangling pointer.
+> **Rails.** v1 of this document was drafted against the rails as stated inline
+> in the session brief, because `casp-optimized-roadmap.md` was not on disk at
+> session start. The CEO delivered the file mid-session
+> (`casp/private-docs/casp-optimized-roadmap.md`); this v2 is reconciled against
+> it. Where I differ from the rails, the difference is argued explicitly below —
+> per the brief's own instruction to pressure-test, not rubber-stamp.
 
 ## The bar each item was held to
 
 - **One job.** CASP proves a project's recorded state matches git,
   deterministically, and gates on drift. An item serves that job or it is cut.
 - **Protocol vs tooling.** *Protocol* = the `state.json` schema, the drift-check
-  categories, the template contract, P01–P04. Changes there must clear the
+  categories, the template contract, P01–P04. Changes there clear the
   HTTP-method-rare bar: a new *deterministic, metadata-only, git-verifiable*
-  check, or a key the validator needs to see ground truth. *Tooling* = anything
-  else; it grows freely if it serves the job.
-- **Leverage order, not ease order.** Items below are ranked by how much they
-  multiply the value of the gate per line of code.
+  drift check, or a key the validator needs to see ground truth. *Tooling* =
+  everything else; grows freely if it serves the one job.
+- **Leverage order, not ease order.** The rails group thematically (Tier 1–6);
+  the brief orders by leverage. Where the two disagree, I ordered by leverage
+  and flagged the move.
 
 ---
 
-## Shipped in this branch (pre-agreed, uncontested)
+## Shipped in this branch (pre-agreed, uncontested — rails Tier 1)
 
 ### `casp check --json` — tooling
 
 Machine-readable PASS/WARN/FAIL findings with a stable, versioned schema
-(`docs/check-json.md`). Same checks, same exit code — format only. This is the
-substrate for half of the items below (hook output, CI annotations, status
-roll-ups) and it dissolves the heaviest item in `TODO.md` (see Cuts).
+(`docs/check-json.md`). Same checks, same exit code — format only. Substrate
+for the pre-session gate, hook output, CI annotations, roll-ups, and the
+notify payload.
 
 Also shipped while dogfooding: `casp init` no longer copies `.DS_Store` from a
 local clone's templates, and the repo now runs CASP on itself (`casp/`,
@@ -42,150 +42,186 @@ session prompts, session logs — `casp check` green before push).
 
 ---
 
+## Where I differ from the rails (the executive diff — read this first)
+
+| # | Rails say | I propose | Why |
+|---|---|---|---|
+| 1 | `casp/last-close.json` close-payload snapshot (Tier 2) | **Cut; substitute `casp status --json`** | Derive, don't store. A fourth state artifact breaks "three files", can itself drift (a stored snapshot is exactly the class of unverified state CASP exists to distrust), and everything in the payload is already in `state.json` + the session log + git. A read-only `status --json`, computed on demand, gives the harness the same structured handoff with zero new stored surface. |
+| 2 | Notifications Tier 6 "as the TODO frames it" (seven named adapters) | **Generic webhook only; named adapters never in core** | The TODO's *framing* (off by default, user-owned outbound, secrets from env, notify-on-red) is right and I keep all of it. The *adapter list* is a second product: per-platform auth, retries, rate limits, dedupe, bloating an install whose one-line security review is a selling point. `casp notify --webhook <url>` covers every platform via their native webhook endpoints. |
+| 3 | `casp lint` allowed as separate advisory command (flag carried in) | **Drop from the public roadmap entirely** | Even clearly-labeled, an LLM verb inside the CASP binary hands every skeptic the "so you do use a model" reply, and the published rebuttal to "won't the model solve this?" rests on CASP being the deterministic non-model thing. Prose-vs-reality checking is real but belongs in the harness — an agent reading `casp/` does it today, free. Brand risk exceeds feature value. |
+| 4 | `casp verify <commit>` in Tier 1 | **Tier 2** | Real compliance value, but it validates the *past*; the gates protect the *future*. No drift is prevented by verifying history. Below every enforcement item in leverage. |
+| 5 | Enforcement (hook, CI installer) in Tier 3 | **Hook pulled into Tier 1** | ~30 LOC converts P03 from discipline into mechanism on every repo. Highest leverage per line in the entire backlog; thematic grouping under-ranks it. |
+
+Everything else in the rails I adopt as-is.
+
+---
+
 ## Tier 1 — propose next (in this order)
 
-### 1. `casp install-hook` — tooling
+### 1. Pre-session gate — tooling (rails Tier 1; new since v1, accepted)
 
-One verb that writes a `pre-push` git hook running `casp check --quiet`.
-P03 says *"check before every push — the validator is not optional"*, but
-today it is enforced by nothing except discipline. This is the cheapest item in
-the entire backlog (~30 LOC, zero deps) and it converts the protocol's central
-promise from aspiration to mechanism on every repo that runs it once.
+`casp next` currently prints the prompt unconditionally. Make it run the
+validator first and **refuse on drift** (non-zero exit, drift report on
+stderr), with `--no-check` as the explicit escape hatch. The README already
+promises this behavior — *"CASP refuses to start the wrong session"* — but
+today only the push boundary is gated; the start boundary is open. This closes
+the loop symmetrically and is precisely what makes a harness auto-advance
+(`/next`, `/loop`) safe: the agent cannot begin on a lying state. Behavior
+change to `next` ⇒ minor version bump and a CHANGELOG warning.
 
-**I am explicitly arguing the README order is wrong.** The public roadmap ships
-this last (0.6, after configurable paths, binaries, rollback). It should ship
-first: nothing else multiplies the gate, everything else decorates it.
+### 2. `casp install-hook` — tooling (rails Tier 3, pulled forward)
 
-### 2. Configurable paths — **protocol** (clears the bar)
+One verb writing a `pre-push` hook that runs `casp check --quiet`. P03 says
+the validator is not optional; today nothing enforces it. Cheapest item in the
+backlog, multiplies everything else.
 
-Optional `state.json` keys — `sessions_dir`, `logs_dir` (joining the existing
+### 3. Configurable paths — **protocol** (rails Tier 5; pulled forward, clears the bar)
+
+Optional `state.json` keys — `sessions_dir`, `logs_dir` (joining
 `migrations_dir`) — so the validator finds ground truth in repos whose layout
-is not `docs/plan/sessions/` + `session-logs/`.
+differs. Not a new check: the existing checks pointed at the right
+directories. Today a non-standard layout gets **false green** — checks 3 and 7
+silently skip when the hardcoded dirs don't exist. A validator that reports
+clean because it couldn't find the files is the exact failure CASP exists to
+kill, produced by CASP itself. That is why this outranks its rails tier:
+it's not ergonomics, it's validator correctness. Metadata-only,
+backward-compatible.
 
-Why this clears the HTTP-method-rare bar: it is not a new check, it is the
-existing checks being pointed at the right directories. Today, a repo with a
-different layout gets **false green** — checks 3 and 7 silently skip because
-the hardcoded dirs don't exist. A validator that reports clean because it
-couldn't find the files is worse than drift; it is the exact failure mode CASP
-exists to kill, produced by CASP itself. Metadata-only, deterministic,
-backward-compatible (defaults unchanged).
-
-### 3. Recognize the state-bump commit in check 4 — tooling (check refinement)
+### 4. Recognize the state-bump commit in check 4 — tooling (check refinement)
 
 Found by dogfooding this session: the canonical close loop **ends in a
-permanent WARN**. You commit the session, bump `state.last_commit` to that SHA,
-commit the bump — HEAD is now the bump commit, so `last_commit` is "in history
-but not at HEAD" on every subsequent check, forever, on every CASP repo.
-
-Deterministic fix, no new category: PASS when `state.last_commit` is the parent
-of HEAD **and** the HEAD commit touches only `casp/`, `docs/plan/sessions/`,
-`session-logs/` (one `git diff-tree --name-only HEAD`). Metadata-only,
-git-verifiable, and it makes the receipt screenshot fully green instead of
-"green with an explainable warning".
+permanent WARN**. You commit the session, bump `state.last_commit` to that
+SHA, commit the bump — HEAD is now the bump commit, so `last_commit` is "in
+history but not at HEAD" on every check, forever, on every CASP repo.
+Deterministic fix, no new category: PASS when `state.last_commit` is the
+parent of HEAD **and** HEAD touches only `casp/`, `docs/plan/sessions/`,
+`session-logs/` (one `git diff-tree --name-only`). Makes the receipt
+screenshot fully green instead of "green with an explainable warning".
 
 ---
 
 ## Tier 2 — propose, lower urgency
 
-### 4. `casp doctor` — tooling
-One-shot setup check (Node version, dirs present, templates intact, skills
-installed). Read-only. Lowers first-run failure rate; first-run failure is the
-adoption killer for a CLI with no telemetry to reveal it.
+### 5. CI status-check installer — tooling (rails Tier 3)
+One command that drops the GitHub Action the homepage already advertises.
+The org-level twin of `install-hook`; ships after it because repos that can't
+mandate CI still benefit from the local hook.
 
-### 5. `casp status --all` — tooling
-Multi-repo one-screen roll-up (phase, next, check verdict per project),
-consuming `check --json` across a config list of paths. The solo-operator and
-fleet stories both want this; it ships cheaply once `--json` exists.
+### 6. `casp status --json` — tooling (the `last-close.json` substitute, diff #1)
+The structured session handoff — current phase, next prompt, last commit,
+check verdict — computed on demand from existing files. What the harness reads
+before auto-advancing; what `status --all` aggregates; what the notify payload
+serializes. No new stored artifact.
 
-### 6. `casp state diff` — tooling
-How `state.json` evolved between two commits (phase advanced, `next_prompt`
-changed, migrations added). Deterministic, git-native. Turns the "git log *is*
-your compliance trail" marketing line into an inspectable feature.
+### 7. `casp doctor` — tooling (rails Tier 5)
+One-shot setup check (Node version, dirs, templates, skills, notify config
+parses). First-run failure is the adoption killer for a CLI with no telemetry
+to reveal it.
+
+### 8. `casp state diff` + `casp verify <commit>` — tooling (rails Tier 1, demoted per diff #4)
+How `state.json` evolved between two commits; whether a past state was clean
+(validate against a `git worktree` of that commit — deterministic, local).
+Together they make "git log *is* your compliance trail" an inspectable
+feature instead of a marketing line.
+
+### 9. `casp status --all` — tooling (rails Tier 4)
+Multi-repo one-screen roll-up consuming `status --json` / `check --json`
+across a config list of paths. The solo-operator and fleet stories both want
+it; cheap once 6 exists.
 
 ---
 
-## Tier 3 — keep on the public roadmap, demand-gated
+## Tier 3 — keep, demand-gated
 
-### 7. `casp rollback` (0.5) — tooling, redefined narrowly
-A state-mutation helper only: flip a shipped prompt back to queued, remove the
-phase from `phases_shipped`, reset `next_prompt`, then require `casp check` to
-pass. It must **not** touch code or git history — un-shipping code is git's
-job. If it can't be kept that narrow, cut it.
+### 10. Slash-command distribution — tooling/distribution (rails Tier 5)
+`/casp` + `/next` as first-class installable skills rather than a `cp -r` out
+of `node_modules`. The rails call it the adoption lever and that's right —
+but it's distribution polish, not gate leverage, so it queues behind
+enforcement. Includes reconciling the stale `/cockpit` surface (hygiene flag
+below).
 
-### 8. Native binaries (0.4) — tooling (distribution)
-Keep, but explicitly demand-gated. Three platforms × architectures, signing,
-and a second build pipeline is real standing cost; `npx` covers non-Node shops
-today. Ship when a real non-Node org asks, not before.
+### 11. `casp notify --webhook <url>` — tooling (rails Tier 6, narrowed per diff #2)
+User-owned outbound, off by default, secrets from env, `status` redacts,
+validator FAILs on a committed token literal (that last item is itself a new
+deterministic check that clears the bar). Killer use stays **notify-on-red**:
+drift caught on a scheduled run. Wired after `check` exits — never "shipped"
+while the validator reports drift. Named-platform adapters: not in core, not
+later.
 
-### 9. `casp timeline` / `casp metrics` — tooling, backlog
-Read-only derivations from logs + git dates. Harmless, useful for receipts and
-investor updates, zero urgency. `metrics` must stay local-compute-only or it
-starts smelling like a dashboard product (anti-roadmap adjacent).
+### 12. `casp rollback` (README 0.5) — tooling, redefined narrowly
+State-mutation helper only: flip a shipped prompt back to queued, remove the
+phase from `phases_shipped`, reset `next_prompt`, then require `casp check`
+green. It must **not** touch code or git history — un-shipping code is git's
+job. If it can't stay that narrow, cut it.
+
+### 13. Native binaries (README 0.4) — tooling/distribution
+Demand-gated. Platforms × architectures × signing is real standing cost;
+`npx` covers non-Node shops today. Ship when a real non-Node org asks.
+
+### 14. `casp timeline` / `casp metrics` — tooling (rails Tier 4)
+Read-only, local-compute, no LLM — the explicit contrast with model-analyzed
+insight stays the point. Useful for receipts; zero urgency.
 
 ---
 
 ## Cuts (proposed removals — argue back if you disagree)
 
-### Cut: `casp lint` via local LLM (currently on the public README roadmap)
-This is the one item on the published roadmap I think is a mistake. The brand
-promise is *"nothing probabilistic ever enters the gate"* — and the published
-rebuttal to "won't the model solve this?" rests entirely on CASP being the
-deterministic, external, non-model thing. Shipping an LLM verb inside the CASP
-binary — even advisory, even local — hands every skeptic the "so you do use a
-model" reply and blurs the wedge that section 6 of the positioning doc forbids
-diluting. Prose-vs-reality checking is real, but it belongs in the **harness**
-(an agent reading `casp/` can do it today, free) — not in the protocol's CLI.
-Recommend deleting it from the README roadmap at the next docs release.
-
-### Cut: notification channel adapters in core (`TODO.md` high-priority item)
-The job does not include delivering messages. Seven adapters (Discord, Slack,
-Telegram, Twilio, Messenger, SMTP, webhook) means secrets handling, retries,
-rate limits, dedupe — a second product bolted to a tool whose install weight
-and one-line security review are selling points. `check --json` already covers
-the genuine need (drift alert on CI/cron) in user-land:
-`casp check --json || curl -d @- "$WEBHOOK"`. If demand proves out, the
-**most** CASP should ever carry is a single generic
-`casp notify --webhook <url>` — user-owned outbound, off by default, secrets
-from env. Named-platform adapters: never in core.
-
-### Cut: `casp/last-close.json` snapshot (`TODO.md`)
-Redundant with `check --json` + session logs, and it makes the protocol four
-files. "Three files" is load-bearing — in the marketing, and in the protocol's
-claim to minimalism. Adding a fourth artifact needs a job no existing file can
-do; this one doesn't have it.
-
-### Standing cuts (anti-roadmap, restated so they stay visible)
-No orchestration (`next --auto`, runners, schedulers). No code-quality review.
-No LLM inside `casp check`. No PM surface. No model selection or harness UI.
+- **`casp/last-close.json`** — cut per diff #1; `status --json` substitutes.
+- **Named notification adapters in core** — cut per diff #2; generic webhook
+  only.
+- **`casp lint`** — cut from the public roadmap per diff #3. This is the one
+  place I'm asking the rails to bend rather than the proposal: the rails
+  permit it as advisory; I think even advisory inside the binary dilutes the
+  wedge the whole positioning rests on.
+- **Standing cuts (anti-roadmap, restated so they stay visible).** No
+  orchestration (`next --auto` runners, schedulers — note: the Tier-1
+  pre-session gate is the *gate* for the harness's auto-advance, never the
+  advance itself). No code-quality review. No LLM in `casp check`, ever. No
+  PM surface. No model selection or harness UI.
 
 ---
 
-## New check categories — considered and mostly rejected (the restraint section)
+## New deterministic check categories — the rails' three candidates + mine
 
-- **`updated_at` vs git date of `state.json`** — REJECTED. `updated_at` is
-  informational; a mismatch doesn't imply false state, and rebases/squashes
-  would generate false FAILs. A gate that cries wolf gets removed from CI.
+Rails candidates:
+
+- **`phases_shipped[]` entry with no corresponding session-log file** —
+  **ACCEPT.** Deterministic, metadata-only, git-verifiable today (array entry
+  → filename convention). Extends check 3's logic from the last session to
+  all of history. Supersedes the weaker prompt↔phases cross-check I parked in
+  v1.
+- **`now.md` `current_phase` contradicts `state.json`** — **PARK.** As prose,
+  not deterministic. Becomes checkable only if the `now.md` template gains
+  structured frontmatter (`current_phase:`) — a template-contract change,
+  i.e. protocol bar. Worth it only if a real drift incident shows now.md
+  lying in a way that matters to agents (they read `state.json`, not prose).
+- **Shipped prompt references a commit outside its phase range** —
+  **REJECT for now.** "Phase range" is not defined metadata anywhere in the
+  spec; checking it requires inventing new protocol surface first. Park until
+  the metadata exists for some other reason.
+
+Mine (from v1):
+
+- **State-bump recognition** — ACCEPTED (Tier 1 #4).
+- **`updated_at` vs git date of `state.json`** — REJECTED. Informational
+  field; rebases/squashes would generate false FAILs. A gate that cries wolf
+  gets removed from CI.
 - **`next_phase` ∈ `phases_queued`** — REJECTED. `phases_queued` is informal
-  and legitimately diverges mid-replan. Coupling them makes replanning a
-  drift-FAIL, which punishes honesty.
-- **Shipped prompts ↔ `phases_shipped` cross-check** — PARKED. The mapping
-  from prompt slug to phase id is not deterministic today; making it so
-  requires a `phase:` frontmatter key — a protocol change that doesn't clear
-  the bar until a real drift incident demands it.
-- **State-bump recognition** — ACCEPTED (Tier 1 #3): not a new category, a
-  refinement that removes a false WARN baked into the canonical loop itself.
+  and legitimately diverges mid-replan; coupling them punishes honest
+  replanning.
+- **Committed token literal in `casp/`** — ACCEPT, but only alongside Tier 3
+  #11 (it has no subject until notify config exists).
 
-One accepted out of four candidates. The bar held.
+Three accepted out of seven candidates, two of them gated. The bar held.
 
 ---
 
 ## Hygiene flags (not roadmap items, need separate decisions)
 
 1. **`cockpit → casp` naming residue.** The local repo directory is still
-   `ZeroSuite/cockpit-skill/`, and other ZeroSuite projects may still carry
-   `cockpit/` dirs from pre-0.2.0 scaffolds. Cross-project chore, deliberately
-   not touched in this session.
-2. **The rails file is a dangling pointer** (see header). Write
-   `casp-optimized-roadmap.md` or bless this document as the rails.
-3. **Version-string regression class** — fixed twice (0.1.2, 0.2.2), now also
+   `ZeroSuite/cockpit-skill/`; the rails add that the Claude Code command
+   surface still shows `/cockpit` alongside `/casp`; pre-0.2.0 scaffolds
+   across ZeroSuite may still carry `cockpit/` dirs. One cross-project chore,
+   deliberately not touched in this session.
+2. **Version-string regression class** — fixed twice (0.1.2, 0.2.2), now also
    centralised in `shared.ts:pkgVersion()`. No action; noting the pattern.

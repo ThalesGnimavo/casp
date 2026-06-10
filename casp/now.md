@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**`casp check --json` shipped** (stable v1 schema, four new tests, docs in `docs/check-json.md`) on branch `feat/check-json-roadmap-proposal`, together with **`docs/ROADMAP-PROPOSAL.md`** — the full prioritized roadmap proposal awaiting CEO validation — and **CASP now manages itself** (this `casp/` cockpit is the recursive proof). The branch is deliberately **not merged**: the two-auditor post-implementation audit and the CEO's read of the proposal gate everything.
+**`casp check --json` shipped** (stable v1 schema, four new tests, docs in `docs/check-json.md`) on branch `feat/check-json-roadmap-proposal`, together with **`docs/ROADMAP-PROPOSAL.md` v2** — reconciled against the CEO's rails (`casp-optimized-roadmap.md`, delivered mid-session) with five explicit dissents in the "Where I differ" table — and **CASP now manages itself** (this `casp/` cockpit is the recursive proof). The branch is deliberately **not merged**: the two-auditor post-implementation audit and the CEO's read of the proposal gate everything.
 
 ---
 
