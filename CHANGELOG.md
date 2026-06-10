@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4 — 2026-06-10
+
+- **New — `casp check --json`.** Machine-readable validator report: every check category as structured PASS/WARN/FAIL findings (stable `id`, `label`, `detail`, `fix`), plus `verdict`, `exit_code` and a `summary` block. The schema is documented in `docs/check-json.md` and versioned (`schema_version: 1`, bumps only on breaking changes). Strictly additive: the default human-readable output is unchanged, and the exit-code contract is identical — `--json` changes the *format* of the report, never the verdict. Even a missing or unparsable `casp/state.json` emits well-formed JSON (single `state.file` FAIL finding), so consumers never need a non-JSON fallback. Covered by four new tests in `npm test`.
+- **Internal — version helper moved to `shared.ts`** (`pkgVersion()`), so both the CLI banner and the JSON report read the version from `package.json` at runtime. No behavior change.
+- **Fix — `casp init` no longer scaffolds `.DS_Store`.** A Finder junk file sitting in a local clone's `templates/` was copied into the user's `casp/` directory (found by dogfooding `casp init` on the CASP repo itself; published npm installs were unaffected since `npm pack` strips `.DS_Store`).
+- **CASP now manages itself.** The repo carries its own `casp/` cockpit (`state.json`, `now.md`, `roadmap.md`), session prompts and session logs — `casp check` runs green on the CASP repo before every push. Recursive validation: the tool that gates state drift is itself gated.
+
 ## 0.2.3 — 2026-06-10
 
 - **Docs only.** No code or CLI behavior change. Existing installs at 0.2.2 keep working unchanged.
