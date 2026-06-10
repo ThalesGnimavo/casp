@@ -1,7 +1,7 @@
 {
   "name": "@justethales/casp",
   "version": "0.2.2",
-  "description": "CASP — the Coding-Agent State Protocol. Your AI agent runs the whole project roadmap across sessions, branches and a team: it writes its own next-session prompt, logs every session, and a validator blocks the push the moment the state drifts from git. Git-native, local-only. Works with Claude Code, Cursor, Aider. MIT, zero telemetry.",
+  "description": "CASP — the Coding-Agent State Protocol. The deterministic gate that validates your coding agent's project state against git and blocks the push the moment it drifts — across sessions, branches and a team. The complement to long-running autonomous models: the model holds the context, CASP proves it's true. Git-native, local-only. Works with Claude Code, Cursor, Aider. MIT, zero telemetry.",
   "type": "module",
   "license": "MIT",
   "author": "Thales (Juste Gnimavo) — ZeroSuite",
