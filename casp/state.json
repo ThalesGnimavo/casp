@@ -1,7 +1,7 @@
 {
   "updated_at": "2026-06-10",
   "last_session_id": "26-06-10-002-false-green-and-state-bump-fixes",
-  "last_commit": "9b85080",
+  "last_commit": "c65417a",
   "current_phase": "0.3.0-correctness-fixes",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
