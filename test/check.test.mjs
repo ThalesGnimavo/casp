@@ -391,6 +391,9 @@ test('comma-separated session_log: all entries exist → pass, one missing → F
     writeFileSync(p, prompt('session-logs/part-a.md, session-logs/part-b.md'));
     let r = runCheckJson(dir);
     assert.equal(r.status, 0, 'all listed logs exist — no FAIL');
+    writeFileSync(p, prompt('[session-logs/part-a.md, session-logs/part-b.md]'));
+    r = runCheckJson(dir);
+    assert.equal(r.status, 0, 'YAML-array form is equivalent to the comma form');
     writeFileSync(p, prompt('session-logs/part-a.md, session-logs/part-MISSING.md'));
     r = runCheckJson(dir);
     assert.equal(r.status, 1, 'one missing entry in the list must FAIL');

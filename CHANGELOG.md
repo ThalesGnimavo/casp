@@ -3,7 +3,7 @@
 ## 0.3.1 — 2026-06-10
 
 - **Fix — Alembic (Python) migrations are now recognized.** The `migrations.match` check only counted `.sql` files, so a Python shop (`backend/alembic/versions/`) got a guaranteed false FAIL: every applied revision reported as missing from disk. The filter now accepts `.sql` and `.py`, ignoring dunder entries (`__init__.py`, `__pycache__`). Found within minutes of running 0.3.0 against a production FastAPI/Alembic repo (SENEBA).
-- **Fix — comma-separated `session_log` lists are supported.** A phase shipped across several sessions legitimately lists all its logs in one frontmatter value (`session_log: session-logs/a.md, session-logs/b.md`). The validator treated the whole string as a single path and FAILed. Each entry is now resolved independently (repo-relative), and a FAIL names only the entries that are actually missing.
+- **Fix — multi-log `session_log` values are supported (YAML list or comma-separated).** A phase shipped across several sessions legitimately lists all its logs in one frontmatter value (`session_log: [session-logs/a.md, session-logs/b.md]`). The validator treated the whole value as a single path and FAILed. Each entry is now resolved independently (repo-relative), and a FAIL names only the entries that are actually missing.
 - Two new regression tests (17 total).
 
 ## 0.3.0 — 2026-06-10

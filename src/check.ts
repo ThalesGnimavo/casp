@@ -482,10 +482,12 @@ export function runCheck(args: string[]): void {
             'set session_log: session-logs/<id>.md in the frontmatter'
           );
         } else {
-          // A phase shipped across several sessions lists its logs as a
-          // comma-separated list. Every entry must resolve.
-          const entries = logField
-            .split(',')
+          // A phase shipped across several sessions lists its logs as a YAML
+          // list or a comma-separated string. Every entry must resolve.
+          const rawLog = fm.session_log;
+          const entries = (
+            Array.isArray(rawLog) ? rawLog.map(String) : logField.split(',')
+          )
             .map((s) => s.trim())
             .filter(Boolean);
           const missing = entries.filter((e) => !existsSync(join(ROOT, e)));
