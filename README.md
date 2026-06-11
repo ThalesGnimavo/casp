@@ -258,11 +258,14 @@ Need the report as data instead of text? `casp check --json` emits the same find
 
 ## Roadmap
 
-- **0.3** — Configurable paths (move `docs/plan/sessions/`, `session-logs/`, `<migrations_dir>/` per project).
-- **0.4** — Native binaries for Python / Rust / Go shops that don't want Node.
-- **0.5** — `casp rollback` for un-shipping a phase that turned out broken in production.
-- **0.6** — Optional pre-push git hook installer (`casp install-hook`).
-- **Long-term** — `casp lint` for prose-vs-reality checks via local LLM.
+- **0.4** — `casp install-hook`: wire `casp check` into your pre-push hook in one command. The validator stops being optional.
+- **0.5** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
+- **0.6** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so non-standard layouts validate against the right ground truth.
+- **0.7** — `casp status --json`: the structured session handoff, and the substrate for a multi-repo roll-up (`status --all`).
+- **Later** — `casp verify <commit>` + `casp state diff`: validate a past state; inspect how the state evolved between two commits.
+- **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
+
+Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary — even advisory — would undercut the deterministic claim; prose-vs-reality checking belongs in your agent, which can read `casp/` today for free).
 
 Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGnimavo/casp/issues).
 

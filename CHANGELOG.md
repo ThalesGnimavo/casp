@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 — 2026-06-11
+
+- **Docs only.** No code or CLI behavior change. Existing installs at 0.3.1 keep working unchanged.
+- **The public roadmap is now the validated one.** Order by leverage: `install-hook` first (the gate stops being optional), then the pre-session gate on `casp next`, configurable paths, `status --json`, `verify <commit>` + `state diff`, and a demand-gated tail (binaries, narrow rollback, CI installer, webhook notifier). **`casp lint` is cut** — an LLM verb inside the CASP binary, even advisory, would undercut the deterministic claim; prose-vs-reality checking belongs in the agent reading `casp/`.
+
 ## 0.3.1 — 2026-06-10
 
 - **Fix — Alembic (Python) migrations are now recognized.** The `migrations.match` check only counted `.sql` files, so a Python shop (`backend/alembic/versions/`) got a guaranteed false FAIL: every applied revision reported as missing from disk. The filter now accepts `.sql` and `.py`, ignoring dunder entries (`__init__.py`, `__pycache__`). Found within minutes of running 0.3.0 against a production FastAPI/Alembic repo (SENEBA).
