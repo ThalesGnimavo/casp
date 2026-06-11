@@ -16,7 +16,7 @@ casp check           # validate the state against git — exits 1 on drift
 
 **C**oding-Agent · **S**tate · **P**rotocol. Works with **Claude Code**, **Cursor**, **Aider**, **Continue**, or any agent that can run a CLI. Node ≥ 20. No account, no telemetry, nothing leaves your machine.
 
-Built by [Thales (Juste Gnimavo)](https://thalesandhisaictoclaude.com) — a solo CEO running six production products with Claude as the only engineer. CASP is the layer that keeps months of AI-driven sessions from collapsing into drift.
+Built by [Thales (Juste Gnimavo)](https://thalesandhisaictoclaude.com) — a solo CEO running seven production products with Claude as the only engineer. CASP is the layer that keeps months of AI-driven sessions from collapsing into drift.
 
 > Pre-flight check + black box for AI coding sessions.
 
