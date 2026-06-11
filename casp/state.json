@@ -1,7 +1,7 @@
 {
   "updated_at": "2026-06-10",
   "last_session_id": "26-06-10-003-field-fixes-and-zerosuite-rollout",
-  "last_commit": "dc74927",
+  "last_commit": "afd35d0",
   "current_phase": "0.3.0-correctness-fixes",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
