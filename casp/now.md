@@ -20,7 +20,7 @@ Read the two auditor reports on the false-green fix; if both GO, merge `fix/fals
 
 ### 1 hour
 
-Merge, publish 0.3.0 to npm, then **re-run `casp check` with the new binary on every ZeroSuite repo that uses CASP** (SENEBA, a downstream repo, …) — some greens may have been false-green.
+Merge, publish 0.3.0 to npm, then **re-run `casp check` with the new binary on every ZeroSuite repo that uses CASP** (a production repo, a downstream repo, …) — some greens may have been false-green.
 
 ### Half a day
 
