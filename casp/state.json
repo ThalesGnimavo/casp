@@ -1,8 +1,8 @@
 {
   "updated_at": "2026-06-15",
-  "last_session_id": "26-06-15-001-0-4-close-loop",
-  "last_commit": "0f31f50",
-  "current_phase": "0.4-close-loop",
+  "last_session_id": "26-06-15-002-init-fix",
+  "last_commit": "4084291",
+  "current_phase": "0.4.1-init-fix",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
   "phases_shipped": [
@@ -13,7 +13,8 @@
     "0.2.4-check-json",
     "0.3.0-correctness-fixes",
     "0.3.1-field-fixes",
-    "0.4-close-loop"
+    "0.4-close-loop",
+    "0.4.1-init-fix"
   ],
   "phases_queued": [
     "install-hook",

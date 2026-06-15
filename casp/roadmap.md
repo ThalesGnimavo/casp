@@ -41,7 +41,8 @@ If you reach for anything BELOW Next-3, stop and check why.
 
 | Date | Commit | Title | Notes |
 |------|--------|-------|-------|
-| 2026-06-15 | `0f31f50` | 0.4.0 — `ship`/`close` verbs, optional migrations, `check --all` | 28/28 tests; audited; npm publish pending (CEO-gated) |
+| 2026-06-15 | `4084291` | 0.4.1 — fresh `init` checks green out of the box (scaffolds first prompt + dirs) | found onboarding a downstream project; 29/29 tests |
+| 2026-06-15 | `0f31f50` | 0.4.0 — `ship`/`close` verbs, optional migrations, `check --all` | 28/28 tests; audited |
 | 2026-06-10 | `a2f9551` (merged) | 0.2.4 — `casp check --json` + CASP-on-CASP | published to npm |
 | 2026-06-10 | (merged) | 0.3.0 / 0.3.1 — false-green fix, state-bump recognition, Alembic + multi-log | verdict-changing; rolled out across ZeroSuite |
 
@@ -58,7 +59,8 @@ If you reach for anything BELOW Next-3, stop and check why.
 | 0.2.4 — `check --json` + CASP-on-CASP + proposal | shipped | `session-logs/26-06-10-001-check-json-and-roadmap-proposal.md` | published |
 | 0.3.0 — correctness fixes (false-green, state-bump) | shipped | `session-logs/26-06-10-002-false-green-and-state-bump-fixes.md` | merged + rolled out |
 | 0.3.1 — Alembic + multi-log field fixes | shipped | `session-logs/26-06-10-003-field-fixes-and-zerosuite-rollout.md` | merged |
-| 0.4-close-loop — `ship`/`close`, opt-in migrations, `check --all` | shipped | `session-logs/26-06-15-001-0-4-close-loop.md` | npm publish pending |
+| 0.4-close-loop — `ship`/`close`, opt-in migrations, `check --all` | shipped | `session-logs/26-06-15-001-0-4-close-loop.md` | published 0.4.0 |
+| 0.4.1-init-fix — fresh `init` checks green out of the box | shipped | `session-logs/26-06-15-002-init-fix.md` | found onboarding a downstream project |
 | install-hook | queued | _(pending)_ | Next #1 |
 | next-presession-gate | queued | _(pending)_ | Next #2 |
 | configurable-paths | queued | _(pending)_ | Next #3 (PROTOCOL) |

@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.4.0 shipped — the close loop, automated.** Two new verbs (`casp ship`, `casp close`) automate the manual state mutation that closes a session, migrations became fully opt-in (non-code cockpits carry no migration noise), and `casp check --all` gates every cockpit under a root in one report. `runCheck` was refactored around a pure `checkOne(root)` with single-root output unchanged; 28/28 tests, audited (one critical ship ordering bug caught + fixed). The validated queue **resumes at `PHASE-INSTALL-HOOK.md`** — 0.4 was resequenced ahead of it by CEO decision.
+**0.4.1 shipped — fresh `init` now checks green out of the box** (it scaffolds the first prompt + session dirs it points at; found by onboarding a downstream project). Builds on 0.4.0's close loop (`ship`/`close`), opt-in migrations, and `check --all`. 29/29 tests. The validated queue **resumes at `PHASE-INSTALL-HOOK.md`**. Deeper finding parked for a real session: hardcoded `docs/plan/sessions/` paths argue for pulling `configurable-paths` forward.
 
 ---
 
