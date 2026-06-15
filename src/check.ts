@@ -6,18 +6,17 @@
  * check / pre-push gate — not a decorative log. Use --quiet to suppress PASS
  * lines (CI-friendly). Use --json for a machine-readable report (stable schema,
  * documented in docs/check-json.md) — same checks, same exit code, different
- * format only.
+ * format only. Use --all to validate every casp/ cockpit under a root.
+ *
+ * The per-root validation lives in `checkOne(root)` and is pure — it returns
+ * findings, never prints, never exits. `runCheck` is the thin shell that picks
+ * single-root vs --all, renders (human or JSON), and owns the exit code.
  */
 
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { basename, join, relative } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, loadState, pkgVersion, readFrontmatter } from './shared.js';
-
-const ROOT = process.cwd();
-const STATE_PATH = join(ROOT, 'casp', 'state.json');
-const SESSIONS_DIR = join(ROOT, 'docs', 'plan', 'sessions');
-const LOGS_DIR = join(ROOT, 'session-logs');
 
 type Severity = 'pass' | 'warn' | 'fail';
 
@@ -42,40 +41,53 @@ interface Finding {
  */
 const JSON_SCHEMA_VERSION = 1;
 
-function emitJson(findings: Finding[]): never {
-  const summary = {
+function summarize(findings: Finding[]): {
+  pass: number;
+  warn: number;
+  fail: number;
+} {
+  return {
     pass: findings.filter((f) => f.severity === 'pass').length,
     warn: findings.filter((f) => f.severity === 'warn').length,
     fail: findings.filter((f) => f.severity === 'fail').length
   };
-  const exitCode = summary.fail > 0 ? 1 : 0;
-  console.log(
-    JSON.stringify(
-      {
-        schema_version: JSON_SCHEMA_VERSION,
-        casp_version: pkgVersion(),
-        verdict: exitCode === 0 ? 'clean' : 'drift',
-        exit_code: exitCode,
-        summary,
-        findings: findings.map((f) => ({
-          id: f.id,
-          severity: f.severity,
-          label: f.label,
-          detail: f.detail,
-          fix: f.fix ?? null
-        }))
-      },
-      null,
-      2
-    )
-  );
-  exit(exitCode);
 }
 
-export function runCheck(args: string[]): void {
-  const json = args.includes('--json');
-  const quiet = args.includes('--quiet');
-  const noGit = args.includes('--no-git');
+function buildReport(findings: Finding[]): Record<string, unknown> {
+  const summary = summarize(findings);
+  const exitCode = summary.fail > 0 ? 1 : 0;
+  return {
+    schema_version: JSON_SCHEMA_VERSION,
+    casp_version: pkgVersion(),
+    verdict: exitCode === 0 ? 'clean' : 'drift',
+    exit_code: exitCode,
+    summary,
+    findings: findings.map((f) => ({
+      id: f.id,
+      severity: f.severity,
+      label: f.label,
+      detail: f.detail,
+      fix: f.fix ?? null
+    }))
+  };
+}
+
+function emitJson(findings: Finding[]): never {
+  const report = buildReport(findings);
+  console.log(JSON.stringify(report, null, 2));
+  exit(report.exit_code as number);
+}
+
+/**
+ * Validate one cockpit rooted at `root`. Pure: returns findings, never prints,
+ * never exits. The terminal cases (no state file / invalid JSON) return a
+ * single `state.file` finding and run nothing further.
+ */
+export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[] {
+  const noGit = opts.noGit ?? false;
+  const STATE_PATH = join(root, 'casp', 'state.json');
+  const SESSIONS_DIR = join(root, 'docs', 'plan', 'sessions');
+  const LOGS_DIR = join(root, 'session-logs');
 
   const findings: Finding[] = [];
   function record(
@@ -96,10 +108,7 @@ export function runCheck(args: string[]): void {
       STATE_PATH,
       'run `npx @justethales/casp init` first'
     );
-    if (json) emitJson(findings);
-    console.error(c.red('FAIL') + ` no casp/state.json found at ${STATE_PATH}`);
-    console.error(c.gray('       → run `npx @justethales/casp init` first'));
-    exit(1);
+    return findings;
   }
   const state = loadState(STATE_PATH);
   if (!state) {
@@ -110,9 +119,7 @@ export function runCheck(args: string[]): void {
       STATE_PATH,
       'fix the JSON syntax (a trailing comma or unquoted key, usually)'
     );
-    if (json) emitJson(findings);
-    console.error(c.red('FAIL') + ' casp/state.json is not valid JSON');
-    exit(1);
+    return findings;
   }
 
   /* 1. Required keys ----------------------------------------------------- */
@@ -167,7 +174,7 @@ export function runCheck(args: string[]): void {
   /* 2. next_prompt resolves --------------------------------------------- */
 
   if (state.next_prompt) {
-    const path = join(ROOT, state.next_prompt);
+    const path = join(root, state.next_prompt);
     if (!existsSync(path)) {
       record(
         'next_prompt.exists',
@@ -302,7 +309,7 @@ export function runCheck(args: string[]): void {
   /* 4. last_commit vs git ----------------------------------------------- */
 
   if (!noGit && state.last_commit && state.last_commit !== 'pending') {
-    const head = git('rev-parse --short HEAD');
+    const head = git('rev-parse --short HEAD', root);
     if (!head) {
       record('last_commit.git', 'warn', 'cannot run git', 'is this a repo?');
     } else if (
@@ -316,19 +323,19 @@ export function runCheck(args: string[]): void {
         `state=${state.last_commit} HEAD=${head}`
       );
     } else {
-      const exists = git(`rev-parse --verify ${state.last_commit}^{commit}`);
+      const exists = git(`rev-parse --verify ${state.last_commit}^{commit}`, root);
       if (exists) {
         // The canonical close loop ends with a state-bump commit: the session
         // is committed, last_commit is set to that SHA, and the bump itself is
         // committed — moving HEAD one past last_commit. That is not drift.
         // PASS when last_commit is the parent of HEAD and HEAD touches only
         // the state surface; anything else stays WARN.
-        const parent = git('rev-parse --short HEAD^');
+        const parent = git('rev-parse --short HEAD^', root);
         const isParent =
           parent.length > 0 &&
           (parent.startsWith(state.last_commit) ||
             state.last_commit.startsWith(parent));
-        const touched = git('diff-tree --no-commit-id --name-only -r HEAD')
+        const touched = git('diff-tree --no-commit-id --name-only -r HEAD', root)
           .split('\n')
           .filter(Boolean);
         const STATE_SURFACE = ['casp/', 'docs/plan/sessions/', 'session-logs/'];
@@ -398,47 +405,64 @@ export function runCheck(args: string[]): void {
     }
   }
 
-  /* 6. migrations_applied (optional) ------------------------------------- */
+  /* 6. migrations_applied (opt-in) -------------------------------------- */
 
-  const migrationsDir = join(ROOT, state.migrations_dir || 'drizzle');
+  // Migrations are entirely optional. A project that tracks none (no
+  // migrations_dir, no/empty migrations_applied) gets no migration finding at
+  // all — silence, not a green line — so non-code cockpits carry no noise.
   const migrationsClaimed =
     Array.isArray(state.migrations_applied) &&
     state.migrations_applied.length > 0;
-  if (migrationsClaimed && !isDir(migrationsDir)) {
-    // The canonical false-green: state claims applied migrations, the dir is
-    // gone — the old behavior silently skipped and reported green.
-    record(
-      'migrations.dir',
-      'fail',
-      `cannot verify migrations_applied: ${state.migrations_dir || 'drizzle'}/ not found`,
-      `state claims ${(state.migrations_applied as string[]).length} migration(s) but the directory is missing`,
-      'create the migrations directory OR fix state.migrations_dir OR empty migrations_applied'
-    );
-  } else if (Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
-    // Migration files: SQL (drizzle, raw) or Python (alembic). Dunder entries
-    // (__init__.py, __pycache__) are infrastructure, not migrations.
-    const onDisk = readdirSync(migrationsDir)
-      .filter((f) => /\.(sql|py)$/.test(f) && !f.startsWith('__'))
-      .map((f) => f.replace(/\.(sql|py)$/, ''))
-      .sort();
-    const inState = [...state.migrations_applied].sort();
-    const missingFromState = onDisk.filter((m) => !inState.includes(m));
-    const missingFromDisk = inState.filter((m) => !onDisk.includes(m));
-    if (missingFromState.length || missingFromDisk.length) {
+  if (state.migrations_dir === undefined || state.migrations_dir === null) {
+    if (migrationsClaimed) {
+      // A claim with nothing to verify it against is drift, not a skip.
       record(
-        'migrations.match',
+        'migrations.dir',
         'fail',
-        `migrations_applied does not match ${state.migrations_dir || 'drizzle'}/`,
-        `state-missing: ${missingFromState.join(', ') || '(none)'} · disk-missing: ${missingFromDisk.join(', ') || '(none)'}`,
-        'add missing-from-state to state.migrations_applied OR remove ghosts'
+        'migrations_applied is set but migrations_dir is absent',
+        `state claims ${(state.migrations_applied as string[]).length} migration(s) with no migrations_dir to verify against`,
+        'set state.migrations_dir to the migrations directory OR empty migrations_applied'
       );
-    } else if (onDisk.length > 0) {
+    }
+    // else: this project has no migration concept → skip silently.
+  } else {
+    const migrationsDir = join(root, state.migrations_dir);
+    if (migrationsClaimed && !isDir(migrationsDir)) {
+      // The canonical false-green: state claims applied migrations, the dir is
+      // gone — the old behavior silently skipped and reported green.
       record(
-        'migrations.match',
-        'pass',
-        `migrations_applied matches ${state.migrations_dir || 'drizzle'}/ (${onDisk.length} files)`,
-        ''
+        'migrations.dir',
+        'fail',
+        `cannot verify migrations_applied: ${state.migrations_dir}/ not found`,
+        `state claims ${(state.migrations_applied as string[]).length} migration(s) but the directory is missing`,
+        'create the migrations directory OR fix state.migrations_dir OR empty migrations_applied'
       );
+    } else if (Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
+      // Migration files: SQL (drizzle, raw) or Python (alembic). Dunder entries
+      // (__init__.py, __pycache__) are infrastructure, not migrations.
+      const onDisk = readdirSync(migrationsDir)
+        .filter((f) => /\.(sql|py)$/.test(f) && !f.startsWith('__'))
+        .map((f) => f.replace(/\.(sql|py)$/, ''))
+        .sort();
+      const inState = [...state.migrations_applied].sort();
+      const missingFromState = onDisk.filter((m) => !inState.includes(m));
+      const missingFromDisk = inState.filter((m) => !onDisk.includes(m));
+      if (missingFromState.length || missingFromDisk.length) {
+        record(
+          'migrations.match',
+          'fail',
+          `migrations_applied does not match ${state.migrations_dir}/`,
+          `state-missing: ${missingFromState.join(', ') || '(none)'} · disk-missing: ${missingFromDisk.join(', ') || '(none)'}`,
+          'add missing-from-state to state.migrations_applied OR remove ghosts'
+        );
+      } else if (onDisk.length > 0) {
+        record(
+          'migrations.match',
+          'pass',
+          `migrations_applied matches ${state.migrations_dir}/ (${onDisk.length} files)`,
+          ''
+        );
+      }
     }
   }
 
@@ -455,7 +479,7 @@ export function runCheck(args: string[]): void {
     let invalidStatusValues: string[] = [];
 
     for (const p of prompts) {
-      const rel = relative(ROOT, p);
+      const rel = relative(root, p);
       const fm = readFrontmatter(p);
       if (!fm) {
         record(
@@ -490,7 +514,7 @@ export function runCheck(args: string[]): void {
           )
             .map((s) => s.trim())
             .filter(Boolean);
-          const missing = entries.filter((e) => !existsSync(join(ROOT, e)));
+          const missing = entries.filter((e) => !existsSync(join(root, e)));
           if (missing.length) {
             record(
               `prompt.${rel}.session_log_exists`,
@@ -533,7 +557,10 @@ export function runCheck(args: string[]): void {
   /* 8. Working tree clean for casp + sessions + logs -------------------- */
 
   if (!noGit) {
-    const dirty = git('status --porcelain casp docs/plan/sessions session-logs');
+    const dirty = git(
+      'status --porcelain casp docs/plan/sessions session-logs',
+      root
+    );
     if (dirty) {
       record(
         'workdir.clean',
@@ -543,54 +570,206 @@ export function runCheck(args: string[]): void {
         'commit + push before the session closes'
       );
     } else {
-      record(
-        'workdir.clean',
-        'pass',
-        'casp + sessions + logs are committed',
-        ''
-      );
+      record('workdir.clean', 'pass', 'casp + sessions + logs are committed', '');
     }
   }
 
-  /* Report --------------------------------------------------------------- */
+  return findings;
+}
+
+/* Human report rendering — extracted so single-root and --all share it. ---- */
+
+function printReport(findings: Finding[], quiet: boolean): void {
+  const { pass, warn, fail } = summarize(findings);
+  const head = `${c.bold('casp:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
+  console.log('');
+  console.log(head);
+  console.log(c.gray('─'.repeat(70)));
+  for (const f of findings) {
+    const tag =
+      f.severity === 'pass'
+        ? c.green('PASS')
+        : f.severity === 'warn'
+          ? c.yellow('WARN')
+          : c.red('FAIL');
+    if (f.severity === 'pass' && quiet) continue;
+    const detail = f.detail ? c.gray(` · ${f.detail}`) : '';
+    console.log(`  ${tag}  ${f.label}${detail}`);
+    if (f.fix && f.severity !== 'pass') {
+      console.log(`        ${c.cyan('→')} ${c.gray(f.fix)}`);
+    }
+  }
+  console.log('');
+  if (fail > 0) {
+    console.log(
+      c.red(`✗ ${fail} drift${fail > 1 ? 's' : ''} detected. Push blocked — fix before push.`)
+    );
+  } else if (warn > 0) {
+    console.log(c.yellow(`⚠ ${warn} warning${warn > 1 ? 's' : ''} (not blocking).`));
+  } else {
+    console.log(c.green('✓ state in sync with git. Clear for push.'));
+  }
+  console.log('');
+}
+
+/* --all: discover and validate every cockpit under a root. ----------------- */
+
+const WALK_SKIP = new Set(['node_modules', '.git', 'dist', '.next', 'build']);
+
+function findCockpits(root: string): string[] {
+  const found: string[] = [];
+  // Track resolved real paths so a symlink cycle (a/b -> ../a) can't recurse
+  // forever — the walk crosses arbitrary user trees under --all.
+  const visited = new Set<string>();
+  const walk = (dir: string): void => {
+    let real: string;
+    try {
+      real = realpathSync(dir);
+    } catch {
+      return;
+    }
+    if (visited.has(real)) return;
+    visited.add(real);
+
+    if (existsSync(join(dir, 'casp', 'state.json'))) found.push(dir);
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.startsWith('.') || WALK_SKIP.has(entry)) continue;
+      if (entry === 'casp') continue; // the cockpit itself holds no nested cockpits
+      const sub = join(dir, entry);
+      try {
+        if (statSync(sub).isDirectory()) walk(sub);
+      } catch {
+        /* unreadable entry — skip */
+      }
+    }
+  };
+  walk(root);
+  return found;
+}
+
+function runAll(root: string, opts: { json: boolean; quiet: boolean; noGit: boolean }): never {
+  const cockpits = findCockpits(root);
+
+  if (cockpits.length === 0) {
+    if (opts.json) {
+      console.log(JSON.stringify({ root, cockpits: [] }, null, 2));
+      exit(0);
+    }
+    console.log('');
+    console.log(c.yellow(`no casp/ cockpit found under ${root}`));
+    console.log(c.gray('  → run `npx @justethales/casp init` in a project first'));
+    console.log('');
+    exit(0);
+  }
+
+  const results = cockpits.map((dir) => ({
+    root: relative(root, dir) || basename(dir) || '.',
+    findings: checkOne(dir, { noGit: opts.noGit })
+  }));
+
+  const anyFail = results.some((r) => summarize(r.findings).fail > 0);
+
+  if (opts.json) {
+    console.log(
+      JSON.stringify(
+        {
+          root,
+          cockpits: results.map((r) => ({
+            root: r.root,
+            ...buildReport(r.findings)
+          }))
+        },
+        null,
+        2
+      )
+    );
+    exit(anyFail ? 1 : 0);
+  }
+
+  let totPass = 0;
+  let totWarn = 0;
+  let totFail = 0;
+  for (const r of results) {
+    const s = summarize(r.findings);
+    totPass += s.pass;
+    totWarn += s.warn;
+    totFail += s.fail;
+  }
+  console.log('');
+  console.log(
+    `${c.bold('casp:check --all')} · ${cockpits.length} cockpit${cockpits.length > 1 ? 's' : ''} · ${totPass} PASS · ${totWarn > 0 ? c.yellow(`${totWarn} WARN`) : `${totWarn} WARN`} · ${totFail > 0 ? c.red(`${totFail} FAIL`) : `${totFail} FAIL`}`
+  );
+  for (const r of results) {
+    const s = summarize(r.findings);
+    const verdict =
+      s.fail > 0
+        ? c.red('FAIL')
+        : s.warn > 0
+          ? c.yellow('WARN')
+          : c.green('PASS');
+    console.log('');
+    console.log(`${verdict}  ${c.cyan(r.root)}  ${c.gray(`(${s.pass}/${s.warn}/${s.fail})`)}`);
+    for (const f of r.findings) {
+      if (f.severity === 'pass') continue; // --all summary shows only WARN/FAIL per cockpit
+      const tag = f.severity === 'fail' ? c.red('FAIL') : c.yellow('WARN');
+      const detail = f.detail ? c.gray(` · ${f.detail}`) : '';
+      console.log(`    ${tag}  ${f.label}${detail}`);
+      if (f.fix) console.log(`          ${c.cyan('→')} ${c.gray(f.fix)}`);
+    }
+  }
+  console.log('');
+  if (anyFail) {
+    console.log(c.red(`✗ drift in at least one cockpit. Push blocked.`));
+  } else if (totWarn > 0) {
+    console.log(c.yellow(`⚠ ${totWarn} warning${totWarn > 1 ? 's' : ''} across cockpits (not blocking).`));
+  } else {
+    console.log(c.green('✓ every cockpit in sync with git. Clear for push.'));
+  }
+  console.log('');
+  exit(anyFail ? 1 : 0);
+}
+
+export function runCheck(args: string[]): void {
+  const json = args.includes('--json');
+  const quiet = args.includes('--quiet');
+  const noGit = args.includes('--no-git');
+  const all = args.includes('--all');
+
+  if (all) {
+    // Optional positional root after --all (first non-flag arg); default cwd.
+    const rootArg = args.find((a) => !a.startsWith('--'));
+    const root = rootArg ? join(process.cwd(), rootArg) : process.cwd();
+    runAll(root, { json, quiet, noGit });
+    return; // runAll is `never`, but make the single-root path unreachable explicitly
+  }
+
+  const root = process.cwd();
+  const findings = checkOne(root, { noGit });
 
   if (json) emitJson(findings);
 
-  const pass = findings.filter((f) => f.severity === 'pass').length;
-  const warn = findings.filter((f) => f.severity === 'warn').length;
-  const fail = findings.filter((f) => f.severity === 'fail').length;
-
-  if (!quiet || fail > 0) {
-    const head = `${c.bold('casp:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
-    console.log('');
-    console.log(head);
-    console.log(c.gray('─'.repeat(70)));
-    for (const f of findings) {
-      const tag =
-        f.severity === 'pass'
-          ? c.green('PASS')
-          : f.severity === 'warn'
-            ? c.yellow('WARN')
-            : c.red('FAIL');
-      if (f.severity === 'pass' && quiet) continue;
-      const detail = f.detail ? c.gray(` · ${f.detail}`) : '';
-      console.log(`  ${tag}  ${f.label}${detail}`);
-      if (f.fix && f.severity !== 'pass') {
-        console.log(`        ${c.cyan('→')} ${c.gray(f.fix)}`);
-      }
-    }
-    console.log('');
-    if (fail > 0) {
-      console.log(
-        c.red(`✗ ${fail} drift${fail > 1 ? 's' : ''} detected. Push blocked — fix before push.`)
-      );
-    } else if (warn > 0) {
-      console.log(c.yellow(`⚠ ${warn} warning${warn > 1 ? 's' : ''} (not blocking).`));
+  // Terminal cases keep their original short, custom stderr message (not the
+  // full report block) so single-root output stays byte-identical to before.
+  if (findings.length === 1 && findings[0].id === 'state.file') {
+    const f = findings[0];
+    if (f.label === 'no casp/state.json found') {
+      console.error(c.red('FAIL') + ` no casp/state.json found at ${f.detail}`);
+      console.error(c.gray('       → run `npx @justethales/casp init` first'));
     } else {
-      console.log(c.green('✓ state in sync with git. Clear for push.'));
+      console.error(c.red('FAIL') + ' casp/state.json is not valid JSON');
     }
-    console.log('');
+    exit(1);
   }
 
+  const fail = summarize(findings).fail;
+  if (!quiet || fail > 0) {
+    printReport(findings, quiet);
+  }
   exit(fail > 0 ? 1 : 0);
 }

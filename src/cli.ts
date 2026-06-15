@@ -15,6 +15,8 @@ import { runCheck } from './check.js';
 import { runStatus } from './status.js';
 import { runNew } from './new.js';
 import { runNext } from './next.js';
+import { runShip } from './ship.js';
+import { runClose } from './close.js';
 import { pkgVersion } from './shared.js';
 
 const VERSION = pkgVersion();
@@ -35,7 +37,12 @@ COMMANDS
   check                         Validate state.json against git — exits 1 on drift
   check --quiet                 Same, suppress output unless FAIL (CI-friendly)
   check --json                  Same checks, machine-readable JSON report (stable schema)
+  check --all [root]            Validate every casp/ cockpit under a root, one report
   next                          Print the next session's prompt from state.next_prompt
+  ship <slug>                   Mark a phase shipped: flip prompt to shipped, wire log,
+                                  move slug queued → shipped (no git)
+  close                         Bump last_commit / last_session_id from HEAD + newest log,
+                                  then run check (no git)
   new prompt --slug <kebab-id>  Copy session-prompt template to docs/plan/sessions/
   new log --slug <kebab-id>     Copy session-log template to session-logs/
 
@@ -55,7 +62,7 @@ LEARN MORE
   https://github.com/ThalesGnimavo/casp
 `;
 
-function main(): void {
+async function main(): Promise<void> {
   const args = argv.slice(2);
 
   if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
@@ -81,6 +88,12 @@ function main(): void {
       break;
     case 'next':
       runNext(rest);
+      break;
+    case 'ship':
+      runShip(rest);
+      break;
+    case 'close':
+      await runClose(rest);
       break;
     case 'new':
       runNew(rest);

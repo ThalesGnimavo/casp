@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-06-15
+
+- **New — `casp ship <slug>`.** The mechanical half of closing a session, automated: flips the phase's prompt to `status: shipped`, wires its `session_log` pointer, and moves the slug from `phases_queued` to `phases_shipped`. Resolves the slug against `docs/plan/sessions/*.md` by normalized name (so `0.4-close-loop` matches `PHASE-04-CLOSE-LOOP.md`), or takes `--prompt <path>`. Idempotent on re-run; refuses an unknown slug or a `pending` session-log id. **Touches no git** — the operator owns the commit.
+- **New — `casp close`.** The guided deterministic close: auto-detects `last_commit` (HEAD) and `last_session_id` (newest session log), lets you confirm or override them (`--yes` / `--commit` / `--log` for non-interactive use), bumps `updated_at`, then runs `check` and exits with its verdict. `last_commit` is set to the current HEAD so the operator's own state-bump commit lands as the canonical close-loop PASS. **Never runs git** — no add, commit, or push. A state verb, not a harness.
+- **New — `casp check --all [root]`.** Validates every `casp/` cockpit under a root in one report (per-cockpit verdict + aggregate), exits 1 if any cockpit drifts. `--all --json` emits a per-cockpit array under the existing schema. The fleet gate for "many agents, many repos." Internally, per-root validation was extracted into a pure `checkOne(root)` — single-root output and exit code are unchanged.
+- **Change — migrations are now fully opt-in.** A project with no `migrations_dir` and no `migrations_applied` gets **no migration finding at all** (not even a PASS), so non-code cockpits (content, launch ops, research) carry zero migration noise. `casp init` no longer scaffolds `migrations_dir: "drizzle"`. A non-empty `migrations_applied` with no `migrations_dir` set is drift (FAIL): a claim with nothing to verify against. Existing repos that declare `migrations_dir` are unaffected.
+- Ten new regression tests (27 total) covering ship, close (including the never-commits invariant), optional-migration silence, and `--all` aggregation.
+
 ## 0.3.2 — 2026-06-11
 
 - **Docs only.** No code or CLI behavior change. Existing installs at 0.3.1 keep working unchanged.

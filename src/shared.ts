@@ -3,7 +3,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -90,6 +90,13 @@ export function loadState(path: string): State | null {
   } catch {
     return null;
   }
+}
+
+// Round-trips state.json: parse order is preserved, so mutating arrays/fields
+// in place keeps the file's key order. 2-space indent + trailing newline match
+// what `init` scaffolds and what every state-bump commit has written so far.
+export function saveState(path: string, state: State): void {
+  writeFileSync(path, JSON.stringify(state, null, 2) + '\n');
 }
 
 export function todayISO(): string {
