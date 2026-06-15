@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-06-14",
-  "last_session_id": "26-06-10-003-field-fixes-and-zerosuite-rollout",
-  "last_commit": "0cd0b6e",
-  "current_phase": "0.3.0-correctness-fixes",
+  "updated_at": "2026-06-15",
+  "last_session_id": "26-06-15-001-0-4-close-loop",
+  "last_commit": "0f31f50",
+  "current_phase": "0.4-close-loop",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
   "phases_shipped": [
@@ -12,7 +12,8 @@
     "0.2.3-autonomous-era-repositioning",
     "0.2.4-check-json",
     "0.3.0-correctness-fixes",
-    "0.3.1-field-fixes"
+    "0.3.1-field-fixes",
+    "0.4-close-loop"
   ],
   "phases_queued": [
     "install-hook",
@@ -24,7 +25,5 @@
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "migrations_applied": [],
-  "migrations_dir": "drizzle",
   "notes": "See CHANGELOG.md and the session log for this phase. State surface bumped at session close; run casp check before push."
 }

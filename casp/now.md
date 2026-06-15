@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-10 (session 26-06-10-002).
+> **Updated** : 2026-06-15 (session 26-06-15-001).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**Roadmap proposal validated; the two correctness fixes shipped as 0.3.0** on branch `fix/false-green-and-state-bump`: the **false-green fix** (a claim whose backing dir is missing now FAILs — verdict-changing, 12/12 tests) and the **state-bump recognition** (the canonical close loop now reads PASS — `casp check` on this repo is **13 PASS · 0 WARN · 0 FAIL**, fully green for the first time). The validated queue is materialized as 7 drafted prompts in `docs/plan/sessions/`; `next_prompt` points at `PHASE-INSTALL-HOOK.md`. **Branch not merged**: the two-auditor review of the check-logic change gates everything.
+**0.4.0 shipped — the close loop, automated.** Two new verbs (`casp ship`, `casp close`) automate the manual state mutation that closes a session, migrations became fully opt-in (non-code cockpits carry no migration noise), and `casp check --all` gates every cockpit under a root in one report. `runCheck` was refactored around a pure `checkOne(root)` with single-root output unchanged; 28/28 tests, audited (one critical ship ordering bug caught + fixed). The validated queue **resumes at `PHASE-INSTALL-HOOK.md`** — 0.4 was resequenced ahead of it by CEO decision.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-Read the two auditor reports on the false-green fix; if both GO, merge `fix/false-green-and-state-bump` into main.
+`npm publish` 0.4.0 (separate CEO-gated act — needs `npm login` / token), then recapture the homepage screenshots on the new verb set.
 
 ### 1 hour
 
-Merge, publish 0.3.0 to npm, then **re-run `casp check` with the new binary on every ZeroSuite repo that uses CASP** (a production repo, a downstream repo, …) — some greens may have been false-green.
+Docs reconciliation pass: `CASP-PRESENTATION.md` version + stale §13, and the "five verbs" copy on `casp.sh` (now seven verbs with `ship`/`close`).
 
 ### Half a day
 
-All of the above, then run `casp next` and execute `PHASE-INSTALL-HOOK.md`.
+Run `casp next` and execute `PHASE-INSTALL-HOOK.md` (0.5 — the pre-push gate).
 
 ---
 
@@ -32,17 +32,16 @@ All of the above, then run `casp next` and execute `PHASE-INSTALL-HOOK.md`.
 
 These items are NOT on the Next-3 (still or newly) :
 
+- **`project_kind` / multi-track state** — cut/refused in the 0.4 discussion; multi-track is one cockpit per track + `check --all`, no new schema.
 - **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; split + CEO trigger before any of it runs.
-- **`casp lint`** — cut for good; the rails doc amendment removes the advisory carve-out.
-- **Naming residue** (`/cockpit` surfaces) — bundled into the slash-command-distribution item, not before.
+- **`casp lint`** — cut for good.
 
 ---
 
 ## Constraints active today
 
-- Branch `fix/false-green-and-state-bump` must NOT merge before the two independent auditors pass the check-logic change.
-- 0.3.0 must NOT publish before merge; **CHANGELOG carries a verdict-change warning** that must survive into the release notes.
-- After 0.3.0 ships: CEO action — re-run `casp check` across all CASP-managed repos (false-green may flip to red; that is the fix working).
+- `npm publish` is a separate CEO-gated act — never bundled into a feature session. 0.4.0 is built and green locally; it is not on npm until the CEO publishes.
+- The "five verbs" marketing copy (homepage + presentation) is now inaccurate — a docs-only pass, not a code session, reconciles it.
 - `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 
 ---
