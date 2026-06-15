@@ -11,9 +11,9 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | `casp install-hook` — pre-push gate, P03 becomes mechanism | `docs/plan/sessions/PHASE-INSTALL-HOOK.md` | queued |
-| 2 | Pre-session gate on `casp next` — refuses on drift, `--no-check` escape (minor bump + CHANGELOG warning) | `docs/plan/sessions/PHASE-NEXT-PRESESSION-GATE.md` | queued |
-| 3 | Configurable paths — `sessions_dir`/`logs_dir` optional keys (PROTOCOL; non-standard layouts must not false-red) | `docs/plan/sessions/PHASE-CONFIGURABLE-PATHS.md` | queued |
+| 1 | Configurable paths — `sessions_dir`/`logs_dir` optional keys (PROTOCOL) **+ marketing/docs reconciliation** (five→seven verbs, version, drop stale lint). Resequenced ahead of install-hook (CEO, motivated by a downstream project onboarding). | `docs/plan/sessions/PHASE-CONFIGURABLE-PATHS.md` | queued |
+| 2 | `casp install-hook` — pre-push gate, P03 becomes mechanism | `docs/plan/sessions/PHASE-INSTALL-HOOK.md` | queued |
+| 3 | Pre-session gate on `casp next` — refuses on drift, `--no-check` escape | `docs/plan/sessions/PHASE-NEXT-PRESESSION-GATE.md` | queued |
 
 If you reach for anything BELOW Next-3, stop and check why.
 

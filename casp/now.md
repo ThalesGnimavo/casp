@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.4.1 shipped — fresh `init` now checks green out of the box** (it scaffolds the first prompt + session dirs it points at; found by onboarding a downstream project). Builds on 0.4.0's close loop (`ship`/`close`), opt-in migrations, and `check --all`. 29/29 tests. The validated queue **resumes at `PHASE-INSTALL-HOOK.md`**. Deeper finding parked for a real session: hardcoded `docs/plan/sessions/` paths argue for pulling `configurable-paths` forward.
+**0.4.1 shipped + published — fresh `init` now checks green out of the box** (scaffolds the first prompt + session dirs; found onboarding a downstream project). Builds on 0.4.0's close loop (`ship`/`close`), opt-in migrations, `check --all`. 29/29 tests. **Next is resequenced: `PHASE-CONFIGURABLE-PATHS.md`** (configurable `sessions_dir`/`logs_dir`, ahead of install-hook) — and it now also carries Part B, the marketing/docs reconciliation (five→seven verbs, version, drop stale `casp lint`) across casp-website + private-docs. Multi-repo session; casp-website auto-deploys on push.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`npm publish` 0.4.0 (separate CEO-gated act — needs `npm login` / token), then recapture the homepage screenshots on the new verb set.
+`casp next` → opens `PHASE-CONFIGURABLE-PATHS.md`. Read it end to end; it's a two-part, multi-repo session.
 
 ### 1 hour
 
-Docs reconciliation pass: `CASP-PRESENTATION.md` version + stale §13, and the "five verbs" copy on `casp.sh` (now seven verbs with `ship`/`close`).
+Part A: the resolver in `shared.ts` + make every check honor `sessions_dir`/`logs_dir`; keep existing tests green.
 
 ### Half a day
 
-Run `casp next` and execute `PHASE-INSTALL-HOOK.md` (0.5 — the pre-push gate).
+Part A (0.5.0) closed, then Part B — the marketing/docs reconciliation (five→seven verbs, version 0.2.1→0.4.1, drop stale `casp lint`) across casp-website (auto-deploys) + private-docs.
 
 ---
 

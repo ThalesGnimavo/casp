@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-15",
   "last_session_id": "26-06-15-002-init-fix",
-  "last_commit": "4084291",
+  "last_commit": "e4bdc79",
   "current_phase": "0.4.1-init-fix",
-  "next_phase": "install-hook",
-  "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
+  "next_phase": "configurable-paths",
+  "next_prompt": "docs/plan/sessions/PHASE-CONFIGURABLE-PATHS.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -17,9 +17,9 @@
     "0.4.1-init-fix"
   ],
   "phases_queued": [
+    "configurable-paths",
     "install-hook",
     "next-presession-gate",
-    "configurable-paths",
     "check-shipped-log",
     "status-json",
     "verify-and-state-diff",
