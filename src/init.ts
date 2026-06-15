@@ -76,6 +76,25 @@ export function runInit(args: string[]): void {
     if (existsSync(f)) interpolate(f, { TODAY: today });
   }
 
+  // Scaffold the first session prompt that state.next_prompt points at, plus
+  // the session dirs, so a fresh `casp init` is immediately green under
+  // `casp check` instead of FAILing on a missing next_prompt file. Idempotent:
+  // never overwrites an existing prompt.
+  const sessionsDir = join(root, 'docs', 'plan', 'sessions');
+  mkdirSync(sessionsDir, { recursive: true });
+  mkdirSync(join(root, 'session-logs'), { recursive: true });
+  const firstPrompt = join(sessionsDir, 'PHASE-1-FIRST-SLICE.md');
+  const promptTpl = join(TEMPLATES, 'templates', 'session-prompt.md');
+  if (!existsSync(firstPrompt) && existsSync(promptTpl)) {
+    const out = readFileSync(promptTpl, 'utf8')
+      .split('YYYY-MM-DD')
+      .join(today)
+      .split('<id>-<slug>')
+      .join('phase-1-first-slice');
+    writeFileSync(firstPrompt, out);
+    console.log(`  ${c.green('write')}   ${relative(root, firstPrompt)}`);
+  }
+
   console.log('');
   console.log(c.green('✓ casp scaffolded.'));
   console.log('');
@@ -83,9 +102,9 @@ export function runInit(args: string[]): void {
   console.log(`  ${c.cyan('1.')} edit ${c.gray('casp/now.md')} — describe your current focus`);
   console.log(`  ${c.cyan('2.')} edit ${c.gray('casp/roadmap.md')} — fill the Next 3 to ship`);
   console.log(`  ${c.cyan('3.')} edit ${c.gray('casp/state.json')} — fill current_phase / next_phase / next_prompt`);
-  console.log(`  ${c.cyan('4.')} draft your first session prompt :`);
-  console.log(`     ${c.gray('npx @justethales/casp new prompt --slug my-first-session')}`);
-  console.log(`  ${c.cyan('5.')} validate before push :`);
+  console.log(`  ${c.cyan('4.')} edit your first session prompt :`);
+  console.log(`     ${c.gray('docs/plan/sessions/PHASE-1-FIRST-SLICE.md')}`);
+  console.log(`  ${c.cyan('5.')} validate (green out of the box) :`);
   console.log(`     ${c.gray('npx @justethales/casp check')}`);
   console.log('');
   console.log(c.gray('full protocol → casp/README.md'));

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 — 2026-06-15
+
+- **Fix — a fresh `casp init` is now green under `casp check` out of the box.** `init` scaffolded a `state.json` whose `next_prompt` pointed at `docs/plan/sessions/PHASE-1-FIRST-SLICE.md`, but never created that file — so the very first `casp check` a new user runs (step 5 of `init`'s own printed instructions) FAILed with "next_prompt points at a missing file." `init` now also scaffolds the `docs/plan/sessions/` and `session-logs/` directories and writes that first session prompt (from the canonical template, status `queued`). A brand-new repo now goes `init → status → check` with **0 FAIL**. Idempotent — an existing prompt is never overwritten. Found by onboarding a real project (a downstream project).
+
 ## 0.4.0 — 2026-06-15
 
 - **New — `casp ship <slug>`.** The mechanical half of closing a session, automated: flips the phase's prompt to `status: shipped`, wires its `session_log` pointer, and moves the slug from `phases_queued` to `phases_shipped`. Resolves the slug against `docs/plan/sessions/*.md` by normalized name (so `0.4-close-loop` matches `PHASE-04-CLOSE-LOOP.md`), or takes `--prompt <path>`. Idempotent on re-run; refuses an unknown slug or a `pending` session-log id. **Touches no git** — the operator owns the commit.

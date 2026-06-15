@@ -17,6 +17,7 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  existsSync,
   rmSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -82,6 +83,34 @@ function scaffold(extraState = {}) {
 }
 
 const cleanup = (dir) => rmSync(dir, { recursive: true, force: true });
+
+/* ---- init out-of-box experience -------------------------------------- */
+
+test('fresh casp init → casp check is green out of the box (0 FAIL)', () => {
+  // The first command a new user runs after init is check (init says so). It
+  // must not FAIL on a next_prompt file init itself forgot to create.
+  const dir = mkdtempSync(join(tmpdir(), 'casp-init-'));
+  try {
+    git(dir, 'init', '-q');
+    git(dir, 'config', 'user.email', 'test@casp.sh');
+    git(dir, 'config', 'user.name', 'casp test');
+    const init = run(dir, 'init');
+    assert.equal(init.status ?? 0, 0, init.stderr);
+    // init scaffolds the first prompt it points at.
+    assert.ok(
+      existsSync(join(dir, 'docs', 'plan', 'sessions', 'PHASE-1-FIRST-SLICE.md')),
+      'init must create the prompt state.next_prompt points at'
+    );
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'init');
+    const r = run(dir, 'check', '--json');
+    const report = JSON.parse(r.stdout);
+    assert.equal(report.summary.fail, 0, 'fresh init must check with 0 FAIL');
+    assert.equal(r.status, 0, 'fresh init → check exits 0');
+  } finally {
+    cleanup(dir);
+  }
+});
 
 /* ---- ship ------------------------------------------------------------- */
 
