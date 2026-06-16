@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-06-15",
-  "last_session_id": "26-06-15-002-init-fix",
-  "last_commit": "e4bdc79",
-  "current_phase": "0.4.1-init-fix",
+  "updated_at": "2026-06-16",
+  "last_session_id": "26-06-16-001-check-all-abspath-fix",
+  "last_commit": "92b0363",
+  "current_phase": "0.4.2-check-all-abspath-fix",
   "next_phase": "configurable-paths",
   "next_prompt": "docs/plan/sessions/PHASE-CONFIGURABLE-PATHS.md",
   "phases_shipped": [
@@ -14,7 +14,8 @@
     "0.3.0-correctness-fixes",
     "0.3.1-field-fixes",
     "0.4-close-loop",
-    "0.4.1-init-fix"
+    "0.4.1-init-fix",
+    "0.4.2-check-all-abspath-fix"
   ],
   "phases_queued": [
     "configurable-paths",

@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-15 (session 26-06-15-001).
+> **Updated** : 2026-06-16 (session 26-06-16-001).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.4.1 shipped + published — fresh `init` now checks green out of the box** (scaffolds the first prompt + session dirs; found onboarding a downstream project). Builds on 0.4.0's close loop (`ship`/`close`), opt-in migrations, `check --all`. 29/29 tests. **Next is resequenced: `PHASE-CONFIGURABLE-PATHS.md`** (configurable `sessions_dir`/`logs_dir`, ahead of install-hook) — and it now also carries Part B, the marketing/docs reconciliation (five→seven verbs, version, drop stale `casp lint`) across casp-website + private-docs. Multi-repo session; casp-website auto-deploys on push.
+**0.4.2 shipped + published — `casp check --all <absolute path>` no longer doubles the path** (`join` → `resolve`; found dogfooding the fleet-gate launch; 30/30 tests). Builds on 0.4.1 (green-from-`init`), 0.4.0 (`ship`/`close`, opt-in migrations, `check --all`). **Next is still `PHASE-CONFIGURABLE-PATHS.md`** (configurable `sessions_dir`/`logs_dir`, ahead of install-hook) — Part B is now version-sync to 0.4.2 + drop stale `casp lint`; verb framing is **keep the five core verbs** (CEO 2026-06-16), `ship`/`close`/`check --all` stay helpers. Local docs already reconciled; the public site is deferred to its own session (auto-deploys on push).
 
 ---
 
