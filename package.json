@@ -1,6 +1,6 @@
 {
   "name": "@justethales/casp",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "CASP — the Coding-Agent State Protocol. The deterministic gate that validates your coding agent's project state against git and blocks the push the moment it drifts — across sessions, branches and a team. The complement to long-running autonomous models: the model holds the context, CASP proves it's true. Git-native, local-only. Works with Claude Code, Cursor, Aider. MIT, zero telemetry.",
   "type": "module",
   "license": "MIT",

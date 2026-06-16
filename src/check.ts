@@ -14,7 +14,7 @@
  */
 
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
-import { basename, join, relative } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, loadState, pkgVersion, readFrontmatter } from './shared.js';
 
@@ -743,8 +743,11 @@ export function runCheck(args: string[]): void {
 
   if (all) {
     // Optional positional root after --all (first non-flag arg); default cwd.
+    // resolve() (not join()) so an ABSOLUTE root is used as-is — join(cwd, abs)
+    // would concatenate them into a doubled path. Relative roots still resolve
+    // against cwd.
     const rootArg = args.find((a) => !a.startsWith('--'));
-    const root = rootArg ? join(process.cwd(), rootArg) : process.cwd();
+    const root = rootArg ? resolve(process.cwd(), rootArg) : process.cwd();
     runAll(root, { json, quiet, noGit });
     return; // runAll is `never`, but make the single-root path unreachable explicitly
   }

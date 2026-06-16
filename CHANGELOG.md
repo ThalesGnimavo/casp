@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 — 2026-06-16
+
+- **Fix — `casp check --all <absolute path>` no longer doubles the path.** The optional root argument was `join`ed onto the current directory unconditionally, so an absolute root (`casp check --all /Users/me/projects`) became `<cwd>/Users/me/projects` and reported "no casp/ cockpit found." It now `resolve()`s the argument — an absolute root is used as-is; a relative root still resolves against the cwd; the no-arg (cwd) form is unchanged. Found within minutes of dogfooding `check --all` across the workspace for the fleet-gate launch. One new regression test (30 total).
+
 ## 0.4.1 — 2026-06-15
 
 - **Fix — a fresh `casp init` is now green under `casp check` out of the box.** `init` scaffolded a `state.json` whose `next_prompt` pointed at `docs/plan/sessions/PHASE-1-FIRST-SLICE.md`, but never created that file — so the very first `casp check` a new user runs (step 5 of `init`'s own printed instructions) FAILed with "next_prompt points at a missing file." `init` now also scaffolds the `docs/plan/sessions/` and `session-logs/` directories and writes that first session prompt (from the canonical template, status `queued`). A brand-new repo now goes `init → status → check` with **0 FAIL**. Idempotent — an existing prompt is never overwritten. Found by onboarding a real project (a downstream project).

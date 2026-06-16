@@ -338,3 +338,20 @@ test('check --all: no cockpit under root → exit 0, not an error', () => {
     cleanup(root);
   }
 });
+
+test('check --all <absolute root>: resolves the absolute path, not join(cwd, root)', () => {
+  // Regression for the 0.4.1 bug: an ABSOLUTE root arg was join()ed to the cwd,
+  // producing a doubled path ("no cockpit found"). Run from a DIFFERENT cwd and
+  // pass the fleet's absolute path — it must be used as-is.
+  const root = fleet();
+  const elsewhere = mkdtempSync(join(tmpdir(), 'casp-cwd-'));
+  try {
+    const r = run(elsewhere, 'check', '--all', root);
+    assert.doesNotMatch(r.stdout, /no casp\/ cockpit found/, 'absolute root must not be joined to cwd');
+    assert.match(r.stdout, /2 cockpit/, 'both cockpits under the absolute root are found');
+    assert.equal(r.status, 1, 'the drifted cockpit still blocks the aggregate');
+  } finally {
+    cleanup(root);
+    cleanup(elsewhere);
+  }
+});
