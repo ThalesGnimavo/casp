@@ -43,8 +43,10 @@ COMMANDS
                                   move slug queued → shipped (no git)
   close                         Bump last_commit / last_session_id from HEAD + newest log,
                                   then run check (no git)
-  new prompt --slug <kebab-id>  Copy session-prompt template to docs/plan/sessions/
-  new log --slug <kebab-id>     Copy session-log template to session-logs/
+  new prompt --slug <kebab-id>  Copy session-prompt template to the sessions dir
+                                  (default docs/plan/sessions; set sessions_dir to override)
+  new log --slug <kebab-id>     Copy session-log template to the logs dir
+                                  (default session-logs; set logs_dir to override)
 
 GLOBAL
   -h, --help                    Print this help

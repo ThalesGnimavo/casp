@@ -16,7 +16,7 @@
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, loadState, pkgVersion, readFrontmatter } from './shared.js';
+import { c, git, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
 
 type Severity = 'pass' | 'warn' | 'fail';
 
@@ -86,8 +86,6 @@ function emitJson(findings: Finding[]): never {
 export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[] {
   const noGit = opts.noGit ?? false;
   const STATE_PATH = join(root, 'casp', 'state.json');
-  const SESSIONS_DIR = join(root, 'docs', 'plan', 'sessions');
-  const LOGS_DIR = join(root, 'session-logs');
 
   const findings: Finding[] = [];
   function record(
@@ -121,6 +119,15 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     );
     return findings;
   }
+
+  // Resolve the state-surface dirs from state (defaults when unset). Computed
+  // here — after state loads — so the optional sessions_dir / logs_dir keys are
+  // honored everywhere below. SESSIONS_DIR / LOGS_DIR are the absolute forms;
+  // dirs.*Rel is what every message and git pathspec prints (the RESOLVED path,
+  // not the hardcoded default).
+  const dirs = resolveDirs(root, state);
+  const SESSIONS_DIR = dirs.sessionsAbs;
+  const LOGS_DIR = dirs.logsAbs;
 
   /* 1. Required keys ----------------------------------------------------- */
 
@@ -261,9 +268,9 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
       record(
         'last_session.logs_dir',
         'fail',
-        'cannot verify last_session_id: session-logs/ is not a directory',
-        `state claims session ${state.last_session_id} but session-logs/ is missing (or not a directory)`,
-        'create session-logs/ and write the log OR fix last_session_id'
+        `cannot verify last_session_id: ${dirs.logsRel}/ is not a directory`,
+        `state claims session ${state.last_session_id} but ${dirs.logsRel}/ is missing (or not a directory)`,
+        `create ${dirs.logsRel}/ and write the log OR fix last_session_id`
       );
     } else {
       const logPath = join(LOGS_DIR, `${state.last_session_id}.md`);
@@ -272,14 +279,14 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
           'last_session.log_exists',
           'pass',
           'last_session_id has a matching session log',
-          `session-logs/${state.last_session_id}.md`
+          `${dirs.logsRel}/${state.last_session_id}.md`
         );
       } else {
         record(
           'last_session.log_exists',
           'fail',
           'last_session_id does not map to a session log',
-          `expected session-logs/${state.last_session_id}.md`,
+          `expected ${dirs.logsRel}/${state.last_session_id}.md`,
           `write the session log (try \`npx @justethales/casp new log --slug <slug>\`) OR fix last_session_id`
         );
       }
@@ -290,8 +297,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
 
   if (Array.isArray(state.phases_shipped) && state.phases_shipped.length > 0) {
     const historyDirs: Array<[string, string, string]> = [
-      [SESSIONS_DIR, 'docs/plan/sessions/', 'sessions_dir'],
-      [LOGS_DIR, 'session-logs/', 'logs_dir']
+      [SESSIONS_DIR, `${dirs.sessionsRel}/`, 'sessions_dir'],
+      [LOGS_DIR, `${dirs.logsRel}/`, 'logs_dir']
     ];
     for (const [dir, name, key] of historyDirs) {
       if (!isDir(dir)) {
@@ -338,7 +345,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         const touched = git('diff-tree --no-commit-id --name-only -r HEAD', root)
           .split('\n')
           .filter(Boolean);
-        const STATE_SURFACE = ['casp/', 'docs/plan/sessions/', 'session-logs/'];
+        const STATE_SURFACE = ['casp/', `${dirs.sessionsRel}/`, `${dirs.logsRel}/`];
         const bumpOnly =
           touched.length > 0 &&
           touched.every((f) => STATE_SURFACE.some((p) => f.startsWith(p)));
@@ -413,7 +420,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
   const migrationsClaimed =
     Array.isArray(state.migrations_applied) &&
     state.migrations_applied.length > 0;
-  if (state.migrations_dir === undefined || state.migrations_dir === null) {
+  if (dirs.migrationsRel === null || dirs.migrationsAbs === null) {
     if (migrationsClaimed) {
       // A claim with nothing to verify it against is drift, not a skip.
       record(
@@ -426,14 +433,14 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     }
     // else: this project has no migration concept → skip silently.
   } else {
-    const migrationsDir = join(root, state.migrations_dir);
+    const migrationsDir = dirs.migrationsAbs;
     if (migrationsClaimed && !isDir(migrationsDir)) {
       // The canonical false-green: state claims applied migrations, the dir is
       // gone — the old behavior silently skipped and reported green.
       record(
         'migrations.dir',
         'fail',
-        `cannot verify migrations_applied: ${state.migrations_dir}/ not found`,
+        `cannot verify migrations_applied: ${dirs.migrationsRel}/ not found`,
         `state claims ${(state.migrations_applied as string[]).length} migration(s) but the directory is missing`,
         'create the migrations directory OR fix state.migrations_dir OR empty migrations_applied'
       );
@@ -451,7 +458,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         record(
           'migrations.match',
           'fail',
-          `migrations_applied does not match ${state.migrations_dir}/`,
+          `migrations_applied does not match ${dirs.migrationsRel}/`,
           `state-missing: ${missingFromState.join(', ') || '(none)'} · disk-missing: ${missingFromDisk.join(', ') || '(none)'}`,
           'add missing-from-state to state.migrations_applied OR remove ghosts'
         );
@@ -459,7 +466,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         record(
           'migrations.match',
           'pass',
-          `migrations_applied matches ${state.migrations_dir}/ (${onDisk.length} files)`,
+          `migrations_applied matches ${dirs.migrationsRel}/ (${onDisk.length} files)`,
           ''
         );
       }
@@ -503,7 +510,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
             'fail',
             'shipped prompt has no session_log pointer',
             rel,
-            'set session_log: session-logs/<id>.md in the frontmatter'
+            `set session_log: ${dirs.logsRel}/<id>.md in the frontmatter`
           );
         } else {
           // A phase shipped across several sessions lists its logs as a YAML
@@ -558,7 +565,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
 
   if (!noGit) {
     const dirty = git(
-      'status --porcelain casp docs/plan/sessions session-logs',
+      `status --porcelain casp "${dirs.sessionsRel}" "${dirs.logsRel}"`,
       root
     );
     if (dirty) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-06-16
+
+- **New — configurable `sessions_dir` / `logs_dir`.** Two OPTIONAL `state.json` keys let a project point the validator at its real layout instead of adopting CASP's. Prompts still default to `docs/plan/sessions` and logs to `session-logs`; set either key and the *entire* protocol honors it — `casp check` (every claim, the shipped-history dirs, the state-bump surface, the uncommitted-changes pathspec), `casp new prompt|log`, `casp ship` (the wired `session_log` pointer), and `casp close` (newest-log detection). All messages print the **resolved** path, never the hardcoded default. Backward-compatible: a repo that sets neither key behaves exactly as before (every prior test stays green). Minor bump for new schema keys. Motivated by onboarding **a downstream project**, whose existing layout the hardcoded paths forced it to abandon.
+- **Single resolver, one source of truth.** The three state-surface directories (sessions, logs, migrations) now resolve in one place (`resolveDirs` in `shared.ts`) — composed per-root so `check --all` honors each cockpit's own layout. `migrations_dir` keeps its existing no-default, opt-in semantics (a project with no migration concept reports none).
+- **Out of scope, documented.** A single rolling next-prompt FILE (one `NEXT-SESSION-PROMPT.md` rather than a directory of per-session prompts) is **not** modeled — `next_prompt` already points at any file today, and `sessions_dir` governs the directory `check` scans and `new`/`ship` write into, not a single-file lifecycle. Modeling a rolling file is a different concept and was deliberately not built.
+- Four new regression tests (34 total): custom-layout clean repo passes; a claim against a missing CUSTOM dir FAILs with the resolved name; shipped-history FAILs name the configured dirs; `new`/`ship`/`close` all write into the configured layout.
+
 ## 0.4.2 — 2026-06-16
 
 - **Fix — `casp check --all <absolute path>` no longer doubles the path.** The optional root argument was `join`ed onto the current directory unconditionally, so an absolute root (`casp check --all /Users/me/projects`) became `<cwd>/Users/me/projects` and reported "no casp/ cockpit found." It now `resolve()`s the argument — an absolute root is used as-is; a relative root still resolves against the cwd; the no-arg (cwd) form is unchanged. Found within minutes of dogfooding `check --all` across the workspace for the fleet-gate launch. One new regression test (30 total).

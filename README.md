@@ -128,8 +128,8 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. |
 | `casp ship <slug>` | Mark a phase shipped: flip its prompt to `status: shipped`, wire the `session_log` pointer, move the slug from `phases_queued` to `phases_shipped`. Pure state mutation — never touches git. |
 | `casp close` | Bump `last_commit` / `last_session_id` from HEAD and the newest session log (confirm or override), then run `check`. Never commits — the operator owns the commit. |
-| `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/`. |
-| `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/`. |
+| `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/` (or your configured `sessions_dir`). |
+| `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/` (or your configured `logs_dir`). |
 
 ---
 
@@ -239,10 +239,12 @@ Nine check categories, each with a one-line `→ fix` hint so the agent can reso
 5. `state.json.phases_shipped[]` has duplicates.
 6. `state.json.migrations_applied[]` does not match the migrations directory.
 7. A session prompt has `status: shipped` but `session_log: pending`.
-8. Uncommitted changes in `casp/`, `docs/plan/sessions/`, or `session-logs/`.
+8. Uncommitted changes in `casp/`, the sessions dir, or the logs dir.
 9. A state claim whose backing directory is missing — claimed migrations, shipped phases, or a session id the validator cannot verify **FAIL**; a check that cannot find what it needs never reports green.
 
 The exit-code contract — clean → exit 0, drift → exit 1 — is covered by `npm test`, so the CI gate stays real.
+
+**Layout is yours.** Prompts default to `docs/plan/sessions` and logs to `session-logs`, but a project that already has its own structure sets `"sessions_dir"` and/or `"logs_dir"` in `state.json` — both optional — and the whole protocol (`check`, `new`, `ship`, `close`) validates against that real layout instead of forcing CASP's. CASP fits your repo; you don't refactor for CASP.
 
 Need the report as data instead of text? `casp check --json` emits the same findings as structured PASS/WARN/FAIL with a stable, documented schema — for CI annotations, webhooks, and roll-ups. See [docs/check-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/check-json.md).
 
@@ -261,11 +263,10 @@ Need the report as data instead of text? `casp check --json` emits the same find
 ## Roadmap
 
 - **0.4** — `casp ship` + `casp close` (the close loop, automated), optional migrations (non-code projects carry no migration noise), and `casp check --all` for fleets. *Shipped.*
-- **0.5** — `casp install-hook`: wire `casp check` into your pre-push hook in one command. The validator stops being optional.
-- **0.6** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
-- **0.7** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so non-standard layouts validate against the right ground truth.
-- **0.8** — `casp status --json`: the structured session handoff, and the substrate for a multi-repo roll-up (`status --all`).
-- **Later** — `casp verify <commit>` + `casp state diff`: validate a past state; inspect how the state evolved between two commits.
+- **0.5** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so a project validates against its real layout instead of adopting CASP's. *Shipped.* *(Resequenced ahead of `install-hook` — real users onboarding their existing repos came first.)*
+- **Next** — `casp install-hook`: wire `casp check` into your pre-push hook in one command. The validator stops being optional.
+- **After that** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
+- **Later** — `casp status --json` (the structured session handoff + substrate for a multi-repo roll-up), then `casp verify <commit>` + `casp state diff` (validate a past state; inspect how it evolved between two commits).
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
 Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary — even advisory — would undercut the deterministic claim; prose-vs-reality checking belongs in your agent, which can read `casp/` today for free).

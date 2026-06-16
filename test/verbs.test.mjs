@@ -17,6 +17,7 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  readdirSync,
   existsSync,
   rmSync
 } from 'node:fs';
@@ -336,6 +337,142 @@ test('check --all: no cockpit under root → exit 0, not an error', () => {
     assert.match(r.stdout, /no casp\/ cockpit found/);
   } finally {
     cleanup(root);
+  }
+});
+
+/* ---- configurable paths (0.5.0): sessions_dir / logs_dir ------------- */
+
+/**
+ * A cockpit whose prompts and logs live at CUSTOM paths declared in state, not
+ * the protocol defaults. Mirrors a project (e.g. a downstream project) onboarding CASP onto
+ * its existing layout instead of adopting docs/plan/sessions + session-logs.
+ */
+function scaffoldCustom({ sessionsDir, logsDir }) {
+  const dir = mkdtempSync(join(tmpdir(), 'casp-cfgpath-'));
+  git(dir, 'init', '-q');
+  git(dir, 'config', 'user.email', 'test@casp.sh');
+  git(dir, 'config', 'user.name', 'casp test');
+
+  mkdirSync(join(dir, 'casp'), { recursive: true });
+  mkdirSync(join(dir, ...sessionsDir.split('/')), { recursive: true });
+  mkdirSync(join(dir, ...logsDir.split('/')), { recursive: true });
+
+  const sessionId = '26-06-15-001-first-slice';
+  writeFileSync(join(dir, ...logsDir.split('/'), `${sessionId}.md`), '# first slice\n');
+  writeFileSync(
+    join(dir, ...sessionsDir.split('/'), 'PHASE-1-FIRST-SLICE.md'),
+    '---\nstatus: queued\nsession_id: pending\nsession_log: pending\ndrafted_at: 2026-06-15\n---\n\n# Phase 1\n'
+  );
+  const state = {
+    updated_at: '2026-06-15',
+    last_session_id: sessionId,
+    last_commit: 'pending',
+    current_phase: 'phase-1-first-slice',
+    next_phase: 'phase-2',
+    next_prompt: `${sessionsDir}/PHASE-1-FIRST-SLICE.md`,
+    phases_shipped: [],
+    phases_queued: ['phase-1-first-slice'],
+    sessions_dir: sessionsDir,
+    logs_dir: logsDir
+  };
+  writeState(dir, state);
+  git(dir, 'add', '-A');
+  git(dir, 'commit', '-q', '-m', 'init');
+  return { dir, sessionId, sessionsDir, logsDir };
+}
+
+test('custom sessions_dir / logs_dir: clean repo at non-default layout → exit 0', () => {
+  const { dir } = scaffoldCustom({ sessionsDir: 'planning/prompts', logsDir: 'logs' });
+  try {
+    const r = run(dir, 'check', '--json');
+    assert.equal(r.status, 0, r.stdout);
+    const report = JSON.parse(r.stdout);
+    assert.equal(report.summary.fail, 0, 'a coherent custom-layout cockpit is clean');
+    // The log-exists PASS must reference the RESOLVED path, not the default.
+    const f = report.findings.find((x) => x.id === 'last_session.log_exists');
+    assert.equal(f.severity, 'pass');
+    assert.ok(f.detail.startsWith('logs/'), 'PASS detail prints the resolved logs_dir, not session-logs/');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('custom logs_dir claimed but the CUSTOM dir is missing → exit 1 (no false green)', () => {
+  const { dir, logsDir } = scaffoldCustom({ sessionsDir: 'planning/prompts', logsDir: 'logs' });
+  try {
+    rmSync(join(dir, logsDir), { recursive: true, force: true });
+    const r = run(dir, 'check', '--json');
+    assert.equal(r.status, 1, 'a claim against a missing CUSTOM dir must FAIL');
+    const report = JSON.parse(r.stdout);
+    const f = report.findings.find((x) => x.id === 'last_session.logs_dir');
+    assert.ok(f && f.severity === 'fail', 'the missing custom logs dir surfaces as a fail');
+    assert.ok(f.detail.includes('logs/'), 'the FAIL names the resolved custom path');
+    // It must NOT have silently passed against the default session-logs/ that does not exist either.
+    assert.ok(!report.findings.some((x) => x.detail && x.detail.includes('session-logs/')),
+      'no message should reference the hardcoded default path');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('custom shipped_history dirs missing → both FAIL with resolved names', () => {
+  const { dir, sessionsDir, logsDir } = scaffoldCustom({ sessionsDir: 'planning/prompts', logsDir: 'logs' });
+  try {
+    rmSync(join(dir, sessionsDir.split('/')[0]), { recursive: true, force: true });
+    rmSync(join(dir, logsDir), { recursive: true, force: true });
+    const state = readState(dir);
+    state.next_prompt = null;
+    state.next_phase = null;
+    state.last_session_id = 'pending';
+    state.phases_shipped = ['phase-1-first-slice'];
+    writeState(dir, state);
+    const r = run(dir, 'check', '--json');
+    assert.equal(r.status, 1);
+    const report = JSON.parse(r.stdout);
+    const sd = report.findings.find((x) => x.id === 'shipped_history.sessions_dir');
+    const ld = report.findings.find((x) => x.id === 'shipped_history.logs_dir');
+    assert.ok(sd && sd.severity === 'fail' && sd.detail.includes('planning/prompts/'));
+    assert.ok(ld && ld.severity === 'fail' && ld.detail.includes('logs/'));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('custom dirs: new / ship / close all honor the configured layout', () => {
+  const { dir, sessionsDir, logsDir, sessionId } = scaffoldCustom({
+    sessionsDir: 'planning/prompts',
+    logsDir: 'logs'
+  });
+  try {
+    // new prompt → written into the custom sessions dir.
+    const np = run(dir, 'new', 'prompt', '--slug', 'phase-2-thing');
+    assert.equal(np.status ?? 0, 0, np.stderr);
+    assert.ok(
+      existsSync(join(dir, ...sessionsDir.split('/'), 'PHASE-2-THING.md')),
+      'new prompt must write into the configured sessions_dir'
+    );
+    assert.ok(
+      !existsSync(join(dir, 'docs', 'plan', 'sessions')),
+      'new prompt must NOT fall back to the default dir'
+    );
+    // new log → written into the custom logs dir.
+    const nl = run(dir, 'new', 'log', '--slug', 'a-log');
+    assert.equal(nl.status ?? 0, 0, nl.stderr);
+    assert.ok(
+      readdirSync(join(dir, logsDir)).some((f) => f.endsWith('-a-log.md')),
+      'new log must write into the configured logs_dir'
+    );
+    // ship → wires a session_log pointer rooted at the custom logs dir.
+    const sh = run(dir, 'ship', 'phase-1-first-slice');
+    assert.equal(sh.status, 0, sh.stderr);
+    const prompt = readFileSync(
+      join(dir, ...sessionsDir.split('/'), 'PHASE-1-FIRST-SLICE.md'),
+      'utf8'
+    );
+    assert.match(prompt, new RegExp(`^session_log: ${logsDir}/${sessionId}\\.md$`, 'm'),
+      'ship must point session_log at the configured logs_dir');
+  } finally {
+    cleanup(dir);
   }
 });
 

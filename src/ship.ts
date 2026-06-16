@@ -16,7 +16,7 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
-import { c, loadState, saveState } from './shared.js';
+import { c, loadState, resolveDirs, saveState } from './shared.js';
 
 function getArg(args: string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -54,9 +54,11 @@ export function runShip(args: string[]): void {
     fail('no readable casp/state.json found', 'run `casp init` first, or fix the JSON');
   }
 
+  const dirs = resolveDirs(root, state);
+
   // 1. Resolve the prompt file. --prompt wins; otherwise normalize-match the
-  //    slug against docs/plan/sessions/*.md.
-  const sessionsDir = join(root, 'docs', 'plan', 'sessions');
+  //    slug against the configured sessions dir's *.md.
+  const sessionsDir = dirs.sessionsAbs;
   let promptPath: string;
   const promptArg = getArg(args, '--prompt');
   if (promptArg) {
@@ -65,7 +67,7 @@ export function runShip(args: string[]): void {
   } else {
     if (!existsSync(sessionsDir) || !statSync(sessionsDir).isDirectory()) {
       fail(
-        'docs/plan/sessions/ not found',
+        `${dirs.sessionsRel}/ not found`,
         'pass --prompt <path> to point at the prompt explicitly'
       );
     }
@@ -75,7 +77,7 @@ export function runShip(args: string[]): void {
       .filter((f) => normalize(f) === target);
     if (matches.length === 0) {
       fail(
-        `no prompt in docs/plan/sessions/ matches slug '${slug}'`,
+        `no prompt in ${dirs.sessionsRel}/ matches slug '${slug}'`,
         'pass --prompt <path>, or check the slug'
       );
     }
@@ -97,7 +99,7 @@ export function runShip(args: string[]): void {
       'write the session log first then `casp close`, or pass --log <session-id>'
     );
   }
-  const logPointer = `session-logs/${logId}.md`;
+  const logPointer = `${dirs.logsRel}/${logId}.md`;
 
   // 3. Validate EVERYTHING before any write. ship mutates two files (the prompt
   //    and state.json); if the slug is unknown or the frontmatter is malformed,

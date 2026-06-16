@@ -79,8 +79,52 @@ export interface State {
   phases_shipped?: string[];
   phases_queued?: string[];
   migrations_applied?: string[];
+  // All three are OPTIONAL. sessions_dir / logs_dir default to the protocol's
+  // canonical layout; a project that keeps that layout sets neither. migrations
+  // has no default — a project with no migration concept reports none.
+  sessions_dir?: string;
+  logs_dir?: string;
   migrations_dir?: string;
   [k: string]: unknown;
+}
+
+// The protocol's canonical layout — the defaults when state declares no override.
+export const DEFAULT_SESSIONS_DIR = 'docs/plan/sessions';
+export const DEFAULT_LOGS_DIR = 'session-logs';
+
+/**
+ * The three state-surface directories, resolved from state in ONE place so every
+ * verb computes them identically. Returns each in two forms: repo-relative
+ * (`*Rel`, for messages, git pathspecs and the state-bump surface match) and
+ * absolute (`*Abs`, for filesystem calls). `sessions`/`logs` always resolve (to
+ * the defaults when unset); `migrations` is null when the project declares none.
+ */
+export interface ResolvedDirs {
+  sessionsRel: string;
+  logsRel: string;
+  migrationsRel: string | null;
+  sessionsAbs: string;
+  logsAbs: string;
+  migrationsAbs: string | null;
+}
+
+export function resolveDirs(root: string, state: State): ResolvedDirs {
+  const pick = (v: unknown, fallback: string): string =>
+    typeof v === 'string' && v.trim() ? v.trim() : fallback;
+  const sessionsRel = pick(state.sessions_dir, DEFAULT_SESSIONS_DIR);
+  const logsRel = pick(state.logs_dir, DEFAULT_LOGS_DIR);
+  const migrationsRel =
+    typeof state.migrations_dir === 'string' && state.migrations_dir.trim()
+      ? state.migrations_dir.trim()
+      : null;
+  return {
+    sessionsRel,
+    logsRel,
+    migrationsRel,
+    sessionsAbs: join(root, sessionsRel),
+    logsAbs: join(root, logsRel),
+    migrationsAbs: migrationsRel ? join(root, migrationsRel) : null
+  };
 }
 
 export function loadState(path: string): State | null {

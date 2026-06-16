@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
-import { c, todayISO } from './shared.js';
+import { c, loadState, resolveDirs, todayISO } from './shared.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,9 +56,12 @@ export function runNew(args: string[]): void {
 
   const root = process.cwd();
   const today = todayISO();
+  // Honor configured sessions_dir / logs_dir when state declares them; fall back
+  // to the defaults (including the pre-init case where there is no state yet).
+  const dirs = resolveDirs(root, loadState(join(root, 'casp', 'state.json')) ?? {});
 
   if (kind === 'prompt') {
-    const dir = join(root, 'docs', 'plan', 'sessions');
+    const dir = dirs.sessionsAbs;
     mkdirSync(dir, { recursive: true });
     const filename = `${slug.toUpperCase().replace(/-/g, '-')}.md`;
     const dest = join(dir, filename);
@@ -80,7 +83,7 @@ export function runNew(args: string[]): void {
   }
 
   if (kind === 'log') {
-    const dir = join(root, 'session-logs');
+    const dir = dirs.logsAbs;
     mkdirSync(dir, { recursive: true });
     const yymmdd = today.slice(2);
     const nnn = nextLogIndex(dir);

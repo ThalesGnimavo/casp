@@ -21,7 +21,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
-import { c, git, loadState, saveState, todayISO } from './shared.js';
+import { c, git, loadState, resolveDirs, saveState, todayISO } from './shared.js';
 import { runCheck } from './check.js';
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -61,7 +61,8 @@ export async function runClose(args: string[]): Promise<void> {
     console.error(c.gray('  → pass --commit <sha> explicitly'));
     exit(1);
   }
-  let logId = getArg(args, '--log') ?? newestLogId(join(root, 'session-logs'));
+  const dirs = resolveDirs(root, state);
+  let logId = getArg(args, '--log') ?? newestLogId(dirs.logsAbs);
 
   if (interactive) {
     const rl = createInterface({ input: stdin, output: stdout });
