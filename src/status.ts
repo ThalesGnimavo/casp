@@ -4,12 +4,86 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { c, git, loadState, readFrontmatter, setColor } from './shared.js';
+import { c, git, loadState, pkgVersion, readFrontmatter, setColor, type State } from './shared.js';
+import { checkOne, summarize } from './check.js';
 
 const ROOT = process.cwd();
 const STATE = join(ROOT, 'casp', 'state.json');
 const NOW = join(ROOT, 'casp', 'now.md');
 const ROADMAP = join(ROOT, 'casp', 'roadmap.md');
+
+// The stable `casp status --json` contract (documented in docs/status-json.md).
+// Same stability promise as check-json: this only bumps on a breaking shape
+// change; additive fields do not bump it. `status` reports, it never gates — so
+// the embedded check verdict carries `fail`/`drift` but status still exits 0.
+const STATUS_SCHEMA_VERSION = 1;
+
+function readProjectMeta(): { name: string; version: string | null } {
+  const pkgPath = join(ROOT, 'package.json');
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string; version?: string };
+      return { name: pkg.name ?? 'casp-managed-project', version: pkg.version ?? null };
+    } catch {
+      /* fall through */
+    }
+  }
+  return { name: 'casp-managed-project', version: null };
+}
+
+function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
+  const meta = readProjectMeta();
+  const head = git('rev-parse --short HEAD');
+  const branch = git('rev-parse --abbrev-ref HEAD');
+  const dirtyOut = git('status --short');
+  const aheadOut = git('rev-list --count @{u}..HEAD').trim();
+
+  const nextPrompt = state.next_prompt ? String(state.next_prompt) : null;
+  const nextPromptPath = nextPrompt ? join(ROOT, nextPrompt) : null;
+  let nextPromptStatus: string | null = null;
+  let nextPromptExists = false;
+  if (nextPromptPath && existsSync(nextPromptPath)) {
+    nextPromptExists = true;
+    const fm = readFrontmatter(nextPromptPath);
+    nextPromptStatus = fm ? String(fm.status ?? '?') : null;
+  }
+
+  // Embed the validator verdict, computed in-process — the same checkOne the
+  // `check` and `next` verbs run. status NEVER shells out and NEVER gates on it.
+  const findings = checkOne(ROOT, { noGit: opts.noGit });
+  const sum = summarize(findings);
+
+  const report = {
+    schema_version: STATUS_SCHEMA_VERSION,
+    casp_version: pkgVersion(),
+    project: { name: meta.name, version: meta.version },
+    git: {
+      head: head || null,
+      branch: branch || null,
+      dirty_files: dirtyOut ? dirtyOut.split('\n').filter((l) => l.trim()).length : 0,
+      ahead: aheadOut && /^\d+$/.test(aheadOut) ? Number(aheadOut) : null
+    },
+    state: {
+      current_phase: state.current_phase ?? null,
+      next_phase: state.next_phase ?? null,
+      next_prompt: nextPrompt,
+      next_prompt_status: nextPromptStatus,
+      next_prompt_exists: nextPromptExists,
+      last_session_id: state.last_session_id ?? null,
+      last_commit: state.last_commit ?? null,
+      phases_shipped_count: Array.isArray(state.phases_shipped) ? state.phases_shipped.length : 0,
+      phases_queued_count: Array.isArray(state.phases_queued) ? state.phases_queued.length : 0
+    },
+    check: {
+      verdict: sum.fail > 0 ? 'drift' : 'clean',
+      pass: sum.pass,
+      warn: sum.warn,
+      fail: sum.fail
+    }
+  };
+  console.log(JSON.stringify(report, null, 2));
+  // status reports, it does not gate: a valid cockpit always exits 0, even on drift.
+}
 
 function section(label: string, body: string): void {
   console.log('');
@@ -32,31 +106,26 @@ export function runStatus(args: string[]): void {
     process.exit(1);
   }
 
+  // Machine-readable snapshot: the structured session handoff. Always exits 0 on
+  // a valid cockpit (reporting, not gating). Documented in docs/status-json.md.
+  if (args.includes('--json')) {
+    emitStatusJson(state, { noGit: args.includes('--no-git') });
+    return;
+  }
+
   const head = git('rev-parse --short HEAD') || '(no git)';
   const branch = git('rev-parse --abbrev-ref HEAD') || '(no git)';
   const dirty = git('status --short');
   const ahead = git('rev-list --count @{u}..HEAD').trim();
   const log10 = git('log --oneline -10');
 
-  let pkgName = 'casp-managed-project';
-  let pkgVersion = '';
-  const pkgPath = join(ROOT, 'package.json');
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
-        name?: string;
-        version?: string;
-      };
-      pkgName = pkg.name ?? pkgName;
-      pkgVersion = pkg.version ? `@${pkg.version}` : '';
-    } catch {
-      /* ignore */
-    }
-  }
+  const meta = readProjectMeta();
+  const pkgName = meta.name;
+  const pkgVer = meta.version ? `@${meta.version}` : '';
 
   console.log('');
   console.log(
-    c.bold(`${pkgName}${pkgVersion}`) +
+    c.bold(`${pkgName}${pkgVer}`) +
       ` · branch ${c.cyan(branch)} · HEAD ${c.cyan(head)}`
   );
   if (dirty) {

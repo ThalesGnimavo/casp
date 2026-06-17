@@ -35,6 +35,8 @@ USAGE
 COMMANDS
   init                          Scaffold the casp/ continuity layer in this repo
   status                        Print one-screen snapshot (use --plain for no color)
+  status --json                 Machine-readable snapshot + embedded check verdict
+                                  (stable schema; always exits 0 — reporting, not gating)
   check                         Validate state.json against git — exits 1 on drift
   check --quiet                 Same, suppress output unless FAIL (CI-friendly)
   check --json                  Same checks, machine-readable JSON report (stable schema)
