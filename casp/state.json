@@ -1,7 +1,7 @@
 {
   "updated_at": "2026-06-17",
   "last_session_id": "26-06-17-002-0-6-0-bundle",
-  "last_commit": "5290baa",
+  "last_commit": "f55fb83",
   "current_phase": "0.6.0-gate-both-boundaries",
   "next_phase": "check-shipped-log",
   "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
