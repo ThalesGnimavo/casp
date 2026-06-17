@@ -17,6 +17,7 @@ import { runNew } from './new.js';
 import { runNext } from './next.js';
 import { runShip } from './ship.js';
 import { runClose } from './close.js';
+import { runInstallHook } from './install-hook.js';
 import { pkgVersion } from './shared.js';
 
 const VERSION = pkgVersion();
@@ -47,6 +48,9 @@ COMMANDS
                                   (default docs/plan/sessions; set sessions_dir to override)
   new log --slug <kebab-id>     Copy session-log template to the logs dir
                                   (default session-logs; set logs_dir to override)
+  install-hook                  Write .git/hooks/pre-push so casp check runs on
+                                  every push (--force to replace a foreign hook,
+                                  --remove to uninstall)
 
 GLOBAL
   -h, --help                    Print this help
@@ -99,6 +103,9 @@ async function main(): Promise<void> {
       break;
     case 'new':
       runNew(rest);
+      break;
+    case 'install-hook':
+      runInstallHook(rest);
       break;
     default:
       console.error(`unknown command: ${cmd}\n`);

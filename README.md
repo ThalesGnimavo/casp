@@ -130,6 +130,7 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp close` | Bump `last_commit` / `last_session_id` from HEAD and the newest session log (confirm or override), then run `check`. Never commits — the operator owns the commit. |
 | `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/` (or your configured `sessions_dir`). |
 | `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/` (or your configured `logs_dir`). |
+| `casp install-hook` | Write `.git/hooks/pre-push` so `casp check --quiet` runs on every push — the gate stops depending on discipline. Refuses to clobber a foreign hook (`--force` to override); `--remove` uninstalls a hook CASP wrote. Explicit opt-in — `casp init` never installs it, and it never touches `core.hooksPath`. |
 
 ---
 
@@ -264,8 +265,8 @@ Need the report as data instead of text? `casp check --json` emits the same find
 
 - **0.4** — `casp ship` + `casp close` (the close loop, automated), optional migrations (non-code projects carry no migration noise), and `casp check --all` for fleets. *Shipped.*
 - **0.5** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so a project validates against its real layout instead of adopting CASP's. *Shipped.* *(Resequenced ahead of `install-hook` — real users onboarding their existing repos came first.)*
-- **Next** — `casp install-hook`: wire `casp check` into your pre-push hook in one command. The validator stops being optional.
-- **After that** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
+- **0.6** — `casp install-hook`: write `casp check --quiet` into your pre-push hook in one command. The validator stops depending on discipline — a hands-off autonomous loop that auto-pushes can no longer skip the gate. *Shipped.*
+- **Next** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
 - **Later** — `casp status --json` (the structured session handoff + substrate for a multi-repo roll-up), then `casp verify <commit>` + `casp state diff` (validate a past state; inspect how it evolved between two commits).
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
