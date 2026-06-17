@@ -131,6 +131,9 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/` (or your configured `sessions_dir`). |
 | `casp new log --slug X` | Open a session-log in the shape every session shares, into `session-logs/` (or your configured `logs_dir`). |
 | `casp install-hook` | Write `.git/hooks/pre-push` so `casp check --quiet` runs on every push — the gate stops depending on discipline. Refuses to clobber a foreign hook (`--force` to override); `--remove` uninstalls a hook CASP wrote. Explicit opt-in — `casp init` never installs it, and it never touches `core.hooksPath`. |
+| `casp verify <commit>` | Run the validator against a historical commit in a throwaway worktree — proves whether that commit's recorded state was in sync. Exits with that verdict; never mutates the worktree, index or history. |
+| `casp state diff [A] [B]` | Field-level diff of `casp/state.json` between two commits (default `HEAD~1` → `HEAD`), with element-level deltas for array fields. `--json` for data. |
+| `casp help [command]` | The top-level overview, or one command's focused help (usage, every flag, real examples). `casp <command> --help` is equivalent. `casp help` exits 0 — the most natural thing a user types is first-class. |
 
 ---
 

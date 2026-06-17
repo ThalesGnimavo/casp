@@ -21,76 +21,43 @@ import { runInstallHook } from './install-hook.js';
 import { runVerify } from './verify.js';
 import { runState } from './state.js';
 import { pkgVersion } from './shared.js';
+import {
+  topLevelHelp,
+  commandHelp,
+  runHelp,
+  unknownCommandMessage
+} from './help.js';
 
 const VERSION = pkgVersion();
 
-const HELP = `
-casp ${VERSION} — the Coding-Agent State Protocol
-
-The protocol that refuses to let your state lie: a git-native, local-only state
-file every AI coding agent can read, plus a validator that blocks the push the
-moment your project drifts.
-
-USAGE
-  casp <command> [options]
-
-COMMANDS
-  init                          Scaffold the casp/ continuity layer in this repo
-  status                        Print one-screen snapshot (use --plain for no color)
-  status --json                 Machine-readable snapshot + embedded check verdict
-                                  (stable schema; always exits 0 — reporting, not gating)
-  check                         Validate state.json against git — exits 1 on drift
-  check --quiet                 Same, suppress output unless FAIL (CI-friendly)
-  check --json                  Same checks, machine-readable JSON report (stable schema)
-  check --all [root]            Validate every casp/ cockpit under a root, one report
-  next                          Print the next session's prompt from state.next_prompt
-                                  — refuses on drift (runs the validator first);
-                                  --no-check to start anyway, --no-git to skip git checks
-  ship <slug>                   Mark a phase shipped: flip prompt to shipped, wire log,
-                                  move slug queued → shipped (no git)
-  close                         Bump last_commit / last_session_id from HEAD + newest log,
-                                  then run check (no git)
-  new prompt --slug <kebab-id>  Copy session-prompt template to the sessions dir
-                                  (default docs/plan/sessions; set sessions_dir to override)
-  new log --slug <kebab-id>     Copy session-log template to the logs dir
-                                  (default session-logs; set logs_dir to override)
-  install-hook                  Write .git/hooks/pre-push so casp check runs on
-                                  every push (--force to replace a foreign hook,
-                                  --remove to uninstall)
-  verify <commit>               Run the validator against a historical commit
-                                  (in a throwaway worktree); exits with its verdict
-  state diff [A] [B]            Field-level diff of casp/state.json between two
-                                  commits (default HEAD~1 → HEAD; --json for data)
-
-GLOBAL
-  -h, --help                    Print this help
-  -V, --version                 Print version
-
-EXAMPLES
-  casp init                     # in a fresh repo
-  casp status                   # at session start
-  casp check                    # before git push — mandatory, blocks on drift
-  casp next                     # surface the exact next move
-  casp new prompt --slug phase-2-auth-flow
-
-LEARN MORE
-  https://casp.sh
-  https://github.com/ThalesGnimavo/casp
-`;
-
 async function main(): Promise<void> {
   const args = argv.slice(2);
+  const [cmd, ...rest] = args;
 
-  if (args.length === 0 || args.includes('-h') || args.includes('--help')) {
-    console.log(HELP);
-    exit(0);
-  }
+  // Version wins over everything, like every CLI.
   if (args.includes('-V') || args.includes('--version')) {
     console.log(VERSION);
     exit(0);
   }
-
-  const [cmd, ...rest] = args;
+  // No command, or a help flag standing in for one → the top-level overview.
+  if (!cmd || cmd === '-h' || cmd === '--help') {
+    console.log(topLevelHelp(VERSION));
+    exit(0);
+  }
+  // `casp help [command]` — first-class, exit 0 for known, 1 for bogus.
+  if (cmd === 'help') {
+    exit(runHelp(rest));
+  }
+  // `casp <command> --help` / `-h` → that command's focused block.
+  if (rest.includes('-h') || rest.includes('--help')) {
+    const block = commandHelp(cmd);
+    if (block) {
+      console.log(block);
+      exit(0);
+    }
+    console.error(unknownCommandMessage(cmd));
+    exit(1);
+  }
 
   switch (cmd) {
     case 'init':
@@ -124,8 +91,7 @@ async function main(): Promise<void> {
       runState(rest);
       break;
     default:
-      console.error(`unknown command: ${cmd}\n`);
-      console.log(HELP);
+      console.error(unknownCommandMessage(cmd));
       exit(1);
   }
 }

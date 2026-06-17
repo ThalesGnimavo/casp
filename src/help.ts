@@ -1,0 +1,337 @@
+/**
+ * help — `casp help`, `casp help <command>`, and `casp <command> --help`.
+ *
+ * One structured registry is the source of truth for per-command help. The
+ * top-level block stays hand-authored (it groups verbs for scanning) but pulls
+ * its command list from the same canon so the two can never name different
+ * verbs. No LLM, no network — this is a static, deterministic surface, like the
+ * rest of the binary.
+ *
+ * Keep this usage-focused, not marketing: "what is CASP" is one tight paragraph
+ * plus a pointer to casp.sh. The binary ships a frozen snapshot; the site stays
+ * current.
+ */
+
+import { pkgVersion } from './shared.js';
+
+interface CmdHelp {
+  /** The verb as typed. */
+  name: string;
+  /** One line — why this command exists. Shown in the unknown-command list. */
+  summary: string;
+  /** 1-2 sentences expanding the summary, printed at the top of the block. */
+  blurb: string;
+  /** Usage line(s), each printed verbatim under USAGE. */
+  usage: string[];
+  /** [flag, description] rows. */
+  flags?: [string, string][];
+  /** [command, inline comment] rows — 1-2 real examples. */
+  examples?: [string, string][];
+}
+
+// The protocol canon (five verbs) followed by the 0.4+ tooling ergonomics, in
+// the order a user meets them. `help` is itself a command and lists last.
+const COMMANDS: CmdHelp[] = [
+  {
+    name: 'init',
+    summary: 'Scaffold the casp/ continuity layer in this repo',
+    blurb:
+      'Writes casp/state.json and the session prompt/log layout, plus the first ' +
+      'queued prompt, so `casp check` is green out of the box.',
+    usage: ['casp init'],
+    examples: [['casp init', 'in a fresh repo']]
+  },
+  {
+    name: 'status',
+    summary: 'Print a one-screen snapshot of where the project stands',
+    blurb:
+      'A read-only dashboard: current phase, next prompt, last commit and ' +
+      'session, with an embedded check verdict. Reporting, never gating — ' +
+      'always exits 0.',
+    usage: ['casp status [--plain] [--json]'],
+    flags: [
+      ['--plain', 'No color (for pipes and logs)'],
+      [
+        '--json',
+        'Machine-readable snapshot + embedded check verdict (stable schema)'
+      ]
+    ],
+    examples: [
+      ['casp status', 'at session start'],
+      ['casp status --json', 'feed a dashboard or another tool']
+    ]
+  },
+  {
+    name: 'check',
+    summary: 'Validate state.json against git — exits 1 on drift',
+    blurb:
+      'The gate. Deterministic and local-only: compares casp/state.json with ' +
+      'what git actually shows and blocks the push the moment they disagree. ' +
+      'Exit 0 clean, exit 1 drift.',
+    usage: ['casp check [--quiet] [--json] [--all [root]]'],
+    flags: [
+      ['--quiet', 'Suppress output unless a FAIL — CI-friendly'],
+      ['--json', 'Machine-readable report (stable schema); still exits 1 on drift'],
+      [
+        '--all [root]',
+        'Validate every casp/ cockpit under root (default cwd), one report'
+      ]
+    ],
+    examples: [
+      ['casp check', 'before every git push — mandatory'],
+      ['casp check --all ~/projects', 'sweep a whole fleet']
+    ]
+  },
+  {
+    name: 'next',
+    summary: "Print the next session's prompt — refuses on drift",
+    blurb:
+      'Runs the validator first, then prints the prompt state.next_prompt ' +
+      'points at. If the state has drifted it refuses, so you never start a ' +
+      'session on a lie.',
+    usage: ['casp next [--no-check] [--no-git]'],
+    flags: [
+      ['--no-check', 'Skip the validator and print the prompt anyway'],
+      ['--no-git', 'Skip the git-dependent checks (validate state shape only)']
+    ],
+    examples: [['casp next', 'surface the exact next move']]
+  },
+  {
+    name: 'new',
+    summary: 'Copy a session prompt or log template into place',
+    blurb:
+      'Scaffolds a new session prompt or log from the template, into the ' +
+      'configured sessions_dir / logs_dir (defaults docs/plan/sessions and ' +
+      'session-logs).',
+    usage: ['casp new prompt --slug <kebab-id>', 'casp new log --slug <kebab-id>'],
+    flags: [['--slug <kebab-id>', 'The phase / log identifier (required)']],
+    examples: [
+      ['casp new prompt --slug phase-2-auth-flow', 'draft the next prompt'],
+      ['casp new log --slug phase-2-auth-flow', "this session's log"]
+    ]
+  },
+  {
+    name: 'ship',
+    summary: 'Mark a phase shipped — flip the prompt, wire its log, move the slug',
+    blurb:
+      'Records that a queued phase is done: flips its prompt frontmatter to ' +
+      'shipped, wires the session_log pointer, and moves the slug from queued ' +
+      'to shipped. No git.',
+    usage: ['casp ship <slug>'],
+    examples: [['casp ship phase-2-auth-flow', 'after the work is committed']]
+  },
+  {
+    name: 'close',
+    summary: 'Bump last_commit / last_session_id from HEAD + newest log',
+    blurb:
+      'The end-of-session state bump: sets last_commit to HEAD and ' +
+      'last_session_id to the newest log, then runs check. Never commits — it ' +
+      'leaves the bump staged for you to review and commit.',
+    usage: ['casp close [--yes]'],
+    flags: [['--yes', 'Skip the confirmation prompt']],
+    examples: [['casp close', 'at session close, before the state-bump commit']]
+  },
+  {
+    name: 'install-hook',
+    summary: 'Write a pre-push hook that runs casp check on every push',
+    blurb:
+      'Installs .git/hooks/pre-push so the gate runs automatically before each ' +
+      'push — drift can never reach the remote.',
+    usage: ['casp install-hook [--force] [--remove]'],
+    flags: [
+      ['--force', 'Replace an existing / foreign pre-push hook'],
+      ['--remove', 'Uninstall the casp hook']
+    ],
+    examples: [['casp install-hook', 'make the gate automatic']]
+  },
+  {
+    name: 'verify',
+    summary: 'Run the validator against a historical commit',
+    blurb:
+      'Checks out a past commit in a throwaway worktree and runs the validator ' +
+      "against it — proves whether that commit's recorded state was in sync. " +
+      'Exits with that verdict.',
+    usage: ['casp verify <commit>'],
+    examples: [
+      ['casp verify HEAD~3', 'was the state honest 3 commits ago?'],
+      ['casp verify a1b2c3d', 'audit a specific commit']
+    ]
+  },
+  {
+    name: 'state',
+    summary: 'Field-level diff of casp/state.json between two commits',
+    blurb:
+      'Shows what changed in state.json between two commits — which fields ' +
+      'moved, were added, or removed.',
+    usage: ['casp state diff [A] [B]'],
+    flags: [['--json', 'Emit the diff as data instead of a table']],
+    examples: [
+      ['casp state diff', 'HEAD~1 vs HEAD'],
+      ['casp state diff HEAD~3 HEAD', 'across the last three commits']
+    ]
+  },
+  {
+    name: 'help',
+    summary: 'Print help — top-level, or focused on one command',
+    blurb:
+      'With no argument, the top-level overview. With a command name, that ' +
+      "command's focused help. `casp <command> --help` is equivalent.",
+    usage: ['casp help [command]'],
+    examples: [
+      ['casp help', 'the overview'],
+      ['casp help check', 'everything about the gate']
+    ]
+  }
+];
+
+/** Every valid verb, in canon order — the single naming source. */
+export const COMMAND_NAMES: string[] = COMMANDS.map((c) => c.name);
+
+const BY_NAME = new Map(COMMANDS.map((c) => [c.name, c]));
+
+/** Render one command's focused help block. Returns null for an unknown verb. */
+export function commandHelp(name: string): string | null {
+  const cmd = BY_NAME.get(name);
+  if (!cmd) return null;
+
+  const lines: string[] = [];
+  lines.push('');
+  lines.push(`casp ${cmd.name} — ${cmd.summary}`);
+  lines.push('');
+  lines.push(wrap(cmd.blurb, 78));
+  lines.push('');
+  lines.push('USAGE');
+  for (const u of cmd.usage) lines.push(`  ${u}`);
+
+  if (cmd.flags?.length) {
+    lines.push('');
+    lines.push('FLAGS');
+    const w = Math.max(0, ...cmd.flags.map(([f]) => f.length));
+    for (const [flag, desc] of cmd.flags) {
+      lines.push(`  ${flag.padEnd(w)}   ${desc}`);
+    }
+  }
+
+  if (cmd.examples?.length) {
+    lines.push('');
+    lines.push('EXAMPLES');
+    const w = Math.max(0, ...cmd.examples.map(([ex]) => ex.length));
+    for (const [ex, comment] of cmd.examples) {
+      lines.push(`  ${ex.padEnd(w)}   # ${comment}`);
+    }
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+/** The graceful unknown-command message: name the miss, list the valid verbs. */
+export function unknownCommandMessage(name: string): string {
+  return [
+    `no such command: ${name}`,
+    '',
+    `valid commands: ${COMMAND_NAMES.join(', ')}`,
+    'run `casp help <command>` for details.'
+  ].join('\n');
+}
+
+/** The top-level help block. Hand-grouped for scanning; loop model up front. */
+export function topLevelHelp(version: string = pkgVersion()): string {
+  return `
+casp ${version} — the Coding-Agent State Protocol
+
+The protocol that refuses to let your state lie: a git-native, local-only state
+file every AI coding agent can read, plus a validator that blocks the push the
+moment your project drifts. Deterministic, zero telemetry, model-agnostic.
+
+USAGE
+  casp <command> [options]
+
+THE LOOP
+  init → status → (work) → check → ship / close → push
+  Scaffold once, snapshot at session start, do the work, then gate on check.
+  Record the shipped phase with ship/close and push. check is the only hard
+  gate — exit 1 blocks the push; everything else just keeps the state honest.
+
+COMMANDS
+  init                          Scaffold the casp/ continuity layer in this repo
+  status                        Print one-screen snapshot (use --plain for no color)
+  status --json                 Machine-readable snapshot + embedded check verdict
+                                  (stable schema; always exits 0 — reporting, not gating)
+  check                         Validate state.json against git — exits 1 on drift
+  check --quiet                 Same, suppress output unless FAIL (CI-friendly)
+  check --json                  Same checks, machine-readable JSON report (stable schema)
+  check --all [root]            Validate every casp/ cockpit under a root, one report
+  next                          Print the next session's prompt from state.next_prompt
+                                  — refuses on drift (runs the validator first);
+                                  --no-check to start anyway, --no-git to skip git checks
+  ship <slug>                   Mark a phase shipped: flip prompt to shipped, wire log,
+                                  move slug queued → shipped (no git)
+  close                         Bump last_commit / last_session_id from HEAD + newest log,
+                                  then run check (no git)
+  new prompt --slug <kebab-id>  Copy session-prompt template to the sessions dir
+                                  (default docs/plan/sessions; set sessions_dir to override)
+  new log --slug <kebab-id>     Copy session-log template to the logs dir
+                                  (default session-logs; set logs_dir to override)
+  install-hook                  Write .git/hooks/pre-push so casp check runs on
+                                  every push (--force to replace a foreign hook,
+                                  --remove to uninstall)
+  verify <commit>               Run the validator against a historical commit
+                                  (in a throwaway worktree); exits with its verdict
+  state diff [A] [B]            Field-level diff of casp/state.json between two
+                                  commits (default HEAD~1 → HEAD; --json for data)
+  help [command]                This overview, or one command's focused help
+
+GLOBAL
+  -h, --help                    Print this help (or \`casp <command> --help\`)
+  -V, --version                 Print version
+
+EXAMPLES
+  casp init                     # in a fresh repo
+  casp status                   # at session start
+  casp check                    # before git push — mandatory, blocks on drift
+  casp next                     # surface the exact next move
+  casp help check               # focused help for one command
+
+LEARN MORE
+  https://casp.sh
+  https://github.com/ThalesGnimavo/casp
+`;
+}
+
+/**
+ * `casp help [command]` dispatch. Returns the exit code: 0 for the overview or
+ * a known command, 1 for an unknown one (written to stderr). The first
+ * non-flag arg is the target so `casp help --foo check` still resolves check.
+ */
+export function runHelp(rest: string[]): number {
+  const target = rest.find((a) => !a.startsWith('-'));
+  if (!target) {
+    console.log(topLevelHelp());
+    return 0;
+  }
+  const block = commandHelp(target);
+  if (block) {
+    console.log(block);
+    return 0;
+  }
+  console.error(unknownCommandMessage(target));
+  return 1;
+}
+
+/** Soft-wrap a paragraph to `width` columns on word boundaries. */
+function wrap(text: string, width: number): string {
+  const words = text.split(/\s+/);
+  const out: string[] = [];
+  let line = '';
+  for (const word of words) {
+    if (line && line.length + 1 + word.length > width) {
+      out.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) out.push(line);
+  return out.join('\n');
+}

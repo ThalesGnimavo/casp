@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — 2026-06-17
+
+- **New — `casp help` is first-class, plus per-command help.** `casp help` now prints the top-level overview and **exits 0** — previously the most natural thing a user types (`casp help`) hit the unknown-command path and exited 1. `casp help <command>` and `casp <command> --help` print a focused block for that verb: a one-line "why it exists", usage, every flag, and 1-2 real examples. Every verb is covered — `init`, `status`, `check`, `next`, `new`, `ship`, `close`, `install-hook`, `verify`, `state`, `help`. `casp <command> --help` and `casp help <command>` are byte-identical.
+- **Discoverability — "how the loop works" in the top-level help.** The overview gains a short `THE LOOP` section (`init → status → (work) → check → ship/close → push`) — the mental model in four lines, with `check` named as the only hard gate.
+- **Graceful unknown commands.** `casp help <bogus>` and `casp <bogus>` both print `no such command: <name>`, list the valid verbs, point at `casp help <command>`, and exit 1 — no stack trace, no full-help dump.
+- **Single naming source.** Per-command help is rendered from one structured registry in `help.ts`; the valid-command list and the top-level command grouping read from the same canon, so the two surfaces can never name different verbs. No LLM, no network — a static, deterministic surface like the rest of the binary. CLI help stays usage-focused (one tight "what is CASP" paragraph + a pointer to casp.sh); the binary ships a frozen snapshot, the site stays current.
+- Nine new regression tests: `casp help` exit 0 and identical to the no-arg/`-h`/`--help` block; the loop section present; `help check` is check-specific and `check --help` matches it; every verb has a focused block reachable both ways; `help <bogus>` and `<bogus>` exit 1 with the valid-command list; `-V`/`--version` still short-circuit.
+
 ## 0.6.0 — 2026-06-17
 
 > **Behavior change — `casp next` now gates on drift.** `casp next` runs the validator before printing and **refuses to emit the next prompt when the state has drifted** (exit 1, drift summary on stderr, nothing on stdout). This is intentional: it closes the *start* boundary the same way `install-hook` closes the *push* boundary. If you script `casp next` and rely on it always printing, add `--no-check` to restore the old behavior. Both boundaries are now gated — you can neither start nor finish a session on a lying state.
