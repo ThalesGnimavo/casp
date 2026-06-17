@@ -18,6 +18,8 @@ import { runNext } from './next.js';
 import { runShip } from './ship.js';
 import { runClose } from './close.js';
 import { runInstallHook } from './install-hook.js';
+import { runVerify } from './verify.js';
+import { runState } from './state.js';
 import { pkgVersion } from './shared.js';
 
 const VERSION = pkgVersion();
@@ -55,6 +57,10 @@ COMMANDS
   install-hook                  Write .git/hooks/pre-push so casp check runs on
                                   every push (--force to replace a foreign hook,
                                   --remove to uninstall)
+  verify <commit>               Run the validator against a historical commit
+                                  (in a throwaway worktree); exits with its verdict
+  state diff [A] [B]            Field-level diff of casp/state.json between two
+                                  commits (default HEAD~1 → HEAD; --json for data)
 
 GLOBAL
   -h, --help                    Print this help
@@ -110,6 +116,12 @@ async function main(): Promise<void> {
       break;
     case 'install-hook':
       runInstallHook(rest);
+      break;
+    case 'verify':
+      runVerify(rest);
+      break;
+    case 'state':
+      runState(rest);
       break;
     default:
       console.error(`unknown command: ${cmd}\n`);

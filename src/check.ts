@@ -586,7 +586,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
 
 /* Human report rendering — extracted so single-root and --all share it. ---- */
 
-function printReport(findings: Finding[], quiet: boolean): void {
+export function printReport(findings: Finding[], quiet: boolean): void {
   const { pass, warn, fail } = summarize(findings);
   const head = `${c.bold('casp:check')} · ${pass} PASS · ${warn > 0 ? c.yellow(`${warn} WARN`) : `${warn} WARN`} · ${fail > 0 ? c.red(`${fail} FAIL`) : `${fail} FAIL`}`;
   console.log('');
