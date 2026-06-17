@@ -1,7 +1,7 @@
 ---
-status: queued
+status: shipped
 session_id: pending
-session_log: pending
+session_log: session-logs/26-06-17-003-casp-help.md
 drafted_at: 2026-06-17
 next_after: 26-06-17-002-0-6-0-bundle
 ---

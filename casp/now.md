@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-17 (session 26-06-17-002).
+> **Updated** : 2026-06-17 (session 26-06-17-003).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.6.0 shipped + published — both session boundaries gated, plus inspection.** Four verbs: `install-hook` (writes the pre-push gate), `next` now refuses on drift (start boundary, `--no-check` waiver), `status --json` (snapshot + embedded verdict, never gates), and `verify <commit>` + `state diff` (read-only inspection over the git trail). 54/54 tests. **Next is `PHASE-CASP-HELP.md`** (CEO-proposed) — `casp help` first-class + per-command help. Then `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` (lead the wedge with "the deterministic floor of the self-verification loop", multi-repo copy). `check-shipped-log` (verdict-changing protocol slice) follows.
+**0.7.0 shipped — `casp help` first-class + per-command help.** `casp help` exits 0 (was unknown-command exit 1); `casp help <command>` and `casp <command> --help` print a focused per-command block for all 11 verbs; top-level help gains a `THE LOOP` section; unknown commands degrade gracefully. 63/63 tests. Tooling ergonomics only — `casp check` semantics unchanged. **Not yet published to npm** (`npm publish` is a separate CEO-gated act). **Next is `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md`** — lead the wedge with "the deterministic floor of the self-verification loop" (multi-repo copy; settle wording in private-docs before propagating). `check-shipped-log` (verdict-changing protocol slice) follows.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-CASP-HELP.md`. Fix the `casp help` → exit-1 papercut first.
+`casp next` → opens `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md`. Read the private-docs positioning canon (`casp-positioning-autonomous-model-era.md`) before touching any copy.
 
 ### 1 hour
 
-`casp help` alias (exit 0) + `casp help <command>` / `casp <command> --help` per-command blocks. Keep "what is CASP" tight; point to casp.sh, don't bloat the binary.
+Settle the new wedge wording in `private-docs/` FIRST — "the deterministic floor of the self-verification loop". Not a blind find-replace of "gate"; the validate-not-store / deterministic-not-probabilistic contrast must survive.
 
 ### Half a day
 
-Finish casp-help (mental-model section + tests + version bump), then open `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` — settle the new wedge wording in private-docs BEFORE propagating (not a blind find-replace of "gate").
+Propagate the settled wording across the README, the homepage-content source, and the roadmap copy — multi-repo, but core copy and site copy stay consistent. Honor the naming canon (never "memory", no superlatives, model-agnostic in evergreen copy).
 
 ---
 

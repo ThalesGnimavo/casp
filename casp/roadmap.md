@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Updated** : 2026-06-17 (session 26-06-17-002).
+> **Updated** : 2026-06-17 (session 26-06-17-003).
 > **Source of truth** : this file + `docs/plan/sessions/*.md` (status frontmatter) + `session-logs/`.
 > **Maintenance rule** : update at the end of every session that ships something or surfaces a blocker.
 > **Note** : the validated order below was approved on 2026-06-10, materialized as drafted prompts. Commit SHAs were re-stamped after the 2026-06-17 history rewrite; reference session-log filenames (stable) over SHAs.
@@ -11,7 +11,8 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | New drift category: every `phases_shipped[]` entry ↔ a session log. **Verdict-changing** — settle the deterministic mapping + the backfill-without-lying rule BEFORE coding, so it cannot redden repos with pre-adoption history. | `docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md` | queued |
+| 1 | Lead the wedge with "the deterministic floor of the self-verification loop". Copy / positioning, multi-repo. Settle the wording in `private-docs/` BEFORE propagating to README + homepage-content + roadmap copy — not a blind find-replace of "gate". | `docs/plan/sessions/PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` | queued |
+| 2 | New drift category: every `phases_shipped[]` entry ↔ a session log. **Verdict-changing** — settle the deterministic mapping + the backfill-without-lying rule BEFORE coding, so it cannot redden repos with pre-adoption history. | `docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md` | queued |
 
 If you reach for anything BELOW Next, stop and check why.
 
@@ -36,6 +37,7 @@ If you reach for anything BELOW Next, stop and check why.
 
 | Date | Commit | Title | Notes |
 |------|--------|-------|-------|
+| 2026-06-17 | `0460e07` | **0.7.0** — `casp help` first-class + per-command help | 63/63 tests; not yet published; tooling ergonomics, `check` semantics unchanged |
 | 2026-06-17 | `f55fb83` | **0.6.0** — `install-hook`, `next` drift-gate, `status --json`, `verify` + `state diff` | 54/54 tests; published to npm; both session boundaries now gated |
 | 2026-06-16 | `40e74fa` | 0.5.0 — configurable `sessions_dir` / `logs_dir` | 34 tests; published |
 | 2026-06-16 | `302c6e6` | 0.4.2 — `check --all <absolute path>` no longer doubles the path | 30 tests; published |
@@ -61,5 +63,7 @@ If you reach for anything BELOW Next, stop and check why.
 | 0.5.0 — configurable `sessions_dir` / `logs_dir` | shipped | `session-logs/26-06-16-002-configurable-paths.md` | published |
 | 0.6.0 — `install-hook` (pre-push gate) | shipped | `session-logs/26-06-17-001-install-hook.md` | published |
 | 0.6.0 — `next` drift-gate + `status --json` + `verify` + `state diff` | shipped | `session-logs/26-06-17-002-0-6-0-bundle.md` | published |
-| check-shipped-log | queued | _(pending)_ | Next (verdict-changing) |
+| 0.7.0 — `casp help` first-class + per-command help | shipped | `session-logs/26-06-17-003-casp-help.md` | not yet published |
+| positioning-deterministic-floor | queued | _(pending)_ | Next (copy / positioning) |
+| check-shipped-log | queued | _(pending)_ | verdict-changing |
 | demand-gated-tail | queued (marker) | _(pending)_ | per-item triggers required |

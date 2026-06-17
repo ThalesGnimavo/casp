@@ -3,7 +3,7 @@ status: queued
 session_id: pending
 session_log: pending
 drafted_at: 2026-06-17
-next_after: pending-after-casp-help
+next_after: 26-06-17-003-casp-help
 ---
 
 # Session — positioning : lead with "the deterministic floor of the self-verification loop"

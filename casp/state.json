@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
-  "last_session_id": "26-06-17-002-0-6-0-bundle",
-  "last_commit": "ebe820e",
-  "current_phase": "0.6.0-gate-both-boundaries",
-  "next_phase": "casp-help",
-  "next_prompt": "docs/plan/sessions/PHASE-CASP-HELP.md",
+  "last_session_id": "26-06-17-003-casp-help",
+  "last_commit": "0460e07",
+  "current_phase": "casp-help",
+  "next_phase": "positioning-deterministic-floor",
+  "next_prompt": "docs/plan/sessions/PHASE-POSITIONING-DETERMINISTIC-FLOOR.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -20,14 +20,14 @@
     "install-hook",
     "next-presession-gate",
     "status-json",
-    "verify-and-state-diff"
+    "verify-and-state-diff",
+    "casp-help"
   ],
   "phases_queued": [
-    "casp-help",
     "positioning-deterministic-floor",
     "check-shipped-log",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.6.0 shipped four verbs: install-hook (pre-push gate), next pre-session gate (refuse on drift, --no-check waiver), status --json (snapshot + embedded verdict, never gates), verify <commit> + state diff (read-only inspection over the git trail). 54 tests green. Core verbs unchanged; new verbs are tooling ergonomics. check-shipped-log deferred to 0.7.0 (verdict-changing protocol slice — design the mapping + backfill rule so it cannot redden pre-adoption repos). Session logs are technical-only by policy (casp-sh CLAUDE.md s3). Run node dist/cli.js check before push."
+  "notes": "0.7.0 shipped casp-help: casp help is first-class (exit 0, was unknown-command exit 1); casp help <command> and casp <command> --help print a focused per-command block (why/usage/flags/examples) for all 11 verbs, byte-identical via both entry points; top-level help gains a THE LOOP section; unknown commands degrade gracefully (named miss + valid-command list + exit 1). Per-command help renders from one structured registry (src/help.ts) — no LLM, no network. 63 tests green (9 new). Tooling ergonomics only; casp check semantics unchanged. Read-only audit ran before close: GO, no required fixes. Next is positioning-deterministic-floor (multi-repo copy — settle wording in private-docs before propagating). check-shipped-log (verdict-changing) follows. Session logs are technical-only by policy (casp-sh CLAUDE.md s3). Run node dist/cli.js check before push."
 }
