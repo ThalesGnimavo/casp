@@ -25,7 +25,7 @@ type Severity = 'pass' | 'warn' | 'fail';
 function isDir(p: string): boolean {
   return existsSync(p) && statSync(p).isDirectory();
 }
-interface Finding {
+export interface Finding {
   id: string;
   severity: Severity;
   label: string;
@@ -41,7 +41,7 @@ interface Finding {
  */
 const JSON_SCHEMA_VERSION = 1;
 
-function summarize(findings: Finding[]): {
+export function summarize(findings: Finding[]): {
   pass: number;
   warn: number;
   fail: number;

@@ -40,6 +40,8 @@ COMMANDS
   check --json                  Same checks, machine-readable JSON report (stable schema)
   check --all [root]            Validate every casp/ cockpit under a root, one report
   next                          Print the next session's prompt from state.next_prompt
+                                  — refuses on drift (runs the validator first);
+                                  --no-check to start anyway, --no-git to skip git checks
   ship <slug>                   Mark a phase shipped: flip prompt to shipped, wire log,
                                   move slug queued → shipped (no git)
   close                         Bump last_commit / last_session_id from HEAD + newest log,

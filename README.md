@@ -125,7 +125,7 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp init` | Scaffold the continuity layer (`casp/`) into any repo. Idempotent — re-running never overwrites existing files. |
 | `casp status` | One-screen snapshot: phase, next, what's shipped, last 10 commits. `--plain` strips ANSI. |
 | `casp check` | The drift validator. Validates `state.json` against the filesystem and git. **Exits 1 on drift.** `--quiet` only prints on FAIL (CI-friendly); `--no-git` skips git-dependent checks; `--json` emits a machine-readable report with a stable schema ([docs/check-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/check-json.md)) — same checks, same exit code; `--all [root]` validates every cockpit under a root in one report. |
-| `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. |
+| `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. **Gates on drift:** runs the validator first and refuses to print on a drifted state (`--no-check` to start anyway, `--no-git` to skip git checks). The start boundary, symmetric with `install-hook`'s push boundary. |
 | `casp ship <slug>` | Mark a phase shipped: flip its prompt to `status: shipped`, wire the `session_log` pointer, move the slug from `phases_queued` to `phases_shipped`. Pure state mutation — never touches git. |
 | `casp close` | Bump `last_commit` / `last_session_id` from HEAD and the newest session log (confirm or override), then run `check`. Never commits — the operator owns the commit. |
 | `casp new prompt --slug X` | Generate a gated session-prompt from the canonical template into `docs/plan/sessions/` (or your configured `sessions_dir`). |
@@ -265,9 +265,7 @@ Need the report as data instead of text? `casp check --json` emits the same find
 
 - **0.4** — `casp ship` + `casp close` (the close loop, automated), optional migrations (non-code projects carry no migration noise), and `casp check --all` for fleets. *Shipped.*
 - **0.5** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so a project validates against its real layout instead of adopting CASP's. *Shipped.* *(Resequenced ahead of `install-hook` — real users onboarding their existing repos came first.)*
-- **0.6** — `casp install-hook`: write `casp check --quiet` into your pre-push hook in one command. The validator stops depending on discipline — a hands-off autonomous loop that auto-pushes can no longer skip the gate. *Shipped.*
-- **Next** — Pre-session gate on `casp next`: refuse to start a session on a drifted state (`--no-check` escape hatch). Both boundaries gated — start and push.
-- **Later** — `casp status --json` (the structured session handoff + substrate for a multi-repo roll-up), then `casp verify <commit>` + `casp state diff` (validate a past state; inspect how it evolved between two commits).
+- **0.6** — Both session boundaries become gates, plus inspection. `casp install-hook` writes `casp check --quiet` into your pre-push hook (the *push* boundary); `casp next` now refuses to start a session on a drifted state (the *start* boundary, `--no-check` escape hatch); a new drift category ties every shipped phase to a session log; `casp status --json` gives the structured handoff; `casp verify <commit>` + `casp state diff` make "git log is your compliance trail" inspectable. *Shipping.*
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
 Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary — even advisory — would undercut the deterministic claim; prose-vs-reality checking belongs in your agent, which can read `casp/` today for free).
