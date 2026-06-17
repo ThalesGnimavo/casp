@@ -16,6 +16,24 @@ next_after: 26-06-10-002-false-green-and-state-bump-fixes
 >
 > **Why now.** Everything else decorates the gate; this multiplies it.
 
+## CONTEXT — sharpened 2026-06-17 (Boris/Claude Code self-verification thread)
+
+The creator of Claude Code is publicly pushing **self-verification loops** as the
+key ingredient that lets models "run for much longer" — agents that self-verify
+(tests, browser, second-agent review) and ship **hands-off**, with the human out of
+the chair. See `private-docs/casp-vs-self-verifying-harness.md`.
+
+That world is exactly why install-hook moves from "convenience" to "the thing that
+makes CASP work at all": **a hands-off self-verifying loop auto-commits and pushes —
+it will not remember to run `casp check` manually.** Wiring the deterministic state
+gate into `pre-push` is what makes CASP fire *inside* the autonomous loop instead of
+being a step the agent skips. The harness self-verifies that the *code* works;
+`casp check` on every push self-verifies that the *recorded state* still matches git
+— the one check the loop structurally can't do for itself. install-hook is how that
+check stops depending on discipline. This is the strongest argument in the backlog
+for keeping it next; it also feeds the "deterministic floor of the self-verification
+loop" positioning (CASP SERIES `2026-06-17/`).
+
 **Project root.** `/Users/juste/ZeroSuite/casp-sh/casp-core`
 **Expected size.** 1 h. No schema change. No migration.
 

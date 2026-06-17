@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-06-16",
+  "updated_at": "2026-06-17",
   "last_session_id": "26-06-16-002-configurable-paths",
-  "last_commit": "a456d0f",
+  "last_commit": "6c60f56",
   "current_phase": "0.5.0-configurable-paths",
   "next_phase": "install-hook",
   "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
