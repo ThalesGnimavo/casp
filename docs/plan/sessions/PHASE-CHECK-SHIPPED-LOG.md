@@ -3,7 +3,7 @@ status: queued
 session_id: pending
 session_log: pending
 drafted_at: 2026-06-10
-next_after: PHASE-CONFIGURABLE-PATHS
+next_after: 26-06-17-002-0-6-0-bundle
 ---
 
 # Session — check-shipped-log : new drift category — phases_shipped ↔ session logs

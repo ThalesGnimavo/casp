@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-06-17-002-0-6-0-bundle
+session_log: session-logs/26-06-17-002-0-6-0-bundle.md
 drafted_at: 2026-06-10
 next_after: 26-06-17-001-install-hook
 ---

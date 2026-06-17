@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
-  "last_session_id": "26-06-17-001-install-hook",
-  "last_commit": "af47374",
-  "current_phase": "0.6.0-install-hook",
-  "next_phase": "next-presession-gate",
-  "next_prompt": "docs/plan/sessions/PHASE-NEXT-PRESESSION-GATE.md",
+  "last_session_id": "26-06-17-002-0-6-0-bundle",
+  "last_commit": "5290baa",
+  "current_phase": "0.6.0-gate-both-boundaries",
+  "next_phase": "check-shipped-log",
+  "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -17,15 +17,15 @@
     "0.4.1-init-fix",
     "0.4.2-check-all-abspath-fix",
     "configurable-paths",
-    "install-hook"
+    "install-hook",
+    "next-presession-gate",
+    "status-json",
+    "verify-and-state-diff"
   ],
   "phases_queued": [
-    "next-presession-gate",
     "check-shipped-log",
-    "status-json",
-    "verify-and-state-diff",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "See CHANGELOG.md and the session log for this phase. State surface bumped at session close; run casp check before push."
+  "notes": "0.6.0 shipped four verbs: install-hook (pre-push gate), next pre-session gate (refuse on drift, --no-check waiver), status --json (snapshot + embedded verdict, never gates), verify <commit> + state diff (read-only inspection over the git trail). 54 tests green. Core verbs unchanged; new verbs are tooling ergonomics. check-shipped-log deferred to 0.7.0 (verdict-changing protocol slice — design the mapping + backfill rule so it cannot redden pre-adoption repos). Session logs are technical-only by policy (casp-sh CLAUDE.md s3). Run node dist/cli.js check before push."
 }

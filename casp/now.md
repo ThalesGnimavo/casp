@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-16 (session 26-06-16-001).
+> **Updated** : 2026-06-17 (session 26-06-17-002).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.4.2 shipped + published — `casp check --all <absolute path>` no longer doubles the path** (`join` → `resolve`; found dogfooding the fleet-gate launch; 30/30 tests). Builds on 0.4.1 (green-from-`init`), 0.4.0 (`ship`/`close`, opt-in migrations, `check --all`). **Next is still `PHASE-CONFIGURABLE-PATHS.md`** (configurable `sessions_dir`/`logs_dir`, ahead of install-hook) — Part B is now version-sync to 0.4.2 + drop stale `casp lint`; verb framing is **keep the five core verbs** (CEO 2026-06-16), `ship`/`close`/`check --all` stay helpers. Local docs already reconciled; the public site is deferred to its own session (auto-deploys on push).
+**0.6.0 shipped — both session boundaries are now gates, plus inspection.** Four verbs: `install-hook` (writes the pre-push gate), `next` now refuses on drift (the start boundary, `--no-check` waiver), `status --json` (structured snapshot + embedded verdict, never gates), and `verify <commit>` + `state diff` (read-only inspection over the git trail). 54/54 tests. Core verbs unchanged; the new verbs are tooling ergonomics. **Next is `PHASE-CHECK-SHIPPED-LOG.md`** — a verdict-changing protocol slice (tie every `phases_shipped` entry to a session log) deferred to its own session so it can't redden repos with pre-adoption history.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-CONFIGURABLE-PATHS.md`. Read it end to end; it's a two-part, multi-repo session.
+`casp next` → opens `PHASE-CHECK-SHIPPED-LOG.md`. Read it end to end; settle the deterministic mapping rule BEFORE coding.
 
 ### 1 hour
 
-Part A: the resolver in `shared.ts` + make every check honor `sessions_dir`/`logs_dir`; keep existing tests green.
+Design the mapping (phase → log) with no heuristic, plus the backfill-without-lying path for pre-cockpit phases; document it before the check category lands.
 
 ### Half a day
 
-Part A (0.5.0) closed, then Part B — the marketing/docs reconciliation (five→seven verbs, version 0.2.1→0.4.1, drop stale `casp lint`) across casp-website (auto-deploys) + private-docs.
+Implement check-shipped-log as a new FAIL category, keep casp-core green (its own pre-cockpit phases must not redden), full tests + CHANGELOG warning (verdict-changing).
 
 ---
 
@@ -40,8 +40,8 @@ These items are NOT on the Next-3 (still or newly) :
 
 ## Constraints active today
 
-- `npm publish` is a separate CEO-gated act — never bundled into a feature session. 0.4.0 is built and green locally; it is not on npm until the CEO publishes.
-- The "five verbs" marketing copy (homepage + presentation) is now inaccurate — a docs-only pass, not a code session, reconciles it.
+- `npm publish` is a separate CEO-gated act — never bundled into a routine feature session.
+- This is a **public** repo: session logs + `state.json` `notes` stay technical-only (CHANGELOG register). Private context goes to `private-docs/` (see `casp-sh/CLAUDE.md` §3).
 - `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 
 ---
