@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
-  "last_session_id": "26-06-17-003-casp-help",
-  "last_commit": "0460e07",
-  "current_phase": "casp-help",
-  "next_phase": "positioning-deterministic-floor",
-  "next_prompt": "docs/plan/sessions/PHASE-POSITIONING-DETERMINISTIC-FLOOR.md",
+  "last_session_id": "26-06-17-004-positioning-deterministic-floor",
+  "last_commit": "e0bb8bf",
+  "current_phase": "positioning-deterministic-floor",
+  "next_phase": "positioning-subwedge-site",
+  "next_prompt": "docs/plan/sessions/PHASE-POSITIONING-SUBWEDGE-SITE.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -21,13 +21,14 @@
     "next-presession-gate",
     "status-json",
     "verify-and-state-diff",
-    "casp-help"
+    "casp-help",
+    "positioning-deterministic-floor"
   ],
   "phases_queued": [
-    "positioning-deterministic-floor",
+    "positioning-subwedge-site",
     "check-shipped-log",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.7.0 shipped casp-help: casp help is first-class (exit 0, was unknown-command exit 1); casp help <command> and casp <command> --help print a focused per-command block (why/usage/flags/examples) for all 11 verbs, byte-identical via both entry points; top-level help gains a THE LOOP section; unknown commands degrade gracefully (named miss + valid-command list + exit 1). Per-command help renders from one structured registry (src/help.ts) — no LLM, no network. 63 tests green (9 new). Tooling ergonomics only; casp check semantics unchanged. Read-only audit ran before close: GO, no required fixes. Next is positioning-deterministic-floor (multi-repo copy — settle wording in private-docs before propagating). check-shipped-log (verdict-changing) follows. Session logs are technical-only by policy (casp-sh CLAUDE.md s3). Run node dist/cli.js check before push."
+  "notes": "Positioning/copy only — no code, no protocol change, no version bump, casp check semantics untouched. README hero now leads with the sub-wedge 'CASP is the deterministic floor of the self-verification loop — the one check in verify-your-work that isn't the model checking itself', beneath the unchanged evergreen H1. 'gate' demoted from headline metaphor to mechanical descriptor (exit-code gate, pre-push gate, gate-not-harness) — no blind replace. The 18-language casp-website propagation was deliberately deferred to its own session (PHASE-POSITIONING-SUBWEDGE-SITE.md) because a half-translated homepage breaks the drop-a-language-rather-than-ship-it-broken rule. Run node dist/cli.js check before push."
 }

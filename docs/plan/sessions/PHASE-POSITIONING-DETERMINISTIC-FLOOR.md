@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-06-17-004-positioning-deterministic-floor
+session_log: session-logs/26-06-17-004-positioning-deterministic-floor.md
 drafted_at: 2026-06-17
 next_after: 26-06-17-003-casp-help
 ---
