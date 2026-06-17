@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
-  "last_session_id": "26-06-17-004-positioning-deterministic-floor",
-  "last_commit": "e0bb8bf",
-  "current_phase": "positioning-deterministic-floor",
-  "next_phase": "positioning-subwedge-site",
-  "next_prompt": "docs/plan/sessions/PHASE-POSITIONING-SUBWEDGE-SITE.md",
+  "last_session_id": "26-06-17-005-subwedge-site-propagation",
+  "last_commit": "802cad3",
+  "current_phase": "positioning-subwedge-site",
+  "next_phase": "check-shipped-log",
+  "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -22,13 +22,13 @@
     "status-json",
     "verify-and-state-diff",
     "casp-help",
-    "positioning-deterministic-floor"
+    "positioning-deterministic-floor",
+    "positioning-subwedge-site"
   ],
   "phases_queued": [
-    "positioning-subwedge-site",
     "check-shipped-log",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "Positioning/copy only — no code, no protocol change, no version bump, casp check semantics untouched. README hero now leads with the sub-wedge 'CASP is the deterministic floor of the self-verification loop — the one check in verify-your-work that isn't the model checking itself', beneath the unchanged evergreen H1. 'gate' demoted from headline metaphor to mechanical descriptor (exit-code gate, pre-push gate, gate-not-harness) — no blind replace. The 18-language casp-website propagation was deliberately deferred to its own session (PHASE-POSITIONING-SUBWEDGE-SITE.md) because a half-translated homepage breaks the drop-a-language-rather-than-ship-it-broken rule. Run node dist/cli.js check before push."
+  "notes": "Positioning/copy only — no code, no protocol change, no version bump, casp check semantics untouched. Session 005 shipped the casp-website propagation deferred by 004: the founding-reason hero lede is now live in all 18 homepage languages (translated meaning-not-word-for-word, RTL+LTR), the sub-wedge 'CASP is the deterministic floor of the self-verification loop — the one check in verify-your-work that isn't the model checking itself' now leads the §02 positioning section on all 18 (beneath the unchanged evergreen H1, per canon: the sub-wedge rides one layer below the H1, never as the H1), the homepage meta description was refreshed to the founding-reason framing (og:/twitter: left as already-evergreen), and llms.txt gained the sub-wedge as a citation fact. PHASE-POSITIONING-SUBWEDGE-SITE.md is marked shipped. next_prompt advances to PHASE-CHECK-SHIPPED-LOG.md (next queued slice); demand-gated-tail follows. The site implementation is tracked in the casp.sh cockpit, not here. 'gate' remains demoted to mechanical descriptor (exit-code gate, pre-push gate, gate-not-harness), not the headline metaphor. Run node dist/cli.js check before push."
 }

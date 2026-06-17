@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-06-17-005-subwedge-site-propagation
+session_log: session-logs/26-06-17-005-subwedge-site-propagation.md
 drafted_at: 2026-06-17
 next_after: 26-06-17-004-positioning-deterministic-floor
 ---
@@ -21,7 +21,27 @@ next_after: 26-06-17-004-positioning-deterministic-floor
 - §5.1 added to the positioning canon (sub-wedge + campaign decision, 2026-06-17 CEO).
 - casp-core README hero gained the sub-wedge sentence; H1 unchanged.
 - `casp-sh/CLAUDE.md` §2 reworded ("The deterministic floor, not a harness").
-- casp-website was NOT touched. That is this session's whole job.
+- casp-website `index.html` (EN only) hero LEDE was rewritten to lead with the
+  founding reason (see below). The 17 other homepages + meta/og still carry the old
+  autonomous-model lede — bringing them to parity is part of THIS session.
+
+## FOUNDING-REASON HERO LEDE — settled with the CEO 2026-06-17 (EN already live)
+CASP's origin is project-state tracking across many projects/stacks over time, not
+the autonomous-model wave. The hero LEDE now leads with that. The H1 is unchanged
+("The model holds the context. CASP proves the state is true — against git."). The
+old autonomous-model lede was removed from the hero (it keeps its home in §09 "When
+agents run unattended"). The **canonical EN source string** to translate (meaning,
+not word-for-word; evergreen, no model name):
+
+> CASP keeps one **always-true picture** of where each of your projects actually
+> stands — **at any moment**, validated against git. Come back after a week or after
+> months, on any stack, across any number of agents, sessions or teammates: open it
+> and the state is true — or **`casp check`** blocks the push until it is.
+
+This session must: (1) translate this lede into the 17 other homepages (RTL+LTR),
+(2) refresh `<meta name="description">` and `og:description` (they still describe the
+old framing), and (3) carry the §03 "validated present" / first-and-foremost
+definition the CEO asked for. Do it alongside the sub-wedge propagation below.
 
 ## SCOPE — casp-website only (auto-deploys on push to main)
 - 18 homepages: `index.html` (en) + `es ar id vi fa he ko hi fr it pt ur de ru ja tr zh`.
