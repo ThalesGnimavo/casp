@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.6.0 shipped — both session boundaries are now gates, plus inspection.** Four verbs: `install-hook` (writes the pre-push gate), `next` now refuses on drift (the start boundary, `--no-check` waiver), `status --json` (structured snapshot + embedded verdict, never gates), and `verify <commit>` + `state diff` (read-only inspection over the git trail). 54/54 tests. Core verbs unchanged; the new verbs are tooling ergonomics. **Next is `PHASE-CHECK-SHIPPED-LOG.md`** — a verdict-changing protocol slice (tie every `phases_shipped` entry to a session log) deferred to its own session so it can't redden repos with pre-adoption history.
+**0.6.0 shipped + published — both session boundaries gated, plus inspection.** Four verbs: `install-hook` (writes the pre-push gate), `next` now refuses on drift (start boundary, `--no-check` waiver), `status --json` (snapshot + embedded verdict, never gates), and `verify <commit>` + `state diff` (read-only inspection over the git trail). 54/54 tests. **Next is `PHASE-CASP-HELP.md`** (CEO-proposed) — `casp help` first-class + per-command help. Then `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` (lead the wedge with "the deterministic floor of the self-verification loop", multi-repo copy). `check-shipped-log` (verdict-changing protocol slice) follows.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-CHECK-SHIPPED-LOG.md`. Read it end to end; settle the deterministic mapping rule BEFORE coding.
+`casp next` → opens `PHASE-CASP-HELP.md`. Fix the `casp help` → exit-1 papercut first.
 
 ### 1 hour
 
-Design the mapping (phase → log) with no heuristic, plus the backfill-without-lying path for pre-cockpit phases; document it before the check category lands.
+`casp help` alias (exit 0) + `casp help <command>` / `casp <command> --help` per-command blocks. Keep "what is CASP" tight; point to casp.sh, don't bloat the binary.
 
 ### Half a day
 
-Implement check-shipped-log as a new FAIL category, keep casp-core green (its own pre-cockpit phases must not redden), full tests + CHANGELOG warning (verdict-changing).
+Finish casp-help (mental-model section + tests + version bump), then open `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` — settle the new wedge wording in private-docs BEFORE propagating (not a blind find-replace of "gate").
 
 ---
 

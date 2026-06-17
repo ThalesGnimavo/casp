@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
   "last_session_id": "26-06-17-002-0-6-0-bundle",
-  "last_commit": "f55fb83",
+  "last_commit": "ebe820e",
   "current_phase": "0.6.0-gate-both-boundaries",
-  "next_phase": "check-shipped-log",
-  "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
+  "next_phase": "casp-help",
+  "next_prompt": "docs/plan/sessions/PHASE-CASP-HELP.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -23,6 +23,8 @@
     "verify-and-state-diff"
   ],
   "phases_queued": [
+    "casp-help",
+    "positioning-deterministic-floor",
     "check-shipped-log",
     "demand-gated-tail"
   ],
