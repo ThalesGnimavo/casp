@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-06-17",
-  "last_session_id": "26-06-16-002-configurable-paths",
-  "last_commit": "6c60f56",
-  "current_phase": "0.5.0-configurable-paths",
-  "next_phase": "install-hook",
-  "next_prompt": "docs/plan/sessions/PHASE-INSTALL-HOOK.md",
+  "last_session_id": "26-06-17-001-install-hook",
+  "last_commit": "af47374",
+  "current_phase": "0.6.0-install-hook",
+  "next_phase": "next-presession-gate",
+  "next_prompt": "docs/plan/sessions/PHASE-NEXT-PRESESSION-GATE.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -16,10 +16,10 @@
     "0.4-close-loop",
     "0.4.1-init-fix",
     "0.4.2-check-all-abspath-fix",
-    "configurable-paths"
+    "configurable-paths",
+    "install-hook"
   ],
   "phases_queued": [
-    "install-hook",
     "next-presession-gate",
     "check-shipped-log",
     "status-json",

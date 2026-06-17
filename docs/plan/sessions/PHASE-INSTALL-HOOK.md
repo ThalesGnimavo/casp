@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-06-17-001-install-hook
+session_log: session-logs/26-06-17-001-install-hook.md
 drafted_at: 2026-06-10
 next_after: 26-06-10-002-false-green-and-state-bump-fixes
 ---

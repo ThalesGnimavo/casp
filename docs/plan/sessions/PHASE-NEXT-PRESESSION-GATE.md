@@ -3,7 +3,7 @@ status: queued
 session_id: pending
 session_log: pending
 drafted_at: 2026-06-10
-next_after: PHASE-INSTALL-HOOK
+next_after: 26-06-17-001-install-hook
 ---
 
 # Session — next-gate : pre-session gate on `casp next`
