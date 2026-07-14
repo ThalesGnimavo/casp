@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-06-17",
-  "last_session_id": "26-06-17-005-subwedge-site-propagation",
-  "last_commit": "802cad3",
-  "current_phase": "positioning-subwedge-site",
+  "updated_at": "2026-07-14",
+  "last_session_id": "26-07-14-001-0-8-0-hardening-rule-codes",
+  "last_commit": "015c72f",
+  "current_phase": "0.8.0-hardening-rule-codes",
   "next_phase": "check-shipped-log",
   "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
   "phases_shipped": [
@@ -23,12 +23,13 @@
     "verify-and-state-diff",
     "casp-help",
     "positioning-deterministic-floor",
-    "positioning-subwedge-site"
+    "positioning-subwedge-site",
+    "0.8.0-hardening-rule-codes"
   ],
   "phases_queued": [
     "check-shipped-log",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "Positioning/copy only — no code, no protocol change, no version bump, casp check semantics untouched. Session 005 shipped the casp-website propagation deferred by 004: the founding-reason hero lede is now live in all 18 homepage languages (translated meaning-not-word-for-word, RTL+LTR), the sub-wedge 'CASP is the deterministic floor of the self-verification loop — the one check in verify-your-work that isn't the model checking itself' now leads the §02 positioning section on all 18 (beneath the unchanged evergreen H1, per canon: the sub-wedge rides one layer below the H1, never as the H1), the homepage meta description was refreshed to the founding-reason framing (og:/twitter: left as already-evergreen), and llms.txt gained the sub-wedge as a citation fact. PHASE-POSITIONING-SUBWEDGE-SITE.md is marked shipped. next_prompt advances to PHASE-CHECK-SHIPPED-LOG.md (next queued slice); demand-gated-tail follows. The site implementation is tracked in the casp.sh cockpit, not here. 'gate' remains demoted to mechanical descriptor (exit-code gate, pre-push gate, gate-not-harness), not the headline metaphor. Run node dist/cli.js check before push."
+  "notes": "0.8.0 — protocol-maturity + hardening pass; new commands rules/explain make it a minor bump, everything else additive; no verdict change, check --json stays schema v1, all prior tests green (74 total, +11). Shipped: stable rule codes (CASP-<AREA>-<NNN>) on every finding via src/rules.ts, an additive 'rule' field in check --json, and casp rules / casp explain <CODE>; gitArgs() (execFileSync, no shell) closing a real command-injection surface where untrusted state values (last_commit, sessions_dir/logs_dir) and CLI refs reached git — 6 sites converted, the literal-only git() calls documented + tracked; published JSON Schemas (schemas/state.schema.json, check-result.schema.json, Draft 2020-12, in package files) with structural-conformance tests; docs/what-casp-proves.md (recorded-state-vs-git scoping, and what it does NOT prove), docs/rules.md, docs/threat-model.md; README updated. Queued fixes folded in: hook set -eu, multiset-correct arrayDelta, CASP-MIGRATION-003 advisory WARN. next_prompt stays PHASE-CHECK-SHIPPED-LOG.md (next queued product slice, CEO-sequenced). Run node dist/cli.js check before push."
 }
