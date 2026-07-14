@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casp.sh/schemas/check-result.schema.json",
+  "title": "CASP check result",
+  "description": "The stable JSON report emitted by `casp check --json`. schema_version bumps only on a breaking change to this shape; additive fields do not bump it. See docs/check-json.md.",
+  "type": "object",
+  "required": ["schema_version", "casp_version", "verdict", "exit_code", "summary", "findings"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "The report schema version. Additive fields do not change it."
+    },
+    "casp_version": {
+      "type": "string",
+      "description": "The version of the CASP implementation that produced the report."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["clean", "drift"],
+      "description": "Overall outcome: clean (no FAIL) or drift (at least one FAIL)."
+    },
+    "exit_code": {
+      "type": "integer",
+      "enum": [0, 1],
+      "description": "0 clean, 1 drift. The process exits with this code."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["pass", "warn", "fail"],
+      "properties": {
+        "pass": { "type": "integer", "minimum": 0 },
+        "warn": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule", "severity", "label", "detail", "fix"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Internal finding id. May be refactored; prefer `rule` for stable references."
+          },
+          "rule": {
+            "type": ["string", "null"],
+            "description": "The stable public rule code (CASP-<AREA>-<NNN>) this finding belongs to. See `casp rules` / `casp explain <CODE>`."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["pass", "warn", "fail"],
+            "description": "pass and warn never block; fail blocks the push."
+          },
+          "label": { "type": "string", "description": "One-line human summary of the finding." },
+          "detail": { "type": "string", "description": "Supporting detail (may be empty)." },
+          "fix": {
+            "type": ["string", "null"],
+            "description": "Remediation hint, or null on a pass."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

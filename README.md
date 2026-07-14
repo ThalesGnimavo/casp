@@ -133,6 +133,8 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp install-hook` | Write `.git/hooks/pre-push` so `casp check --quiet` runs on every push — the gate stops depending on discipline. Refuses to clobber a foreign hook (`--force` to override); `--remove` uninstalls a hook CASP wrote. Explicit opt-in — `casp init` never installs it, and it never touches `core.hooksPath`. |
 | `casp verify <commit>` | Run the validator against a historical commit in a throwaway worktree — proves whether that commit's recorded state was in sync. Exits with that verdict; never mutates the worktree, index or history. |
 | `casp state diff [A] [B]` | Field-level diff of `casp/state.json` between two commits (default `HEAD~1` → `HEAD`), with element-level deltas for array fields. `--json` for data. |
+| `casp rules` | List the verification rules `check` enforces — the stable `CASP-<AREA>-<NNN>` codes that appear on every finding. `--json` for data. |
+| `casp explain <CODE>` | Print one rule's full definition: what it verifies, the evidence it inspects, and how to remediate. Accepts a code (`CASP-GIT-001`) or an internal finding id. |
 | `casp help [command]` | The top-level overview, or one command's focused help (usage, every flag, real examples). `casp <command> --help` is equivalent. `casp help` exits 0 — the most natural thing a user types is first-class. |
 
 ---
@@ -225,28 +227,30 @@ $ npx @justethales/casp check
 
 casp:check · 22 PASS · 2 WARN · 1 FAIL
 ──────────────────────────────────────────────────────────────────────
-  FAIL  next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped
+  FAIL  CASP-PROMPT-003 next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped
         → either update state.json.next_prompt to the real next slice, or re-execute it explicitly
-  WARN  last_commit is in history but not at HEAD · state=abc1234 HEAD=def5678
+  WARN  CASP-GIT-001 last_commit is in history but not at HEAD · state=abc1234 HEAD=def5678
         → bump state.last_commit to def5678
   ...
 
 ✗ 1 drift detected. Push blocked — fix before push.
 ```
 
-Nine check categories, each with a one-line `→ fix` hint so the agent can resolve without re-reading docs:
+Every finding carries a **stable rule code** (`CASP-<AREA>-<NNN>`) and a one-line `→ fix` hint, so the agent can resolve without re-reading docs — or run `casp explain <CODE>` for the full definition. The rules the validator enforces cover, among others:
 
-1. `state.json.next_prompt` points at a missing file.
-2. `state.json.next_prompt` points at a prompt with `status: shipped`. *(The exact bug CASP was built to catch.)*
-3. `state.json.last_session_id` does not map to a session-log file.
-4. `state.json.last_commit` not in `git log`.
-5. `state.json.phases_shipped[]` has duplicates.
-6. `state.json.migrations_applied[]` does not match the migrations directory.
-7. A session prompt has `status: shipped` but `session_log: pending`.
-8. Uncommitted changes in `casp/`, the sessions dir, or the logs dir.
-9. A state claim whose backing directory is missing — claimed migrations, shipped phases, or a session id the validator cannot verify **FAIL**; a check that cannot find what it needs never reports green.
+- `CASP-PROMPT-001/003` — `next_prompt` points at a missing file, or one already `status: shipped`. *(The exact bug CASP was built to catch.)*
+- `CASP-GIT-001` — `last_commit` not in `git log`, or inconsistent with HEAD.
+- `CASP-SESSION-001` — `last_session_id` does not map to a session-log file.
+- `CASP-STATE-003` — `phases_shipped[]` has duplicates.
+- `CASP-MIGRATION-002` — `migrations_applied[]` does not match the migrations directory.
+- `CASP-PROMPT-005` — a session prompt is `status: shipped` but its `session_log` is missing.
+- `CASP-WORKTREE-001` — uncommitted changes in `casp/`, the sessions dir, or the logs dir.
+
+See the full catalogue with `casp rules` or in [docs/rules.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/rules.md). A claim the validator **cannot verify** — a missing backing directory for claimed migrations, shipped phases, or a session id — is a `FAIL`, never a silent green.
 
 The exit-code contract — clean → exit 0, drift → exit 1 — is covered by `npm test`, so the CI gate stays real.
+
+**What CASP proves — and what it doesn't.** A clean `casp check` proves the *recorded execution state* is consistent with *git evidence*. It deliberately says nothing about whether your code is correct, deployed, or bug-free — that's tests, review and CI. The precise scope is in [docs/what-casp-proves.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/what-casp-proves.md); the security posture (repository content is untrusted input, git is invoked without a shell for any interpolated value) is in [docs/threat-model.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/threat-model.md).
 
 **Layout is yours.** Prompts default to `docs/plan/sessions` and logs to `session-logs`, but a project that already has its own structure sets `"sessions_dir"` and/or `"logs_dir"` in `state.json` — both optional — and the whole protocol (`check`, `new`, `ship`, `close`) validates against that real layout instead of forcing CASP's. CASP fits your repo; you don't refactor for CASP.
 
@@ -269,6 +273,8 @@ Need the report as data instead of text? `casp check --json` emits the same find
 - **0.4** — `casp ship` + `casp close` (the close loop, automated), optional migrations (non-code projects carry no migration noise), and `casp check --all` for fleets. *Shipped.*
 - **0.5** — Configurable paths (`sessions_dir` / `logs_dir` state keys) so a project validates against its real layout instead of adopting CASP's. *Shipped.* *(Resequenced ahead of `install-hook` — real users onboarding their existing repos came first.)*
 - **0.6** — Both session boundaries become gates, plus inspection. `casp install-hook` writes `casp check --quiet` into your pre-push hook (the *push* boundary); `casp next` now refuses to start a session on a drifted state (the *start* boundary, `--no-check` escape hatch); `casp status --json` gives the structured session handoff; `casp verify <commit>` + `casp state diff` make "git log is your compliance trail" inspectable. *Shipped.*
+- **0.7** — First-class `casp help` (exit 0) with a focused per-command block for every verb. *Shipped.*
+- **0.8** — Stable **rule codes** (`CASP-<AREA>-<NNN>`) on every finding, with `casp rules` / `casp explain <CODE>`; published **JSON Schemas** for `state.json` and the `check --json` report; an injection-safe git path for untrusted state values; and precise "what CASP proves / does not prove" + threat-model docs. *Shipped.*
 - **Next** — A new drift category tying every `phases_shipped` entry to a session log (a verdict-changing protocol slice — designed on its own so it can't silently redden repos with pre-adoption history).
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 

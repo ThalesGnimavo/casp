@@ -15,7 +15,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exit } from 'node:process';
-import { c, git } from './shared.js';
+import { c, git, gitArgs } from './shared.js';
 import { checkOne, printReport, summarize } from './check.js';
 
 export function runVerify(args: string[]): void {
@@ -30,7 +30,8 @@ export function runVerify(args: string[]): void {
     console.error(c.red('FAIL') + ' not a git repository');
     exit(1);
   }
-  const sha = git(`rev-parse --verify ${ref}^{commit}`, root);
+  // ref is a CLI argument — inject-safe form (no shell).
+  const sha = gitArgs(['rev-parse', '--verify', `${ref}^{commit}`], root);
   if (!sha) {
     console.error(c.red('FAIL') + ` not a commit: ${ref}`);
     console.error(c.gray('  → pass a commit, tag, or branch that exists in this repo'));
@@ -43,7 +44,7 @@ export function runVerify(args: string[]): void {
   const wt = join(parent, 'wt');
   let code = 0;
   try {
-    git(`worktree add --detach "${wt}" ${sha}`, root);
+    gitArgs(['worktree', 'add', '--detach', wt, sha], root);
     if (!existsSync(wt)) {
       console.error(c.red('FAIL') + ` could not create a worktree for ${sha}`);
       code = 1;
@@ -55,7 +56,7 @@ export function runVerify(args: string[]): void {
     }
   } finally {
     // ALWAYS tear the worktree down — registered worktree first, then the dir.
-    git(`worktree remove --force "${wt}"`, root);
+    gitArgs(['worktree', 'remove', '--force', wt], root);
     rmSync(parent, { recursive: true, force: true });
     git('worktree prune', root);
   }

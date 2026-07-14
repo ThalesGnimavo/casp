@@ -167,3 +167,36 @@ test('verify: not a commit → exit 1', () => {
     cleanup(dir);
   }
 });
+
+// Regression: the multiset delta. Dropping ONE of a duplicated element must be
+// reported as a single removal — the old index-based delta cancelled it out and
+// showed nothing changed. Display-only path (`state diff`), never gates `check`.
+test('state diff: dropping one of a duplicated array element reports a single removal', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'casp-dup-delta-'));
+  try {
+    git(dir, 'init', '-q');
+    git(dir, 'config', 'user.email', 'test@casp.sh');
+    git(dir, 'config', 'user.name', 'casp test');
+    mkdirSync(join(dir, 'casp'), { recursive: true });
+
+    const base = { updated_at: '2026-01-01', phases_shipped: ['a', 'a', 'b'] };
+    writeState(dir, base);
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'dup present');
+
+    writeState(dir, { ...base, phases_shipped: ['a', 'b'] });
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'drop one dup');
+
+    // Human (non-JSON) render: arrayDelta drives the +/- element lines on stdout.
+    const r = run(dir, 'state', 'diff', 'HEAD~1', 'HEAD');
+    assert.equal(r.status, 0, r.stderr);
+    const plain = r.stdout.replace(/\[[0-9;]*m/g, ''); // strip ANSI
+    const removals = plain.split('\n').filter((l) => /^\s*- /.test(l));
+    assert.equal(removals.length, 1, `expected exactly one removal line, got:\n${plain}`);
+    assert.match(removals[0], /a/, 'the removed element is the duplicated one');
+    assert.ok(!/^\s*\+ /m.test(plain), 'nothing was added');
+  } finally {
+    cleanup(dir);
+  }
+});

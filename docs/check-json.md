@@ -15,9 +15,13 @@ text.
 - `schema_version` identifies the shape of this document. It bumps **only on a
   breaking change** (a field removed, renamed, or retyped). New fields may be
   added without a bump — parse leniently.
-- Finding `id` values are stable identifiers (e.g. `next_prompt.status`,
-  `last_commit.git`, `migrations.match`). New ids may appear as new check
-  categories ship; existing ids do not change meaning.
+- Finding `id` values are internal identifiers (e.g. `next_prompt.status`,
+  `last_commit.git`, `migrations.match`). They are stable in practice, but for a
+  guaranteed-stable public reference prefer `findings[].rule` — the
+  `CASP-<AREA>-<NNN>` code, which changes only through an explicit deprecation.
+- `findings[].rule` is an **additive** field (introduced without a
+  `schema_version` bump). It is the stable rule code; see
+  [rules.md](./rules.md) and `casp explain <CODE>`.
 - `exit_code` in the document always equals the process exit code.
 
 ## Document shape (v1)
@@ -32,6 +36,7 @@ text.
   "findings": [
     {
       "id": "next_prompt.status",
+      "rule": "CASP-PROMPT-003",
       "severity": "fail",
       "label": "next_prompt is already SHIPPED",
       "detail": "docs/plan/sessions/PHASE-1-AUTH.md has status: shipped — casp was not bumped after that session",
@@ -49,7 +54,8 @@ text.
 | `exit_code` | `0` \| `1` | Mirrors the process exit code. |
 | `summary` | object | `pass` / `warn` / `fail` counts. They always add up to `findings.length`. |
 | `findings[]` | array | One entry per check performed, in execution order — including passes, so the report is a complete audit record, not just an error list. |
-| `findings[].id` | string | Stable check identifier (dot-namespaced). |
+| `findings[].id` | string | Internal check identifier (dot-namespaced). |
+| `findings[].rule` | string \| null | Stable public rule code (`CASP-<AREA>-<NNN>`). Prefer this for durable references; see [rules.md](./rules.md). |
 | `findings[].severity` | `"pass"` \| `"warn"` \| `"fail"` | Only `fail` blocks the push. |
 | `findings[].label` | string | Human-readable one-liner (same text as the default output). |
 | `findings[].detail` | string | Context: paths, SHAs, expected-vs-found. May be empty. |

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casp.sh/schemas/state.schema.json",
+  "title": "CASP project state",
+  "description": "casp/state.json — the machine-readable source of truth the CASP validator reads. Deterministic, git-native, local-only. This schema documents the shape; casp check verifies the claims against git.",
+  "type": "object",
+  "required": [
+    "updated_at",
+    "last_session_id",
+    "last_commit",
+    "current_phase",
+    "next_phase",
+    "next_prompt",
+    "phases_shipped"
+  ],
+  "properties": {
+    "updated_at": {
+      "type": "string",
+      "description": "ISO date (YYYY-MM-DD) of the last state bump."
+    },
+    "last_session_id": {
+      "type": "string",
+      "description": "The id of the most recent session; must map to <logs_dir>/<id>.md. The placeholder 'pending' is allowed before the first session closes.",
+      "minLength": 1
+    },
+    "last_commit": {
+      "type": "string",
+      "description": "The commit the recorded state corresponds to. Must exist in git history (HEAD, or the parent of HEAD via a state-bump commit). The placeholder 'pending' is allowed before the first push.",
+      "minLength": 1
+    },
+    "current_phase": {
+      "type": "string",
+      "description": "The phase the project is currently on."
+    },
+    "next_phase": {
+      "type": ["string", "null"],
+      "description": "The next phase to ship, or null when parked (launch hold, roadmap complete)."
+    },
+    "next_prompt": {
+      "type": ["string", "null"],
+      "description": "Repo-relative path to the next session prompt, or null when parked. Must exist and must not already be status: shipped."
+    },
+    "phases_shipped": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Phases already delivered. Must contain no duplicates."
+    },
+    "phases_queued": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Phases queued to ship next."
+    },
+    "phases_backlog": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Deferred phases, not yet queued."
+    },
+    "migrations_applied": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Migration identifiers (filenames without extension) recorded as applied. Verified against migrations_dir when both are set."
+    },
+    "sessions_dir": {
+      "type": "string",
+      "description": "Override for the session-prompts directory. Defaults to docs/plan/sessions."
+    },
+    "logs_dir": {
+      "type": "string",
+      "description": "Override for the session-logs directory. Defaults to session-logs."
+    },
+    "migrations_dir": {
+      "type": "string",
+      "description": "The migrations directory, if the project tracks migrations. No default — a project with no migration concept sets neither this nor migrations_applied."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form human notes about the current state. Not validated."
+    }
+  },
+  "additionalProperties": true
+}

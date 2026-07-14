@@ -39,7 +39,9 @@ function hookBody(): string {
 # ${MARKER} — installed by \`casp install-hook\`. Do not edit by hand.
 # Deterministic, local-only pre-push gate: blocks the push when casp/state.json
 # has drifted from git. Remove with: casp install-hook --remove
-set -e
+# POSIX: -e aborts on any failure, -u treats an unset variable as an error. We
+# intentionally omit pipefail (a bashism that would break under a strict #!/bin/sh).
+set -eu
 if npx --no-install @justethales/casp --version >/dev/null 2>&1; then
   exec npx --no-install @justethales/casp check --quiet
 elif command -v casp >/dev/null 2>&1; then

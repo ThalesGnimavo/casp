@@ -171,6 +171,29 @@ const COMMANDS: CmdHelp[] = [
     ]
   },
   {
+    name: 'rules',
+    summary: 'List the verification rules casp check enforces',
+    blurb:
+      'Prints the catalogue of stable rule codes (CASP-<AREA>-<NNN>) with their ' +
+      'titles — the public identifiers that appear on every check finding.',
+    usage: ['casp rules [--json]'],
+    flags: [['--json', 'Emit the catalogue as data']],
+    examples: [['casp rules', 'see every rule the gate enforces']]
+  },
+  {
+    name: 'explain',
+    summary: "Print one rule's full definition",
+    blurb:
+      'Given a rule code (or an internal finding id), prints what the rule ' +
+      'verifies, the evidence it inspects, and how to remediate a failure.',
+    usage: ['casp explain <CODE> [--json]'],
+    flags: [['--json', 'Emit the rule as data']],
+    examples: [
+      ['casp explain CASP-GIT-001', 'why did last_commit fail?'],
+      ['casp explain CASP-PROMPT-003', 'the already-shipped-prompt rule']
+    ]
+  },
+  {
     name: 'help',
     summary: 'Print help — top-level, or focused on one command',
     blurb:
@@ -280,6 +303,10 @@ COMMANDS
                                   (in a throwaway worktree); exits with its verdict
   state diff [A] [B]            Field-level diff of casp/state.json between two
                                   commits (default HEAD~1 → HEAD; --json for data)
+  rules                         List the verification rules check enforces
+                                  (stable CASP-<AREA>-<NNN> codes; --json for data)
+  explain <CODE>                Print one rule's full definition (verifies /
+                                  evidence / remediation); e.g. CASP-GIT-001
   help [command]                This overview, or one command's focused help
 
 GLOBAL

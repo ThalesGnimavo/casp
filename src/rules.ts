@@ -1,0 +1,206 @@
+/**
+ * The rule registry — the public catalogue of what `casp check` verifies.
+ *
+ * Every finding `casp check` emits carries a stable rule code (CASP-<AREA>-<NNN>)
+ * derived here from its internal id. The code is the PUBLIC, versioned identifier:
+ * safe to reference in docs, CI dashboards, and `casp explain <CODE>`. Internal
+ * finding ids may be refactored freely; codes are a compatibility surface and
+ * change only through an explicit deprecation, never silently.
+ *
+ * A rule states WHAT is verified and against WHICH evidence — deliberately narrow.
+ * CASP verifies recorded state claims against repository evidence. It does NOT
+ * verify that the code is correct, that a feature is deployed, or that a migration
+ * ran on a remote database. See docs/what-casp-proves.md and docs/rules.md.
+ *
+ * No LLM, no network — this registry is static data, like the rest of the binary.
+ */
+
+export interface Rule {
+  /** Stable public identifier, e.g. CASP-GIT-001. */
+  code: string;
+  /** Short human title. */
+  title: string;
+  /** Area bucket: STATE | PROMPT | SESSION | GIT | MIGRATION | WORKTREE. */
+  area: string;
+  /** The normative claim this rule verifies. */
+  verifies: string;
+  /** The evidence it inspects to decide pass/fail. */
+  evidence: string;
+  /** General direction to remediate a failure. */
+  remediation: string;
+  /** Maps an internal finding id to this rule. First match in RULES wins. */
+  matches: (id: string) => boolean;
+}
+
+// Ordered by area, then number. `matches` keys off the internal finding ids
+// emitted in check.ts — kept in lockstep by the rules-coverage test, which fails
+// if any emitted id maps to no rule.
+export const RULES: Rule[] = [
+  {
+    code: 'CASP-STATE-001',
+    title: 'state.json present and valid JSON',
+    area: 'STATE',
+    verifies: 'casp/state.json exists at the project root and parses as JSON.',
+    evidence: 'The file casp/state.json on disk.',
+    remediation: 'Run `casp init`, or fix the JSON syntax (a trailing comma or unquoted key, usually).',
+    matches: (id) => id === 'state.file'
+  },
+  {
+    code: 'CASP-STATE-002',
+    title: 'Required state keys present',
+    area: 'STATE',
+    verifies:
+      'The required keys (updated_at, last_session_id, last_commit, current_phase, phases_shipped) are present and non-null; next_phase and next_prompt are present (an explicit null is a valid "parked" value).',
+    evidence: 'The parsed contents of casp/state.json.',
+    remediation: 'Add the missing key to casp/state.json (use null for next_phase / next_prompt when there is no queued next slice).',
+    matches: (id) => id.startsWith('state.shape.')
+  },
+  {
+    code: 'CASP-STATE-003',
+    title: 'phases_shipped has no duplicates',
+    area: 'STATE',
+    verifies: 'Every entry in phases_shipped is unique — no phase is recorded as shipped twice.',
+    evidence: 'The phases_shipped array in casp/state.json.',
+    remediation: 'Dedupe the phases_shipped array.',
+    matches: (id) => id === 'phases_shipped.unique'
+  },
+  {
+    code: 'CASP-PROMPT-001',
+    title: 'next_prompt file exists',
+    area: 'PROMPT',
+    verifies: 'The file state.next_prompt points at exists on disk.',
+    evidence: 'The path state.next_prompt, resolved against the project root.',
+    remediation: 'Draft the prompt at that path (`casp new prompt --slug <slug>`) OR fix state.next_prompt.',
+    matches: (id) => id === 'next_prompt.exists'
+  },
+  {
+    code: 'CASP-PROMPT-002',
+    title: 'next_prompt has frontmatter',
+    area: 'PROMPT',
+    verifies: 'The next_prompt file begins with a parseable YAML frontmatter block.',
+    evidence: 'The leading --- ... --- block of the next_prompt file.',
+    remediation: 'Add status / session_id / drafted_at frontmatter to the prompt.',
+    matches: (id) => id === 'next_prompt.frontmatter'
+  },
+  {
+    code: 'CASP-PROMPT-003',
+    title: 'next_prompt is not already shipped',
+    area: 'PROMPT',
+    verifies:
+      'The next_prompt frontmatter status is a startable value (queued / in-progress), never "shipped" — the exact drift CASP was built to catch.',
+    evidence: 'The status field in the next_prompt frontmatter.',
+    remediation: 'Point state.next_prompt at the real next slice, or re-execute the shipped prompt explicitly.',
+    matches: (id) => id === 'next_prompt.status'
+  },
+  {
+    code: 'CASP-PROMPT-004',
+    title: 'Session prompts have parseable frontmatter',
+    area: 'PROMPT',
+    verifies: 'Every prompt file in the sessions directory begins with parseable YAML frontmatter.',
+    evidence: 'Each *.md file in the resolved sessions_dir.',
+    remediation: 'Give the prompt a --- ... --- frontmatter block with at least a status.',
+    matches: (id) => id.startsWith('prompt.') && id.endsWith('.frontmatter')
+  },
+  {
+    code: 'CASP-PROMPT-005',
+    title: 'Shipped prompts have a resolvable session_log',
+    area: 'PROMPT',
+    verifies:
+      'A prompt marked status: shipped declares a session_log pointer, and every file it names exists.',
+    evidence: 'The session_log field of each shipped prompt, resolved against the project root.',
+    remediation: 'Set session_log: <logs_dir>/<id>.md and write the log(s) — repo-relative paths, comma-separated or a YAML list.',
+    matches: (id) =>
+      (id.startsWith('prompt.') &&
+        (id.endsWith('.session_log') || id.endsWith('.session_log_exists'))) ||
+      id === 'prompts.shipped_logged'
+  },
+  {
+    code: 'CASP-PROMPT-006',
+    title: 'Prompt status values are canonical',
+    area: 'PROMPT',
+    verifies: 'Every session prompt carries a status from the canonical set: queued, in-progress, shipped, archived.',
+    evidence: 'The status field of each prompt in the sessions directory.',
+    remediation: 'Use one of: queued | in-progress | shipped | archived.',
+    matches: (id) => id === 'prompts.status_values'
+  },
+  {
+    code: 'CASP-SESSION-001',
+    title: 'last_session_id maps to a session log',
+    area: 'SESSION',
+    verifies:
+      'last_session_id resolves to an existing <logs_dir>/<id>.md file (a "pending" placeholder before the first session is a WARN, not a claim).',
+    evidence: 'The logs directory and the file named by last_session_id.',
+    remediation: 'Write the session log (`casp new log --slug <slug>`) OR fix last_session_id.',
+    matches: (id) => id.startsWith('last_session.')
+  },
+  {
+    code: 'CASP-SESSION-002',
+    title: 'Shipped history directories exist',
+    area: 'SESSION',
+    verifies: 'When phases_shipped is non-empty, the sessions and logs directories it implies exist.',
+    evidence: 'The resolved sessions_dir and logs_dir on disk.',
+    remediation: 'Create the directories (the protocol’s prompts and logs live there) OR empty phases_shipped.',
+    matches: (id) => id.startsWith('shipped_history.')
+  },
+  {
+    code: 'CASP-GIT-001',
+    title: 'last_commit is consistent with git history',
+    area: 'GIT',
+    verifies:
+      'last_commit is HEAD, or the parent of HEAD via a state-bump commit that touches only the state surface, or at minimum a real commit in the repository. A SHA absent from history is drift; "pending" before the first push is a WARN.',
+    evidence: 'git rev-parse / rev-list over the repository history (never a shell — the value is passed inject-safe).',
+    remediation: 'Bump state.last_commit to a real SHA (usually HEAD after the session commit).',
+    matches: (id) => id === 'last_commit.git'
+  },
+  {
+    code: 'CASP-MIGRATION-001',
+    title: 'Claimed migrations have a directory to verify against',
+    area: 'MIGRATION',
+    verifies: 'When migrations_applied is non-empty, migrations_dir is set and the directory exists — a claim with nothing to check it against is drift.',
+    evidence: 'state.migrations_dir and that directory on disk.',
+    remediation: 'Set migrations_dir to the migrations directory (and create it) OR empty migrations_applied.',
+    matches: (id) => id === 'migrations.dir'
+  },
+  {
+    code: 'CASP-MIGRATION-002',
+    title: 'migrations_applied matches the migrations directory',
+    area: 'MIGRATION',
+    verifies: 'The set of migrations in state.migrations_applied matches the .sql/.py migration files on disk (dunder infrastructure files excluded).',
+    evidence: 'The migration files in the resolved migrations_dir vs migrations_applied.',
+    remediation: 'Add missing-from-state entries to migrations_applied OR remove ghost entries.',
+    matches: (id) => id === 'migrations.match'
+  },
+  {
+    code: 'CASP-MIGRATION-003',
+    title: 'Untracked migrations on disk (advisory)',
+    area: 'MIGRATION',
+    verifies: 'A configured migrations_dir holds migration files, but state declares no migrations_applied at all — a likely mis-configuration. Advisory (WARN): never blocks a push.',
+    evidence: 'Migration files present in migrations_dir while migrations_applied is absent.',
+    remediation: 'Add the applied migrations to state.migrations_applied OR remove migrations_dir if unused.',
+    matches: (id) => id === 'migrations.untracked'
+  },
+  {
+    code: 'CASP-WORKTREE-001',
+    title: 'State surface is committed',
+    area: 'WORKTREE',
+    verifies: 'casp/, the sessions directory, and the logs directory have no uncommitted changes when the session closes. Advisory (WARN).',
+    evidence: 'git status --porcelain over the state-surface paths (passed inject-safe).',
+    remediation: 'Commit + push the state surface before the session closes.',
+    matches: (id) => id === 'workdir.clean'
+  }
+];
+
+const BY_CODE = new Map(RULES.map((r) => [r.code.toUpperCase(), r]));
+
+/** The stable rule code for a finding id, or null if none maps (a coverage bug). */
+export function ruleFor(id: string): Rule | null {
+  for (const r of RULES) if (r.matches(id)) return r;
+  return null;
+}
+
+/** Resolve a rule by its code (case-insensitive) or an internal finding id. */
+export function resolveRule(query: string): Rule | null {
+  const byCode = BY_CODE.get(query.toUpperCase());
+  if (byCode) return byCode;
+  return ruleFor(query);
+}

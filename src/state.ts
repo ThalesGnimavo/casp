@@ -12,7 +12,7 @@
  */
 
 import { exit } from 'node:process';
-import { c, git } from './shared.js';
+import { c, git, gitArgs } from './shared.js';
 
 type Json = Record<string, unknown>;
 
@@ -24,7 +24,8 @@ interface Change {
 }
 
 function showState(ref: string, root: string): Json | null {
-  const raw = git(`show ${ref}:casp/state.json`, root);
+  // ref is a CLI argument — inject-safe form (no shell).
+  const raw = gitArgs(['show', `${ref}:casp/state.json`], root);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Json;
@@ -54,12 +55,39 @@ function diffStates(a: Json, b: Json): Change[] {
 }
 
 // Element-level delta for two arrays — what `b` added and removed vs `a`.
+// Multiset-correct: occurrences are matched one-for-one, so dropping one of a
+// duplicated element (["a","a"] → ["a"]) reports a single removal instead of
+// silently cancelling out. Order is preserved within each side.
 function arrayDelta(before: unknown, after: unknown): { added: unknown[]; removed: unknown[] } | null {
   if (!Array.isArray(before) || !Array.isArray(after)) return null;
-  const sa = before.map((x) => JSON.stringify(x));
-  const sb = after.map((x) => JSON.stringify(x));
-  const added = after.filter((_, i) => !sa.includes(sb[i]));
-  const removed = before.filter((_, i) => !sb.includes(sa[i]));
+  const tally = (xs: unknown[]): Map<string, number> => {
+    const m = new Map<string, number>();
+    for (const x of xs) {
+      const k = JSON.stringify(x);
+      m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  };
+  const inBefore = tally(before);
+  const added = after.filter((x) => {
+    const k = JSON.stringify(x);
+    const n = inBefore.get(k) ?? 0;
+    if (n > 0) {
+      inBefore.set(k, n - 1);
+      return false;
+    }
+    return true;
+  });
+  const inAfter = tally(after);
+  const removed = before.filter((x) => {
+    const k = JSON.stringify(x);
+    const n = inAfter.get(k) ?? 0;
+    if (n > 0) {
+      inAfter.set(k, n - 1);
+      return false;
+    }
+    return true;
+  });
   return { added, removed };
 }
 

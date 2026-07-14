@@ -16,7 +16,8 @@
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
+import { c, git, gitArgs, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
+import { ruleFor } from './rules.js';
 
 type Severity = 'pass' | 'warn' | 'fail';
 
@@ -64,6 +65,7 @@ function buildReport(findings: Finding[]): Record<string, unknown> {
     summary,
     findings: findings.map((f) => ({
       id: f.id,
+      rule: ruleFor(f.id)?.code ?? null,
       severity: f.severity,
       label: f.label,
       detail: f.detail,
@@ -330,7 +332,9 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         `state=${state.last_commit} HEAD=${head}`
       );
     } else {
-      const exists = git(`rev-parse --verify ${state.last_commit}^{commit}`, root);
+      // last_commit is repo content — inject-safe form (a crafted value can't
+      // reach a shell; it becomes one invalid ref → git errors → '' → FAIL).
+      const exists = gitArgs(['rev-parse', '--verify', `${state.last_commit}^{commit}`], root);
       if (exists) {
         // The canonical close loop ends with a state-bump commit: the session
         // is committed, last_commit is set to that SHA, and the bump itself is
@@ -470,6 +474,24 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
           ''
         );
       }
+    } else if (!Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
+      // migrations_dir is configured and the directory exists, but state does
+      // not declare migrations_applied at all. If the directory actually holds
+      // migration files, the cockpit is blind to them — a likely mis-config.
+      // WARN, not FAIL: a genuinely empty dir is legitimate (fresh project), so
+      // only flag when files are present. Non-blocking by design.
+      const onDisk = readdirSync(migrationsDir).filter(
+        (f) => /\.(sql|py)$/.test(f) && !f.startsWith('__')
+      );
+      if (onDisk.length > 0) {
+        record(
+          'migrations.untracked',
+          'warn',
+          `${dirs.migrationsRel}/ holds ${onDisk.length} migration file(s) but migrations_applied is not set`,
+          'state does not track any migrations while the configured directory contains some',
+          'add the applied migrations to state.migrations_applied OR remove migrations_dir if unused'
+        );
+      }
     }
   }
 
@@ -564,8 +586,9 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
   /* 8. Working tree clean for casp + sessions + logs -------------------- */
 
   if (!noGit) {
-    const dirty = git(
-      `status --porcelain casp "${dirs.sessionsRel}" "${dirs.logsRel}"`,
+    // sessionsRel / logsRel come from state (repo content) — inject-safe form.
+    const dirty = gitArgs(
+      ['status', '--porcelain', 'casp', dirs.sessionsRel, dirs.logsRel],
       root
     );
     if (dirty) {
@@ -601,7 +624,10 @@ export function printReport(findings: Finding[], quiet: boolean): void {
           : c.red('FAIL');
     if (f.severity === 'pass' && quiet) continue;
     const detail = f.detail ? c.gray(` · ${f.detail}`) : '';
-    console.log(`  ${tag}  ${f.label}${detail}`);
+    // Surface the stable rule code on actionable findings only (warn/fail), so a
+    // reader can `casp explain <CODE>`. PASS lines stay uncluttered.
+    const code = f.severity !== 'pass' ? `${c.gray(ruleFor(f.id)?.code ?? '')} ` : '';
+    console.log(`  ${tag}  ${code}${f.label}${detail}`);
     if (f.fix && f.severity !== 'pass') {
       console.log(`        ${c.cyan('→')} ${c.gray(f.fix)}`);
     }

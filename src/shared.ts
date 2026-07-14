@@ -2,7 +2,7 @@
  * Shared helpers — ANSI colors, git, frontmatter parsing.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -42,9 +42,38 @@ export function setColor(on: boolean): void {
   });
 }
 
+/**
+ * Shell-based git. The command string is interpolated into a shell, so it MUST
+ * only ever receive STATIC, literal arguments (`git('rev-parse --short HEAD')`).
+ * Never pass a value read from casp/state.json or from a CLI argument through
+ * here — a crafted value like `HEAD; rm -rf ~` would run in the shell. For any
+ * interpolated/untrusted input use `gitArgs()` below, which cannot be injected.
+ */
 export function git(cmd: string, cwd: string = process.cwd()): string {
   try {
     return execSync(`git ${cmd}`, {
+      cwd,
+      stdio: ['ignore', 'pipe', 'ignore']
+    })
+      .toString()
+      .trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Injection-safe git: arguments are passed as an argv array to `execFileSync`,
+ * so NO shell is involved and no value can break out of its argument slot. This
+ * is the required form for any git call that interpolates untrusted input —
+ * values read from casp/state.json (last_commit, sessions_dir, logs_dir, …) or
+ * from CLI arguments. A hostile value becomes a single, invalid git argument
+ * (git errors, we return ''), never a shell command. Same '' -on-failure and
+ * trimmed-stdout contract as git().
+ */
+export function gitArgs(args: string[], cwd: string = process.cwd()): string {
+  try {
+    return execFileSync('git', args, {
       cwd,
       stdio: ['ignore', 'pipe', 'ignore']
     })

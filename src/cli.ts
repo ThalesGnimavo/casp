@@ -20,6 +20,7 @@ import { runClose } from './close.js';
 import { runInstallHook } from './install-hook.js';
 import { runVerify } from './verify.js';
 import { runState } from './state.js';
+import { runExplain, runRules } from './explain.js';
 import { pkgVersion } from './shared.js';
 import {
   topLevelHelp,
@@ -89,6 +90,12 @@ async function main(): Promise<void> {
       break;
     case 'state':
       runState(rest);
+      break;
+    case 'rules':
+      runRules(rest);
+      break;
+    case 'explain':
+      runExplain(rest);
       break;
     default:
       console.error(unknownCommandMessage(cmd));

@@ -14,7 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -406,6 +406,25 @@ test('comma-separated session_log: all entries exist → pass, one missing → F
   }
 });
 
+test('security: a shell-metachar last_commit runs no shell (injection blocked)', () => {
+  const { dir, state } = scaffold();
+  try {
+    // Old shell-based git() would run `touch INJECTED` here. gitArgs() passes
+    // the value as one argv slot: git sees an invalid ref, we FAIL, no shell.
+    const sentinel = join(dir, 'INJECTED');
+    state.last_commit = 'HEAD; touch INJECTED';
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'malicious last_commit');
+
+    const status = runCheck(dir);
+    assert.equal(existsSync(sentinel), false, 'no shell command may execute from state content');
+    assert.equal(status, 1, 'an unresolvable last_commit is drift → exit 1');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('default human-readable output carries no JSON braces (format untouched)', () => {
   const { dir } = scaffold();
   try {
@@ -413,6 +432,51 @@ test('default human-readable output carries no JSON braces (format untouched)', 
     assert.equal(r.status, 0);
     assert.ok(r.stdout.includes('casp:check'), 'human header intact');
     assert.ok(!r.stdout.trimStart().startsWith('{'), 'default output is not JSON');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migrations_dir set + files on disk + migrations_applied absent → WARN, not blocking', () => {
+  const { dir, state } = scaffold();
+  try {
+    // Reconfigure: real migrations dir with a file, but state never declares
+    // migrations_applied. This is the silent gap the WARN closes.
+    delete state.migrations_applied;
+    state.migrations_dir = 'migrations';
+    mkdirSync(join(dir, 'migrations'), { recursive: true });
+    writeFileSync(join(dir, 'migrations', '0001_init.sql'), 'CREATE TABLE t (id int);\n');
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'add untracked migrations dir');
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'a WARN must not block the push');
+    const report = JSON.parse(stdout);
+    const f = report.findings.find((x) => x.id === 'migrations.untracked');
+    assert.ok(f, 'expected a migrations.untracked finding');
+    assert.equal(f.severity, 'warn', 'untracked migrations is a WARN, never a FAIL');
+    assert.ok(f.label.includes('1 migration file'), 'the WARN counts the on-disk files');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('migrations_dir set but directory genuinely empty + migrations_applied absent → silent (no WARN)', () => {
+  const { dir, state } = scaffold();
+  try {
+    delete state.migrations_applied;
+    state.migrations_dir = 'migrations';
+    mkdirSync(join(dir, 'migrations'), { recursive: true }); // empty dir, no files
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'add empty migrations dir');
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0);
+    const report = JSON.parse(stdout);
+    assert.ok(!report.findings.some((x) => x.id === 'migrations.untracked'),
+      'a fresh empty migrations dir is legitimate — no noise');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
