@@ -21,6 +21,8 @@ import { runInstallHook } from './install-hook.js';
 import { runVerify } from './verify.js';
 import { runState } from './state.js';
 import { runExplain, runRules } from './explain.js';
+import { runDoctor } from './doctor.js';
+import { runVersion } from './version.js';
 import { pkgVersion } from './shared.js';
 import {
   topLevelHelp,
@@ -96,6 +98,12 @@ async function main(): Promise<void> {
       break;
     case 'explain':
       runExplain(rest);
+      break;
+    case 'doctor':
+      runDoctor(rest);
+      break;
+    case 'version':
+      runVersion(rest);
       break;
     default:
       console.error(unknownCommandMessage(cmd));

@@ -32,6 +32,11 @@ export interface Finding {
   label: string;
   detail: string;
   fix?: string;
+  // Optional structured diff, set only where a single expected-vs-actual pair is
+  // natural (last_commit, next_prompt status, migrations). Additive: absent →
+  // emitted as null in --json, never surfaced in the human report.
+  expected?: string | null;
+  actual?: string | null;
 }
 
 /**
@@ -40,7 +45,7 @@ export interface Finding {
  * fields do not bump it. The verdict logic is shared with the human report;
  * `--json` changes the format, never the outcome.
  */
-const JSON_SCHEMA_VERSION = 1;
+export const JSON_SCHEMA_VERSION = 1;
 
 export function summarize(findings: Finding[]): {
   pass: number;
@@ -69,7 +74,11 @@ function buildReport(findings: Finding[]): Record<string, unknown> {
       severity: f.severity,
       label: f.label,
       detail: f.detail,
-      fix: f.fix ?? null
+      fix: f.fix ?? null,
+      // Additive structured diff (schema stays v1). null when this finding has
+      // no single expected-vs-actual pair — the common case.
+      expected: f.expected ?? null,
+      actual: f.actual ?? null
     }))
   };
 }
@@ -95,9 +104,18 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     severity: Severity,
     label: string,
     detail: string,
-    fix?: string
+    fix?: string,
+    extra?: { expected?: string | null; actual?: string | null }
   ): void {
-    findings.push({ id, severity, label, detail, fix });
+    findings.push({
+      id,
+      severity,
+      label,
+      detail,
+      fix,
+      expected: extra?.expected ?? null,
+      actual: extra?.actual ?? null
+    });
   }
 
   if (!existsSync(STATE_PATH)) {
@@ -217,7 +235,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
             'fail',
             'next_prompt is already SHIPPED',
             `${state.next_prompt} has status: shipped — casp was not bumped after that session`,
-            `either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly`
+            `either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly`,
+            { expected: 'queued', actual: 'shipped' }
           );
         } else if (status === 'queued' || status === 'in-progress') {
           record(
@@ -232,7 +251,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
             'warn',
             'next_prompt has unusual status',
             `status='${status}' — expected 'queued' or 'in-progress'`,
-            `set status: queued in the prompt frontmatter`
+            `set status: queued in the prompt frontmatter`,
+            { expected: 'queued', actual: status }
           );
         }
       }
@@ -366,7 +386,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
             'warn',
             'last_commit is in history but not at HEAD',
             `state=${state.last_commit} HEAD=${head}`,
-            `if the new commits are out-of-band work, bump state.last_commit to ${head}`
+            `if the new commits are out-of-band work, bump state.last_commit to ${head}`,
+            { expected: head, actual: state.last_commit }
           );
         }
       } else {
@@ -375,7 +396,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
           'fail',
           'last_commit not found in git',
           `state=${state.last_commit} does not exist in this repo`,
-          `set state.last_commit to a real SHA (HEAD = ${head})`
+          `set state.last_commit to a real SHA (HEAD = ${head})`,
+          { expected: head, actual: state.last_commit }
         );
       }
     }
@@ -464,7 +486,8 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
           'fail',
           `migrations_applied does not match ${dirs.migrationsRel}/`,
           `state-missing: ${missingFromState.join(', ') || '(none)'} · disk-missing: ${missingFromDisk.join(', ') || '(none)'}`,
-          'add missing-from-state to state.migrations_applied OR remove ghosts'
+          'add missing-from-state to state.migrations_applied OR remove ghosts',
+          { expected: onDisk.join(', '), actual: inState.join(', ') }
         );
       } else if (onDisk.length > 0) {
         record(

@@ -194,6 +194,39 @@ const COMMANDS: CmdHelp[] = [
     ]
   },
   {
+    name: 'doctor',
+    summary: 'Diagnose the environment (Node, git, cockpit, hook) — never gates',
+    blurb:
+      'A read-only onboarding diagnostic: checks Node version, the git binary ' +
+      'and repository, casp/state.json, the resolved sessions/logs directories, ' +
+      'the pre-push hook and core.hooksPath. Reports PASS/WARN/FAIL per line but ' +
+      'ALWAYS exits 0 — it maps what to fix, it never blocks (check is the gate).',
+    usage: ['casp doctor [--plain] [--json]'],
+    flags: [
+      ['--plain', 'No color (for pipes and logs)'],
+      ['--json', 'Machine-readable diagnostic (stable schema); still exits 0']
+    ],
+    examples: [
+      ['casp doctor', 'is this machine set up to run casp?'],
+      ['casp doctor --json', 'feed onboarding automation']
+    ]
+  },
+  {
+    name: 'version',
+    summary: 'Print the version — plain, or a JSON handoff with --json',
+    blurb:
+      'Prints the version string (identical to `casp -V`). With --json, emits ' +
+      '{ name, version, node, schema_version } — the version handoff for ' +
+      'agent-to-agent negotiation, where schema_version is the check --json ' +
+      'report schema version.',
+    usage: ['casp version [--json]'],
+    flags: [['--json', 'Emit { name, version, node, schema_version } as data']],
+    examples: [
+      ['casp version', 'the version string'],
+      ['casp version --json', 'the machine-readable handoff']
+    ]
+  },
+  {
     name: 'help',
     summary: 'Print help — top-level, or focused on one command',
     blurb:
@@ -307,11 +340,16 @@ COMMANDS
                                   (stable CASP-<AREA>-<NNN> codes; --json for data)
   explain <CODE>                Print one rule's full definition (verifies /
                                   evidence / remediation); e.g. CASP-GIT-001
+  doctor                        Diagnose the environment (Node, git, cockpit,
+                                  pre-push hook, core.hooksPath) — PASS/WARN/FAIL
+                                  per line; never gates (always exits 0)
+  version                       Print the version; --json for a machine handoff
+                                  { name, version, node, schema_version }
   help [command]                This overview, or one command's focused help
 
 GLOBAL
   -h, --help                    Print this help (or \`casp <command> --help\`)
-  -V, --version                 Print version
+  -V, --version                 Print version (\`casp version --json\` for data)
 
 EXAMPLES
   casp init                     # in a fresh repo

@@ -135,6 +135,8 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp state diff [A] [B]` | Field-level diff of `casp/state.json` between two commits (default `HEAD~1` → `HEAD`), with element-level deltas for array fields. `--json` for data. |
 | `casp rules` | List the verification rules `check` enforces — the stable `CASP-<AREA>-<NNN>` codes that appear on every finding. `--json` for data. |
 | `casp explain <CODE>` | Print one rule's full definition: what it verifies, the evidence it inspects, and how to remediate. Accepts a code (`CASP-GIT-001`) or an internal finding id. |
+| `casp doctor` | Read-only environment diagnostic for onboarding: Node, git, `casp/state.json`, the resolved sessions/logs dirs, the pre-push hook and `core.hooksPath`. `PASS`/`WARN`/`FAIL` per line (`--json` for data). **Never gates** — always exits 0; it maps what to fix, `check` is the gate. |
+| `casp version` | Print the version (same as `-V`). `--json` emits `{ name, version, node, schema_version }` — the machine handoff, where `schema_version` is the `check --json` report schema. |
 | `casp help [command]` | The top-level overview, or one command's focused help (usage, every flag, real examples). `casp <command> --help` is equivalent. `casp help` exits 0 — the most natural thing a user types is first-class. |
 
 ---
@@ -275,6 +277,7 @@ Need the report as data instead of text? `casp check --json` emits the same find
 - **0.6** — Both session boundaries become gates, plus inspection. `casp install-hook` writes `casp check --quiet` into your pre-push hook (the *push* boundary); `casp next` now refuses to start a session on a drifted state (the *start* boundary, `--no-check` escape hatch); `casp status --json` gives the structured session handoff; `casp verify <commit>` + `casp state diff` make "git log is your compliance trail" inspectable. *Shipped.*
 - **0.7** — First-class `casp help` (exit 0) with a focused per-command block for every verb. *Shipped.*
 - **0.8** — Stable **rule codes** (`CASP-<AREA>-<NNN>`) on every finding, with `casp rules` / `casp explain <CODE>`; published **JSON Schemas** for `state.json` and the `check --json` report; an injection-safe git path for untrusted state values; and precise "what CASP proves / does not prove" + threat-model docs. *Shipped.*
+- **0.9** — DX + machine-handoff: `casp doctor` (a read-only environment diagnostic that never gates), `casp version --json` (the `{ name, version, node, schema_version }` handoff), and additive `expected` / `actual` fields on `check --json` findings (schema stays v1). *Shipped.*
 - **Next** — A new drift category tying every `phases_shipped` entry to a session log (a verdict-changing protocol slice — designed on its own so it can't silently redden repos with pre-adoption history).
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 

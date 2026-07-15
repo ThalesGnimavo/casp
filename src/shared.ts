@@ -9,19 +9,26 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-// Single source of truth: read the version from package.json at runtime so the
-// CLI string can never drift from the published package again. dist/*.js lives
-// in dist/, package.json one level up (npm always ships package.json).
-export function pkgVersion(): string {
+// Single source of truth: read package.json at runtime so the CLI strings can
+// never drift from the published package again. dist/*.js lives in dist/,
+// package.json one level up (npm always ships package.json).
+function readPkg(): { name?: string; version?: string } {
   try {
     const here = dirname(fileURLToPath(import.meta.url));
-    const pkg = JSON.parse(
+    return JSON.parse(
       readFileSync(join(here, '..', 'package.json'), 'utf8')
-    ) as { version?: string };
-    return pkg.version ?? '0.0.0';
+    ) as { name?: string; version?: string };
   } catch {
-    return '0.0.0';
+    return {};
   }
+}
+
+export function pkgVersion(): string {
+  return readPkg().version ?? '0.0.0';
+}
+
+export function pkgName(): string {
+  return readPkg().name ?? '@justethales/casp';
 }
 
 export const COLOR_ON = stdout.isTTY && !process.env.NO_COLOR;

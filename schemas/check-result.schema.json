@@ -38,7 +38,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "rule", "severity", "label", "detail", "fix"],
+        "required": ["id", "rule", "severity", "label", "detail", "fix", "expected", "actual"],
         "properties": {
           "id": {
             "type": "string",
@@ -58,6 +58,14 @@
           "fix": {
             "type": ["string", "null"],
             "description": "Remediation hint, or null on a pass."
+          },
+          "expected": {
+            "type": ["string", "null"],
+            "description": "Structured diff: the value the check expected, when a single expected-vs-actual pair is natural (e.g. HEAD sha for last_commit, 'queued' for next_prompt status). null otherwise. Additive — introduced without a schema_version bump."
+          },
+          "actual": {
+            "type": ["string", "null"],
+            "description": "Structured diff: the value actually recorded/found, paired with `expected`. null when no such pair applies. Additive — introduced without a schema_version bump."
           }
         },
         "additionalProperties": false

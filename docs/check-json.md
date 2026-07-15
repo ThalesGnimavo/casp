@@ -14,7 +14,12 @@ text.
 
 - `schema_version` identifies the shape of this document. It bumps **only on a
   breaking change** (a field removed, renamed, or retyped). New fields may be
-  added without a bump — parse leniently.
+  added without a bump — **parse leniently: ignore unknown fields.** The
+  published `check-result.schema.json` sets `additionalProperties: false` and is
+  updated in lockstep with the binary, so validating against the schema that
+  ships with your installed version always succeeds; a consumer that pins an
+  older copy of the schema and validates strictly must relax
+  `additionalProperties` (or tolerate the added keys) to accept newer output.
 - Finding `id` values are internal identifiers (e.g. `next_prompt.status`,
   `last_commit.git`, `migrations.match`). They are stable in practice, but for a
   guaranteed-stable public reference prefer `findings[].rule` — the
@@ -22,6 +27,11 @@ text.
 - `findings[].rule` is an **additive** field (introduced without a
   `schema_version` bump). It is the stable rule code; see
   [rules.md](./rules.md) and `casp explain <CODE>`.
+- `findings[].expected` / `findings[].actual` are **additive** fields
+  (introduced without a `schema_version` bump). When a finding has a single
+  natural expected-vs-actual pair (e.g. `last_commit.git`, `next_prompt.status`,
+  `migrations.match`) they carry those two values so a consumer can diff without
+  parsing `detail`; both are `null` otherwise.
 - `exit_code` in the document always equals the process exit code.
 
 ## Document shape (v1)
@@ -40,7 +50,9 @@ text.
       "severity": "fail",
       "label": "next_prompt is already SHIPPED",
       "detail": "docs/plan/sessions/PHASE-1-AUTH.md has status: shipped — casp was not bumped after that session",
-      "fix": "either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly"
+      "fix": "either update state.json.next_prompt to the real next slice, or re-execute the shipped prompt explicitly",
+      "expected": "queued",
+      "actual": "shipped"
     }
   ]
 }
@@ -60,6 +72,8 @@ text.
 | `findings[].label` | string | Human-readable one-liner (same text as the default output). |
 | `findings[].detail` | string | Context: paths, SHAs, expected-vs-found. May be empty. |
 | `findings[].fix` | string \| null | The `→ fix` hint when one exists, `null` otherwise (always `null` on `pass`). |
+| `findings[].expected` | string \| null | Structured diff: what the check expected (e.g. HEAD sha, `queued`). `null` when the finding has no single expected/actual pair. Additive. |
+| `findings[].actual` | string \| null | Structured diff: what was actually recorded/found, paired with `expected`. `null` otherwise. Additive. |
 
 ## Errors before validation
 

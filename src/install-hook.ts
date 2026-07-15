@@ -57,7 +57,7 @@ fi
 // Ours iff the marker appears as its own hook comment (`# CASP-MANAGED-HOOK …`),
 // not merely as a substring — so a foreign hook that happens to mention the word
 // in prose is never misclassified as CASP's and silently overwritten/removed.
-function isCaspHook(path: string): boolean {
+export function isCaspHook(path: string): boolean {
   return existsSync(path) && readFileSync(path, 'utf8').includes(`# ${MARKER}`);
 }
 
@@ -68,7 +68,7 @@ function isCaspHook(path: string): boolean {
  * there would be a silent no-op. We refuse rather than touch core.hooksPath
  * (explicit DO NOT), leaving the caller to wire the check into their custom dir.
  */
-function resolveHookPath(
+export function resolveHookPath(
   root: string
 ): { ok: true; path: string } | { ok: false; reason: 'no-git' | 'hooks-path' } {
   if (git('rev-parse --is-inside-work-tree', root) !== 'true') {

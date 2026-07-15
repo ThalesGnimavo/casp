@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0 — 2026-07-15
+
+DX + machine-handoff pass. Two new commands (`doctor`, `version`) make it a minor bump; everything is additive and backward-compatible — no existing finding changes verdict, the `check --json` schema stays v1, and every prior test stays green.
+
+- **New — `casp doctor`, a read-only environment diagnostic.** Answers "is this machine set up to run casp?" — not "has the state drifted?" (that stays `casp check`'s exclusive job). It probes the **environment**: Node version (>= 20), the `git` binary and repository, `casp/state.json` presence + validity, the resolved `sessions_dir` / `logs_dir`, `core.hooksPath`, and whether a CASP-managed pre-push hook is installed. Prints `PASS` / `WARN` / `FAIL` per line, plus `--json` (own `schema_version`). **It never gates — always exits `0`, even on a `FAIL`**: a map of what to fix, not a gate. It reuses the same directory resolver and hook-detection as the rest of the binary, so its verdicts never diverge from `check` / `install-hook`. Documented in [docs/doctor.md](docs/doctor.md).
+- **New — `casp version` + `casp version --json`.** The plain form prints the version (byte-identical to `casp -V` / `casp --version`, which are unchanged). `--json` emits the machine handoff `{ name, version, node, schema_version }`, where `schema_version` is the `check --json` report schema version — so an agent can negotiate the check-report shape from one call. `name` and `version` are read from `package.json` (single source of truth, via a shared reader).
+- **New (additive) — structured `expected` / `actual` on `check --json` findings.** Where a finding has a single natural expected-vs-actual pair — `last_commit.git` (HEAD vs the recorded sha), `next_prompt.status` (`queued` vs `shipped`), `migrations.match` (on-disk vs in-state) — the JSON finding now carries `expected` / `actual` so a consumer can diff without regex-parsing `detail`. Both are `null` on every other finding. **Fully additive: `schema_version` stays `1`**, no field renamed or removed, finding order unchanged, and the human report is byte-identical (the fields are JSON-only). The published `check-result.schema.json` and [docs/check-json.md](docs/check-json.md) are updated in lockstep.
+- Thirteen new regression tests (87 total): doctor healthy / missing-state (FAIL but exit 0) / invalid-JSON / `--json` envelope + summary tally / hook WARN→PASS after `install-hook` / outside-a-repo WARN; `version` plain == `-V` and `--json` shape with matching `schema_version`; `expected` / `actual` populated on the shipped-prompt and unresolvable-`last_commit` drifts and `null` on passes.
+
 ## 0.8.0 — 2026-07-14
 
 Protocol-maturity + hardening pass. New commands (`rules`, `explain`) make it a minor bump; everything else is additive and backward-compatible — no existing finding changes verdict, the `check --json` schema stays v1, and every prior test stays green.
