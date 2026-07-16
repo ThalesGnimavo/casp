@@ -24,6 +24,7 @@ If you reach for anything BELOW Next, stop and check why.
 |------|-------|------|
 | `casp.sh` + `llms.txt` sync to 0.6.0 | parked | Now that npm serves 0.6.0, the website can advertise install-hook / next-gate / status-json / verify. A `casp-website` session (auto-deploys on push), not a core session. |
 | Demand-gated tail | parked (marker) | `PHASE-DEMAND-GATED-TAIL.md` is a queue marker — each item ships only on a real signal, split into its own prompt with CEO trigger validation. |
+| `casp chain <N>` — first-class session marathon | parked (gated on senndo evidence) | Promote the user-level `/chain` skill (`~/.claude/skills/chain/SKILL.md`, created 2026-07-16) into a core casp concept : queue consumption budget, safe-stop conditions (blocked prompt, CEO escalation, 2-FAIL circuit breaker), chain recap. **Gate : ships ONLY IF the senndo agent reports the /chain skill workflow succeeded in real marathons** (evidence = senndo session logs + memory `chain-skill-session-marathon`). CEO decision 2026-07-16 : dedicated core session AFTER senndo's provider block is finished — do not start before. |
 
 ---
 
