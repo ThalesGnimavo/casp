@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Updated** : 2026-06-17 (session 26-06-17-003).
+> **Updated** : 2026-07-18 (session 26-07-18-001).
 > **Source of truth** : this file + `docs/plan/sessions/*.md` (status frontmatter) + `session-logs/`.
 > **Maintenance rule** : update at the end of every session that ships something or surfaces a blocker.
 > **Note** : the validated order below was approved on 2026-06-10, materialized as drafted prompts. Commit SHAs were re-stamped after the 2026-06-17 history rewrite; reference session-log filenames (stable) over SHAs.
@@ -11,8 +11,8 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | Lead the wedge with "the deterministic floor of the self-verification loop". Copy / positioning, multi-repo. Settle the wording in `private-docs/` BEFORE propagating to README + homepage-content + roadmap copy — not a blind find-replace of "gate". | `docs/plan/sessions/PHASE-POSITIONING-DETERMINISTIC-FLOOR.md` | queued |
-| 2 | New drift category: every `phases_shipped[]` entry ↔ a session log. **Verdict-changing** — settle the deterministic mapping + the backfill-without-lying rule BEFORE coding, so it cannot redden repos with pre-adoption history. | `docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md` | queued |
+| 1 | New drift category: every `phases_shipped[]` entry ↔ a session log. **Verdict-changing** — settle the deterministic mapping + the backfill-without-lying rule BEFORE coding, so it cannot redden repos with pre-adoption history. | `docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md` | queued |
+| 2 | `casp upgrade` — non-destructive scaffold refresh + additive `state.json` version stamp + `doctor` staleness WARN. Dogfooding (2026-07-17) surfaced that a cockpit scaffolded at an older version cannot adopt newer scaffolds: `init` refuses on an existing `casp/`, and `init --force` overwrites data (`state.json`/`now.md`/`roadmap.md`). Sequenced 2026-07-18. | `docs/plan/sessions/PHASE-UPGRADE-COMMAND.md` | queued |
 
 If you reach for anything BELOW Next, stop and check why.
 
@@ -24,7 +24,7 @@ If you reach for anything BELOW Next, stop and check why.
 |------|-------|------|
 | `casp.sh` + `llms.txt` sync to 0.6.0 | parked | Now that npm serves 0.6.0, the website can advertise install-hook / next-gate / status-json / verify. A `casp-website` session (auto-deploys on push), not a core session. |
 | Demand-gated tail | parked (marker) | `PHASE-DEMAND-GATED-TAIL.md` is a queue marker — each item ships only on a real signal, split into its own prompt with CEO trigger validation. |
-| `casp chain <N>` — first-class session marathon | parked (gated on senndo evidence) | Promote the user-level `/chain` skill (`~/.claude/skills/chain/SKILL.md`, created 2026-07-16) into a core casp concept : queue consumption budget, safe-stop conditions (blocked prompt, CEO escalation, 2-FAIL circuit breaker), chain recap. **Gate : ships ONLY IF the senndo agent reports the /chain skill workflow succeeded in real marathons** (evidence = senndo session logs + memory `chain-skill-session-marathon`). CEO decision 2026-07-16 : dedicated core session AFTER senndo's provider block is finished — do not start before. |
+| `casp chain <N>` — first-class session marathon | parked (gated on real-marathon evidence) | Promote the user-level `/chain` skill (`~/.claude/skills/chain/SKILL.md`, created 2026-07-16; **rewritten 2026-07-18 to a headless per-phase runner** — one fresh `claude -p "/next"` session per phase, deterministic `casp check` verification between phases, escalation digest at chain end) into a casp-distributed concept. **Gate : ships ONLY IF the /chain skill workflow succeeds in real marathons** (evidence = downstream session logs + memory `chain-skill-session-marathon`). Landing spot if the gate opens : the optional Claude Code `skills/` bundle, **never a CLI verb** — orchestration stays out of the binary (anti-roadmap). CEO decision 2026-07-16 : dedicated session only after the gating evidence exists — do not start before. |
 
 ---
 
@@ -65,6 +65,10 @@ If you reach for anything BELOW Next, stop and check why.
 | 0.6.0 — `install-hook` (pre-push gate) | shipped | `session-logs/26-06-17-001-install-hook.md` | published |
 | 0.6.0 — `next` drift-gate + `status --json` + `verify` + `state diff` | shipped | `session-logs/26-06-17-002-0-6-0-bundle.md` | published |
 | 0.7.0 — `casp help` first-class + per-command help | shipped | `session-logs/26-06-17-003-casp-help.md` | not yet published |
-| positioning-deterministic-floor | queued | _(pending)_ | Next (copy / positioning) |
+| positioning-deterministic-floor | shipped | `session-logs/26-06-17-004-positioning-deterministic-floor.md` | copy / positioning |
+| positioning-subwedge-site | shipped | `session-logs/26-06-17-005-subwedge-site-propagation.md` | copy / positioning |
+| 0.8.0 — rule codes, JSON Schemas, injection-safe git path | shipped | `session-logs/26-07-14-001-0-8-0-hardening-rule-codes.md` | see CHANGELOG |
+| 0.9.0 — `doctor`, `version --json`, expected/actual on findings | shipped | `session-logs/26-07-15-001-0-9-0-doctor-version.md` | see CHANGELOG |
 | check-shipped-log | queued | _(pending)_ | verdict-changing |
+| upgrade-command | queued | _(pending)_ | sequenced 2026-07-18, after check-shipped-log |
 | demand-gated-tail | queued (marker) | _(pending)_ | per-item triggers required |

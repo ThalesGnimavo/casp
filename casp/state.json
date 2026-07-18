@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-07-15",
-  "last_session_id": "26-07-15-001-0-9-0-doctor-version",
-  "last_commit": "590b979",
+  "updated_at": "2026-07-18",
+  "last_session_id": "26-07-18-001-queue-upgrade-command",
+  "last_commit": "714cfe5",
   "current_phase": "0.9.0-doctor-version",
   "next_phase": "check-shipped-log",
   "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
@@ -29,8 +29,9 @@
   ],
   "phases_queued": [
     "check-shipped-log",
+    "upgrade-command",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.9.0 — DX + machine-handoff pass; two new commands (doctor, version) make it a minor bump, everything additive; no verdict change, check --json stays schema v1, human output byte-identical, all prior tests green (87 total, +13). Shipped: casp doctor (read-only ENVIRONMENT diagnostic — Node>=20, git binary+repo, state.json presence+validity, resolved sessions/logs dirs, core.hooksPath, pre-push hook; PASS/WARN/FAIL + --json; NEVER gates, always exits 0; reuses resolveDirs + exported isCaspHook/resolveHookPath; hardened against statSync/readFileSync throws so exit-0 is absolute); casp version [--json] emitting {name,version,node,schema_version} with schema_version tied to the exported check-json JSON_SCHEMA_VERSION (plain form == casp -V, unchanged); additive expected/actual (string|null) on check --json findings at the 3 natural sites (last_commit.git, next_prompt.status, migrations.match), null elsewhere — schema stays v1, published check-result.schema.json + docs/check-json.md + new docs/doctor.md updated in lockstep. Read-only audit ran pre-commit (GO-WITH-FIXES); doctor exit-0 hardening + a dir-named-pre-push regression test folded into the impl commit. Deferred: check.ts isDir throw-hardening (out of scope; a throw there still FAILs the gate correctly). next_prompt stays PHASE-CHECK-SHIPPED-LOG.md (next queued product slice, CEO-sequenced — not executed here). Run node dist/cli.js check before push."
+  "notes": "Queue edit (state surface only, no code change). upgrade-command promoted phases_backlog → phases_queued, sequenced after check-shipped-log and before demand-gated-tail (decision 2026-07-18); PHASE-UPGRADE-COMMAND.md (drafted 2026-07-17: non-destructive scaffold refresh, additive state.json version stamp, doctor staleness WARN) now committed. PHASE-CHECK-SHIPPED-LOG.md next_after refreshed from a stale 26-06-17-002 value. Roadmap tables reconciled with phases_shipped (positioning-deterministic-floor, positioning-subwedge-site, 0.8.0, 0.9.0 marked shipped in the scoreboard). next_prompt unchanged: PHASE-CHECK-SHIPPED-LOG.md stays the next product slice; its close re-points PHASE-UPGRADE-COMMAND.md next_after. Prior 0.9.0 ship note lives in session-logs/26-07-15-001-0-9-0-doctor-version.md. Run node dist/cli.js check before push."
 }
