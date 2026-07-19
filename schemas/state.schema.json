@@ -73,6 +73,10 @@
       "type": "string",
       "description": "The migrations directory, if the project tracks migrations. No default — a project with no migration concept sets neither this nor migrations_applied."
     },
+    "last_deep_audit": {
+      "type": "string",
+      "description": "The commit (short SHA) that last passed the batch deep audit (adversarial sub-agent review + full e2e + security pass), managed by `casp audit bump`. Everything after it on the branch is unaudited. Optional — a project that doesn't run the batch pass never sets it. It is a production-cutover gate, never a merge gate; `casp check` does not block on it."
+    },
     "notes": {
       "type": "string",
       "description": "Free-form human notes about the current state. Not validated."

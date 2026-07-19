@@ -115,6 +115,12 @@ export interface State {
   phases_shipped?: string[];
   phases_queued?: string[];
   migrations_applied?: string[];
+  // The commit that last passed the batch deep audit (`/audit-batch`): adversarial
+  // sub-agent review + full e2e + security pass. Everything after it on the branch
+  // is unaudited. OPTIONAL — a project that doesn't run the batch pass never sets
+  // it. Managed by `casp audit bump`, read by `casp audit status`. Never a merge
+  // gate; a production-cutover gate.
+  last_deep_audit?: string;
   // All three are OPTIONAL. sessions_dir / logs_dir default to the protocol's
   // canonical layout; a project that keeps that layout sets neither. migrations
   // has no default — a project with no migration concept reports none.

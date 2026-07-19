@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 — 2026-07-19
+
+Two-tier verification pass. One new command (`audit`) makes it a minor bump; everything is additive and backward-compatible — no existing finding changes verdict, `casp check` does not gain a rule, the `check --json` schema stays v1, and every prior test stays green (92 total).
+
+- **New — `casp audit`, the deep-audit watermark.** CASP now names the boundary between two verification tiers that were being conflated. The **cheap per-merge tier** — `fmt` + typecheck + lint + the touched module's own tests — is gated by `casp check` and runs every session; it is the only thing standing between a refactor and an irreversible bug (money, cross-tenant). The **expensive holistic tier** — an adversarial sub-agent audit + the full e2e battery + a security review — is slow and token-heavy, so it runs in **batch, on demand, over everything merged since the last one**, never per session. `casp audit status` prints the unaudited range `last_deep_audit..HEAD` (commit + file counts, `--json` for data); `casp audit bump [<sha>]` records HEAD (or a given commit) as deep-audited. A new optional `last_deep_audit` state field (short SHA) holds the watermark. **It is a production-cutover gate, never a merge gate: `casp check` does not block on it** — a stale watermark delays a deploy, it never blocks a commit. `bump` resolves its ref through injection-safe git (`gitArgs`) and refuses a non-commit; `status` treats a rebased-away watermark as orphaned and asks for a re-baseline. Managed end-to-end by the new `/audit-batch` skill (`skills/audit-batch`), which scopes the review from `audit status`, runs the battery + auditor once over the range diff, and bumps the watermark only on GO.
+- **Motivation.** Running the holistic pass every session was turning a ~7-minute close into ~40 minutes of largely duplicated or batchable work (a full local `verify` CI already re-runs, a token-heavy sub-agent audit, a full e2e battery). Separating the tiers keeps the irreversible-bug gate on every merge while letting the semantic/security/e2e risk accumulate safely behind an explicit, queryable watermark that must clear before a cutover.
+- **Schema — `last_deep_audit` documented** in `schemas/state.schema.json` (optional; a project that never runs the batch pass never sets it). Fully additive.
+- **Five new regression tests** (92 total): status with no watermark (whole tree unaudited) / bump writes HEAD and status then reports up to date / status counts commits + files since the watermark / bump on a bogus ref exits 1 and leaves state untouched / unknown subcommand exits 1.
+
 ## 0.9.0 — 2026-07-15
 
 DX + machine-handoff pass. Two new commands (`doctor`, `version`) make it a minor bump; everything is additive and backward-compatible — no existing finding changes verdict, the `check --json` schema stays v1, and every prior test stays green.

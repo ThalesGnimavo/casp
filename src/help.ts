@@ -171,6 +171,22 @@ const COMMANDS: CmdHelp[] = [
     ]
   },
   {
+    name: 'audit',
+    summary: 'Track the deep-audit watermark — what is unaudited since the last batch pass',
+    blurb:
+      'Separates cheap per-merge proof (gated by check, every session) from the ' +
+      'expensive batch pass (adversarial sub-agent audit + full e2e + security ' +
+      'review, on demand). `status` shows last_deep_audit..HEAD; `bump` records ' +
+      'HEAD as deep-audited. A production-cutover gate, never a merge gate — the ' +
+      '`/audit-batch` skill drives it.',
+    usage: ['casp audit status [--json]', 'casp audit bump [<sha>]'],
+    flags: [['--json', 'Emit the status as data (status subcommand)']],
+    examples: [
+      ['casp audit status', 'what is unaudited before a cutover?'],
+      ['casp audit bump', 'record HEAD as deep-audited (after a GO)']
+    ]
+  },
+  {
     name: 'rules',
     summary: 'List the verification rules casp check enforces',
     blurb:
