@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-06-17 (session 26-06-17-003).
+> **Updated** : 2026-07-20 (session 26-07-20-001).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.7.0 shipped — `casp help` first-class + per-command help.** `casp help` exits 0 (was unknown-command exit 1); `casp help <command>` and `casp <command> --help` print a focused per-command block for all 11 verbs; top-level help gains a `THE LOOP` section; unknown commands degrade gracefully. 63/63 tests. Tooling ergonomics only — `casp check` semantics unchanged. **Not yet published to npm** (`npm publish` is a separate CEO-gated act). **Next is `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md`** — lead the wedge with "the deterministic floor of the self-verification loop" (multi-repo copy; settle wording in private-docs before propagating). `check-shipped-log` (verdict-changing protocol slice) follows.
+**0.10.0 shipped + published to npm — `casp audit`, the deep-audit watermark** (`audit status` / `audit bump`, optional `last_deep_audit` state field, `/audit-batch` skill; a production-cutover gate, never a merge gate — `casp check` gains no rule). 92/92 tests. The cockpit itself drifted around that release (shipped 2026-07-19 with no log, no state bump) and was **regularized on 2026-07-20** — see `session-logs/26-07-20-001-regularize-0-10-0-and-queue-facts-layer.md`. **Next is `PHASE-CHECK-SHIPPED-LOG.md`** (verdict-changing protocol slice), then the newly queued `facts-layer` (opt-in `casp/facts.json`, six deterministic `CASP-FACT` rules — prove freshness, not truth), then `upgrade-command`.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-POSITIONING-DETERMINISTIC-FLOOR.md`. Read the private-docs positioning canon (`casp-positioning-autonomous-model-era.md`) before touching any copy.
+`casp next` → opens `PHASE-CHECK-SHIPPED-LOG.md`. Its non-negotiable: settle the deterministic `phases_shipped[]` ↔ session-log mapping + the backfill-without-lying rule BEFORE coding — no fuzzy matching, no guessing.
 
 ### 1 hour
 
-Settle the new wedge wording in `private-docs/` FIRST — "the deterministic floor of the self-verification loop". Not a blind find-replace of "gate"; the validate-not-store / deterministic-not-probabilistic contrast must survive.
+Start `check-shipped-log` for real: the mapping decision, the pre-adoption behavior (must not redden existing repos), then the rule + tests.
 
 ### Half a day
 
-Propagate the settled wording across the README, the homepage-content source, and the roadmap copy — multi-repo, but core copy and site copy stay consistent. Honor the naming canon (never "memory", no superlatives, model-agnostic in evergreen copy).
+Ship `check-shipped-log` end to end (rule, tests, docs/rules.md, CHANGELOG), close the loop, and re-point `next_prompt` at `PHASE-FACTS-LAYER.md`.
 
 ---
 
@@ -32,8 +32,9 @@ Propagate the settled wording across the README, the homepage-content source, an
 
 These items are NOT on the Next-3 (still or newly) :
 
-- **`project_kind` / multi-track state** — cut/refused in the 0.4 discussion; multi-track is one cockpit per track + `check --all`, no new schema.
+- **`facts-layer` implementation** — queued AFTER `check-shipped-log`; the prompt is drafted and sequenced, don't start it early.
 - **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; split + CEO trigger before any of it runs.
+- **`casp chain <N>`** — parked, gated on real-marathon evidence (see roadmap).
 - **`casp lint`** — cut for good.
 
 ---
@@ -41,7 +42,7 @@ These items are NOT on the Next-3 (still or newly) :
 ## Constraints active today
 
 - `npm publish` is a separate CEO-gated act — never bundled into a routine feature session.
-- This is a **public** repo: session logs + `state.json` `notes` stay technical-only (CHANGELOG register). Private context goes to `private-docs/` (see `casp-sh/CLAUDE.md` §3).
+- This is a **public** repo: session logs, phase prompts + `state.json` `notes` stay technical-only (CHANGELOG register). Private context goes to `private-docs/` (see `casp-sh/CLAUDE.md` §3).
 - `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 
 ---

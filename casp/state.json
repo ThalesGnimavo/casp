@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-07-18",
-  "last_session_id": "26-07-18-001-queue-upgrade-command",
-  "last_commit": "714cfe5",
-  "current_phase": "0.9.0-doctor-version",
+  "updated_at": "2026-07-20",
+  "last_session_id": "26-07-20-001-regularize-0-10-0-and-queue-facts-layer",
+  "last_commit": "c88789b",
+  "current_phase": "0.10.0-audit-watermark",
   "next_phase": "check-shipped-log",
   "next_prompt": "docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md",
   "phases_shipped": [
@@ -25,13 +25,15 @@
     "positioning-deterministic-floor",
     "positioning-subwedge-site",
     "0.8.0-hardening-rule-codes",
-    "0.9.0-doctor-version"
+    "0.9.0-doctor-version",
+    "0.10.0-audit-watermark"
   ],
   "phases_queued": [
     "check-shipped-log",
+    "facts-layer",
     "upgrade-command",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "Queue edit (state surface only, no code change). upgrade-command promoted phases_backlog → phases_queued, sequenced after check-shipped-log and before demand-gated-tail (decision 2026-07-18); PHASE-UPGRADE-COMMAND.md (drafted 2026-07-17: non-destructive scaffold refresh, additive state.json version stamp, doctor staleness WARN) now committed. PHASE-CHECK-SHIPPED-LOG.md next_after refreshed from a stale 26-06-17-002 value. Roadmap tables reconciled with phases_shipped (positioning-deterministic-floor, positioning-subwedge-site, 0.8.0, 0.9.0 marked shipped in the scoreboard). next_prompt unchanged: PHASE-CHECK-SHIPPED-LOG.md stays the next product slice; its close re-points PHASE-UPGRADE-COMMAND.md next_after. Prior 0.9.0 ship note lives in session-logs/26-07-15-001-0-9-0-doctor-version.md. Run node dist/cli.js check before push."
+  "notes": "Régularisation 2026-07-20 : 0.10.0 (casp audit, livré le 2026-07-19 et publié sur npm) avait été shippé sans trace cockpit — phases_shipped, current_phase, now.md et le scoreboard sont désormais à jour ; log rétrospectif session-logs/26-07-19-001-0-10-0-audit-watermark.md, reconstruit depuis l'entrée de CHANGELOG et le diff réel de f682356, rien d'inventé. Cette dérive (cockpit structurellement valide, sémantiquement en retard) est exactement la classe que la phase facts-layer adresse ; son premier fait déclaré sera released-version, source package.json. Queue : facts-layer ajouté après check-shipped-log et avant upgrade-command (décision 2026-07-20) — PHASE-FACTS-LAYER.md répond à un incident réel du 2026-07-20 sur un cockpit de production : cinq affirmations périmées et coûteuses, toutes invisibles pour casp check parce qu'aucune n'était une dérive d'état. Nouvelle primitive opt-in casp/facts.json + six règles CASP-FACT-001..006 (hash de source, TTL, provenance de méthode, registre de pièges statique) ; zéro LLM, la ligne rouge du README tient. Placée avant upgrade-command parce qu'elle répond à un incident démontré alors qu'upgrade-command est de l'ergonomie — inverser si désaccord. Historique : upgrade-command promu backlog -> queued le 2026-07-18, séquencé après check-shipped-log. next_prompt inchangé : PHASE-CHECK-SHIPPED-LOG.md reste la prochaine tranche produit. Run node dist/cli.js check before push."
 }
