@@ -54,7 +54,11 @@ roll-ups, dashboards — anything that wants the state without scraping ANSI tex
     "pass": 15,
     "warn": 0,
     "fail": 0
-  }
+  },
+  "queue": [
+    "docs/plan/sessions/PHASE-NEXT-PRESESSION-GATE.md",
+    "docs/plan/sessions/PHASE-STATUS-JSON.md"
+  ]
 }
 ```
 
@@ -69,6 +73,14 @@ roll-ups, dashboards — anything that wants the state without scraping ANSI tex
   file (`queued` / `shipped` / …), or `null` when the file is missing.
 - **`check`** — the in-process validator verdict. `--no-git` propagates to it,
   skipping the git-dependent checks.
+- **`queue`** *(added 0.13.0, additive — the schema stays v1)* — the resolved
+  `next_after` chain as repo-relative prompt paths, **head first**, so an agent
+  can plan more than one session ahead. `null` when the chain is not adopted
+  (no queued prompt declares a `next_after`) or not coherent — a dangling
+  reference, a cycle, a fork or an orphan means the order has no single answer,
+  and `status` reports no order rather than a guessed one. The chain's integrity
+  is `casp check`'s business (`CASP-PROMPT-007` … `010`); `status` still exits
+  `0` either way.
 
 ## Roadmap note — `status --all`
 

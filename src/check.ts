@@ -18,6 +18,7 @@ import { basename, join, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, gitArgs, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
 import { ruleFor } from './rules.js';
+import { analyzeChain } from './chain.js';
 
 type Severity = 'pass' | 'warn' | 'fail';
 
@@ -200,7 +201,21 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
 
   /* 2. next_prompt resolves --------------------------------------------- */
 
-  if (state.next_prompt) {
+  // A non-string next_prompt (a number, a list, an object — state.json accepts
+  // any JSON) used to reach join() and throw ERR_INVALID_ARG_TYPE, taking the
+  // WHOLE report down with a raw stack trace: the gate crashed instead of
+  // reporting drift. Same class as the scalar-state.json crash fixed in 0.12.1.
+  // A value that is not a path is a shape error, and shape errors are findings.
+  if (state.next_prompt !== undefined && state.next_prompt !== null && typeof state.next_prompt !== 'string') {
+    record(
+      'next_prompt.exists',
+      'fail',
+      'state.json.next_prompt is not a string',
+      `next_prompt is a ${Array.isArray(state.next_prompt) ? 'list' : typeof state.next_prompt} — it must be a repo-relative path, or null when there is no queued next slice`,
+      'set next_prompt to a path like "docs/plan/sessions/PHASE-<slug>.md", or to null',
+      { expected: 'a repo-relative path (or null)', actual: JSON.stringify(state.next_prompt) }
+    );
+  } else if (state.next_prompt) {
     const path = join(root, state.next_prompt);
     if (!existsSync(path)) {
       record(
@@ -688,6 +703,92 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         'every shipped prompt has a session_log pointer',
         ''
       );
+    }
+  }
+
+  /* 7b. Prompt-chain integrity (opt-in via `next_after`) ------------------ */
+
+  // The queue is the product's second half: you plan a run of prompts once and
+  // execute one slice per session. Everything above validates the HEAD of that
+  // queue and the integrity of what already shipped — nothing validated the
+  // ordering of what has not run yet. These four findings do.
+  //
+  // ADOPTION IS DERIVED, never configured (no new state key). `next_after` is a
+  // declaration like `phase:` in a session log: the canonical template ships a
+  // literal placeholder, so an unedited value is not a claim and produces
+  // nothing. A repo where no queued prompt declares a real predecessor gets no
+  // finding at all — silence, exactly as CASP-SESSION-003 stays silent where no
+  // log declares a phase. Shipped prompts are resolution targets, never
+  // subjects: history is not re-litigated.
+  //
+  // Severity split: a dangling reference and a cycle are claims that CANNOT be
+  // true — the plan is unexecutable as written, so they gate. A fork or an
+  // orphan is AMBIGUOUS rather than false, and a deliberate parking lot of
+  // queued-but-unchained prompts is a legitimate way to work; reddening it
+  // would punish a real workflow.
+  {
+    const chain = analyzeChain(root, state, dirs);
+    if (chain && chain.adopted) {
+      const skipped =
+        chain.skipped > 0
+          ? ` (${chain.skipped} queued prompt(s) declare no next_after — not a claim, skipped)`
+          : '';
+
+      for (const d of chain.dangling) {
+        record(
+          `prompt_chain.dangling.${d.rel}`,
+          'fail',
+          'next_after names a slice that resolves to nothing',
+          `${d.rel} → '${d.value}' matches no prompt, session log, or phase id`,
+          `point next_after at an existing prompt slug, session id, or phase id — or remove the key`,
+          { expected: 'a resolvable slice', actual: d.value }
+        );
+      }
+
+      for (const ring of chain.cycles) {
+        const shown = ring.length === 1 ? `${ring[0]} → itself` : `${ring.join(' → ')} → ${ring[0]}`;
+        record(
+          `prompt_chain.cycle.${ring[0]}`,
+          'fail',
+          'the next_after chain contains a cycle',
+          shown,
+          'break the ring — no linear execution can satisfy it'
+        );
+      }
+
+      for (const f of chain.forks) {
+        record(
+          `prompt_chain.fork.${f.target}`,
+          'warn',
+          `${f.rels.length} queued prompts declare the same predecessor`,
+          `next_after: '${f.target}' — claimed by ${f.rels.join(', ')}`,
+          'chain them in sequence so "what runs after that slice" has one answer'
+        );
+      }
+
+      for (const rel of chain.orphans) {
+        record(
+          `prompt_chain.orphan.${rel}`,
+          'warn',
+          'a queued prompt is unreachable from next_prompt',
+          `${rel} declares a predecessor but no chain from the head reaches it`,
+          'chain it onto the queue, or leave next_after unset to park it deliberately'
+        );
+      }
+
+      if (
+        chain.dangling.length === 0 &&
+        chain.cycles.length === 0 &&
+        chain.forks.length === 0 &&
+        chain.orphans.length === 0
+      ) {
+        record(
+          'prompt_chain.coherent',
+          'pass',
+          'the queued next_after chain is coherent',
+          `${chain.declaring} chained prompt(s)${skipped}`
+        );
+      }
     }
   }
 

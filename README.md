@@ -74,7 +74,7 @@ docs/plan/sessions/
 
 `state.json.next_prompt` points at the head of that queue. Your agent's whole session-start ritual becomes one command, and the *plan itself* lives in the repo — reviewable in a PR, diffable, and readable by whatever model you use next month.
 
-**What makes it trustworthy is that the queue is validated, not merely stored.** Before handing over a prompt, `casp check` proves the head of the queue is real:
+**What makes it trustworthy is that the queue is validated, not merely stored.** Before handing over a prompt, `casp check` proves the head of the queue is real — and that the line behind it is an order you can actually execute:
 
 | Rule | What it refuses to let past |
 |---|---|
@@ -82,11 +82,17 @@ docs/plan/sessions/
 | `CASP-PROMPT-003` | `next_prompt` is a slice that **already shipped** — the classic re-do-last-week's-work bug |
 | `CASP-PROMPT-005` | A shipped prompt with no session log to show for it |
 | `CASP-PROMPT-006` | A prompt whose `status` isn't one of the canonical values |
+| `CASP-PROMPT-007` | A `next_after` naming a slice that exists nowhere in the repo |
+| `CASP-PROMPT-008` | A cycle — A after B, B after A — that no linear execution can satisfy |
+| `CASP-PROMPT-009` | Two queued prompts claiming the same predecessor, so the order has two answers *(warn)* |
+| `CASP-PROMPT-010` | A queued prompt no chain reaches, which will simply never run *(warn)* |
 | `CASP-SESSION-003` | A phase on the shipped scoreboard that no session log declares |
 
-So the queue can't quietly rot into fiction: a prompt that lies about being queued, or a scoreboard that claims more than the written record supports, fails the gate and blocks the push.
+So the queue can't quietly rot into fiction: a prompt that lies about being queued, a plan whose order is unexecutable, or a scoreboard that claims more than the written record supports fails the gate and blocks the push.
 
-**Scope, stated honestly:** CASP does not run your sessions. `casp next` is a printer — it prints the next prompt and never executes anything, by design ([see what this is NOT](#what-this-is-not)). The autopilot is your agent; CASP is the part that makes the handoff worth trusting. The `next_after` chain is a convention the canonical template carries so a human can read the order at a glance — the validator enforces the *head* of the queue and the integrity of what's already shipped, not the ordering of what hasn't run yet.
+The chain rules are **opt-in, derived from your files** — no key to configure. The template ships `next_after` as a placeholder, so a repo that never fills one in gets no finding at all; the first real declaration switches the category on. Once the chain is coherent, `casp status --json` hands your agent the whole resolved order, head first.
+
+**Scope, stated honestly:** CASP does not run your sessions. `casp next` is a printer — it prints the next prompt and never executes anything, by design ([see what this is NOT](#what-this-is-not)). The autopilot is your agent; CASP is the part that makes the handoff worth trusting. It proves the plan is *executable*; it never decides what the plan should be.
 
 ---
 

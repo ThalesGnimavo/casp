@@ -124,6 +124,48 @@ export const RULES: Rule[] = [
     matches: (id) => id === 'prompts.status_values'
   },
   {
+    code: 'CASP-PROMPT-007',
+    title: 'next_after resolves to a real slice',
+    area: 'PROMPT',
+    verifies:
+      'Every queued prompt that declares a `next_after` names a slice that exists: a prompt in the sessions directory (by filename stem, its lowercase form, or its slug with the scaffold’s PHASE- prefix removed), a session id that maps to a log, or a phase id declared by state. A dangling reference makes the plan unexecutable as written, so it gates. Adoption is derived from the data: `next_after` is optional, and an unedited template placeholder, an empty value or null is not a declaration and produces no finding.',
+    evidence:
+      'The `next_after` frontmatter of each queued prompt, resolved against the sessions directory, the logs directory and state’s phase vocabulary. Filenames are never fuzzy-matched — every identity is an exact string after a documented normalization.',
+    remediation:
+      'Point next_after at an existing prompt slug, session id, or phase id — or remove the key to park the prompt.',
+    matches: (id) => id.startsWith('prompt_chain.dangling.') || id === 'prompt_chain.coherent'
+  },
+  {
+    code: 'CASP-PROMPT-008',
+    title: 'The next_after chain is acyclic',
+    area: 'PROMPT',
+    verifies:
+      'The queued prompts’ `next_after` references form no ring — including a prompt naming itself. A cycle is a claim that cannot be true: no linear execution satisfies it, so it gates.',
+    evidence: 'The predecessor graph built from the `next_after` frontmatter of queued prompts.',
+    remediation: 'Break the ring — one of the prompts in it must run first.',
+    matches: (id) => id.startsWith('prompt_chain.cycle.')
+  },
+  {
+    code: 'CASP-PROMPT-009',
+    title: 'No two queued prompts claim the same predecessor',
+    area: 'PROMPT',
+    verifies:
+      'At most one queued prompt declares any given `next_after` target, so "what runs after that slice" has exactly one answer. Advisory (WARN): a fork is ambiguous, not false.',
+    evidence: 'The `next_after` values of every queued prompt, grouped by target.',
+    remediation: 'Chain the prompts in sequence instead of hanging both off the same predecessor.',
+    matches: (id) => id.startsWith('prompt_chain.fork.')
+  },
+  {
+    code: 'CASP-PROMPT-010',
+    title: 'Every chained queued prompt is reachable from next_prompt',
+    area: 'PROMPT',
+    verifies:
+      'A queued prompt that declares a `next_after` is reachable by following the chain forward from state.next_prompt — otherwise it will simply never run. Advisory (WARN): a deliberate parking lot of queued prompts is a legitimate way to work, and a prompt with no `next_after` is parked by definition and never reported.',
+    evidence: 'The successor graph walked from the prompt named by state.next_prompt.',
+    remediation: 'Chain it onto the queue, or leave next_after unset to park it deliberately.',
+    matches: (id) => id.startsWith('prompt_chain.orphan.')
+  },
+  {
     code: 'CASP-SESSION-001',
     title: 'last_session_id maps to a session log',
     area: 'SESSION',

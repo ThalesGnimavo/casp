@@ -4,8 +4,18 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { c, git, loadState, pkgVersion, readFrontmatter, setColor, type State } from './shared.js';
+import {
+  c,
+  git,
+  loadState,
+  pkgVersion,
+  readFrontmatter,
+  resolveDirs,
+  setColor,
+  type State
+} from './shared.js';
 import { checkOne, summarize } from './check.js';
+import { analyzeChain } from './chain.js';
 
 const ROOT = process.cwd();
 const STATE = join(ROOT, 'casp', 'state.json');
@@ -53,6 +63,9 @@ function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
   const findings = checkOne(ROOT, { noGit: opts.noGit });
   const sum = summarize(findings);
 
+  const chain = analyzeChain(ROOT, state, resolveDirs(ROOT, state));
+  const chainOrder = chain?.order ?? null;
+
   const report = {
     schema_version: STATUS_SCHEMA_VERSION,
     casp_version: pkgVersion(),
@@ -79,7 +92,12 @@ function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
       pass: sum.pass,
       warn: sum.warn,
       fail: sum.fail
-    }
+    },
+    // The resolved queue order, head first — useful to an agent planning more
+    // than one session ahead. Additive (schema stays v1), and NEVER gating:
+    // `queue` is null when the chain is not adopted or not coherent, and status
+    // still exits 0 either way. The chain's integrity is `check`'s business.
+    queue: chainOrder
   };
   console.log(JSON.stringify(report, null, 2));
   // status reports, it does not gate: a valid cockpit always exits 0, even on drift.
