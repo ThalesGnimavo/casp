@@ -133,7 +133,10 @@ export const RULES: Rule[] = [
       'The `next_after` frontmatter of each queued prompt, resolved against the sessions directory, the logs directory and state’s phase vocabulary. Filenames are never fuzzy-matched — every identity is an exact string after a documented normalization.',
     remediation:
       'Point next_after at an existing prompt slug, session id, or phase id — or remove the key to park the prompt.',
-    matches: (id) => id.startsWith('prompt_chain.dangling.') || id === 'prompt_chain.coherent'
+    matches: (id) =>
+      id.startsWith('prompt_chain.dangling.') ||
+      id === 'prompt_chain.coherent' ||
+      id === 'prompt_chain.scope'
   },
   {
     code: 'CASP-PROMPT-008',

@@ -57,8 +57,13 @@ export interface ChainAnalysis {
   dangling: Array<{ rel: string; value: string }>;
   /** Cycles among queued prompts, each as the ring of repo-relative paths. */
   cycles: string[][];
-  /** Predecessors claimed by more than one queued prompt. */
-  forks: Array<{ target: string; rels: string[] }>;
+  /**
+   * Predecessors claimed by more than one queued prompt. `target` is the
+   * canonical name of the shared slice; each claim carries the spelling that
+   * prompt actually used, because two claims can differ textually and still be
+   * the same target.
+   */
+  forks: Array<{ target: string; claims: Array<{ rel: string; value: string }> }>;
   /** Declaring queued prompts no chain from `next_prompt` reaches. */
   orphans: string[];
   /**
@@ -143,10 +148,23 @@ function readPrompts(root: string, sessionsAbs: string): ChainPrompt[] {
 }
 
 /**
+ * What an identity resolves TO. `node` is the queued prompt an edge points at,
+ * or null for a terminal (a shipped prompt, a session log, a phase id).
+ *
+ * `key` is the CANONICAL name of the target, and it is the load-bearing field:
+ * a single slice answers to several identities, so two prompts can declare the
+ * same predecessor in different spellings — `PHASE-A` and `phase-a`. Keying
+ * anything on the raw `next_after` string would miss that they are one target.
+ */
+interface Resolved {
+  node: ChainPrompt | null;
+  key: string;
+}
+
+/**
  * Every identity a `next_after` may legitimately resolve to, mapped to the
- * queued prompt it names (or null when it names a terminal — a shipped prompt,
- * a session log, or a phase id). The evidence is exactly what the rest of the
- * validator already reads:
+ * slice it names. The evidence is exactly what the rest of the validator
+ * already reads:
  *
  *   - a PROMPT identity (the three exact forms above), from sessions_dir;
  *   - a SESSION ID that maps to a session log — the CASP-SESSION-001 resolver,
@@ -158,19 +176,23 @@ function buildResolver(
   prompts: ChainPrompt[],
   state: State,
   dirs: ResolvedDirs
-): Map<string, ChainPrompt | null> {
-  const resolver = new Map<string, ChainPrompt | null>();
+): Map<string, Resolved> {
+  const resolver = new Map<string, Resolved>();
 
-  // Phase ids and session logs are terminals — recorded first so a prompt
-  // identity always wins the slot (a chain edge is more specific than a name).
+  // Phase ids and session logs are terminals. Each is its own canonical key —
+  // it answers to exactly one spelling, so there is nothing to alias. They are
+  // recorded first so the prompt tiers below can overwrite them.
+  const terminal = (v: string): void => {
+    resolver.set(v, { node: null, key: v });
+  };
   for (const key of ['current_phase', 'next_phase'] as const) {
     const v = state[key];
-    if (typeof v === 'string' && v.trim()) resolver.set(v.trim(), null);
+    if (typeof v === 'string' && v.trim()) terminal(v.trim());
   }
   for (const key of ['phases_shipped', 'phases_queued'] as const) {
     const arr = state[key];
     if (!Array.isArray(arr)) continue;
-    for (const p of arr) if (typeof p === 'string' && p.trim()) resolver.set(p.trim(), null);
+    for (const p of arr) if (typeof p === 'string' && p.trim()) terminal(p.trim());
   }
   try {
     for (const entry of readdirSync(dirs.logsAbs)) {
@@ -180,7 +202,7 @@ function buildResolver(
       } catch {
         continue;
       }
-      resolver.set(basename(entry, '.md'), null);
+      terminal(basename(entry, '.md'));
     }
   } catch {
     /* no logs dir — CASP-SESSION-002 reports that; here it is simply no evidence */
@@ -198,7 +220,9 @@ function buildResolver(
       const id = p.identities[tier];
       if (id === undefined) continue;
       const queued = p.status === 'queued' || p.status === 'in-progress';
-      resolver.set(id, queued ? p : null);
+      // Every identity of a prompt shares ONE canonical key — its path. That is
+      // what makes `PHASE-A` and `phase-a` recognisable as the same predecessor.
+      resolver.set(id, { node: queued ? p : null, key: p.rel });
     }
   }
   return resolver;
@@ -244,13 +268,19 @@ export function analyzeChain(
   // `predecessor` maps a declaring queued prompt to the queued prompt it runs
   // after (null when it terminates on a shipped slice, a log, or a phase id).
   const predecessor = new Map<string, ChainPrompt | null>();
+  // The canonical key of what each declaring prompt runs after — the identity
+  // its several spellings collapse to. Fork detection keys on this, never on
+  // the raw string.
+  const target = new Map<string, string>();
   for (const p of declaring) {
     const value = p.nextAfter as string;
-    if (!resolver.has(value)) {
+    const hit = resolver.get(value);
+    if (!hit) {
       analysis.dangling.push({ rel: p.rel, value });
       continue;
     }
-    predecessor.set(p.rel, resolver.get(value) ?? null);
+    predecessor.set(p.rel, hit.node);
+    target.set(p.rel, hit.key);
   }
 
   /* 2. Cycles — a ring no linear execution can satisfy. ------------------- */
@@ -283,17 +313,28 @@ export function analyzeChain(
 
   /* 3. Forks — two queued prompts claiming the same predecessor. ---------- */
 
-  const claims = new Map<string, string[]>();
+  // Keyed on the RESOLVED target, not on the spelling: `next_after: PHASE-A`
+  // and `next_after: phase-a` name one slice, so they are one fork. Keying on
+  // the raw string missed exactly that, and a missed fork let `coherent` go
+  // true — which made `status --json`'s `queue` publish a linear order that the
+  // frontmatter did not support.
+  const claims = new Map<string, Array<{ rel: string; value: string }>>();
   for (const p of declaring) {
-    if (analysis.dangling.some((d) => d.rel === p.rel)) continue;
-    const value = p.nextAfter as string;
-    const list = claims.get(value) ?? [];
-    list.push(p.rel);
-    claims.set(value, list);
+    const key = target.get(p.rel);
+    if (key === undefined) continue; // dangling — already reported
+    const list = claims.get(key) ?? [];
+    list.push({ rel: p.rel, value: p.nextAfter as string });
+    claims.set(key, list);
   }
-  for (const [target, rels] of claims) {
-    if (rels.length > 1) analysis.forks.push({ target, rels: rels.sort() });
+  for (const [key, list] of claims) {
+    if (list.length > 1) {
+      analysis.forks.push({
+        target: key,
+        claims: [...list].sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
+      });
+    }
   }
+  analysis.forks.sort((a, b) => (a.target < b.target ? -1 : a.target > b.target ? 1 : 0));
 
   /* 4. Reachability — a declaring prompt no chain from the head reaches. --- */
 
@@ -328,8 +369,13 @@ export function analyzeChain(
     };
     walk(headRel as string);
 
+    // A prompt inside a ring is unreachable BECAUSE of the ring, which is
+    // already reported as a FAIL. Adding a WARN per ring member restates one
+    // defect N times — the same noise the missing-head guard above refuses.
+    const inCycle = new Set(analysis.cycles.flat());
     for (const p of declaring) {
       if (analysis.dangling.some((d) => d.rel === p.rel)) continue;
+      if (inCycle.has(p.rel)) continue;
       if (!reachable.has(p.rel)) analysis.orphans.push(p.rel);
     }
     analysis.orphans.sort();

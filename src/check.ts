@@ -757,11 +757,20 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
       }
 
       for (const f of chain.forks) {
+        // Show each claimant's own spelling: two prompts can name one slice
+        // differently ('PHASE-A' and 'phase-a'), and a message that printed
+        // only the canonical name would look like the operator wrote something
+        // they never wrote.
+        const spellings = [...new Set(f.claims.map((x) => x.value))];
+        const how =
+          spellings.length > 1
+            ? f.claims.map((x) => `${x.rel} (as '${x.value}')`).join(', ')
+            : f.claims.map((x) => x.rel).join(', ');
         record(
           `prompt_chain.fork.${f.target}`,
           'warn',
-          `${f.rels.length} queued prompts declare the same predecessor`,
-          `next_after: '${f.target}' — claimed by ${f.rels.join(', ')}`,
+          `${f.claims.length} queued prompts declare the same predecessor`,
+          `${f.target} — claimed by ${how}`,
           'chain them in sequence so "what runs after that slice" has one answer'
         );
       }
@@ -776,19 +785,23 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         );
       }
 
-      if (
+      // The scope line is emitted either way. When the chain is coherent it is
+      // the PASS; when it is not, it still states what was examined and what
+      // was skipped — the count must not vanish exactly when the report is
+      // non-trivial (spec: never silent).
+      const coherent =
         chain.dangling.length === 0 &&
         chain.cycles.length === 0 &&
         chain.forks.length === 0 &&
-        chain.orphans.length === 0
-      ) {
-        record(
-          'prompt_chain.coherent',
-          'pass',
-          'the queued next_after chain is coherent',
-          `${chain.declaring} chained prompt(s)${skipped}`
-        );
-      }
+        chain.orphans.length === 0;
+      record(
+        coherent ? 'prompt_chain.coherent' : 'prompt_chain.scope',
+        'pass',
+        coherent
+          ? 'the queued next_after chain is coherent'
+          : 'the queued next_after chain was checked',
+        `${chain.declaring} chained prompt(s)${skipped}`
+      );
     }
   }
 

@@ -376,6 +376,123 @@ test('two queued prompts sharing a predecessor WARN, and do not block the push',
   }
 });
 
+test('an ALIASED fork is detected — two spellings of one slice are one predecessor', () => {
+  // The blocker an adversarial review caught after 0.13.0 was first assembled.
+  // Fork detection keyed on the raw `next_after` string, so `PHASE-A` and
+  // `phase-a` looked like two different predecessors: the WARN was missed, the
+  // chain was declared coherent, and `status --json`'s `queue` then published a
+  // LINEAR ORDER the frontmatter did not support — a false machine-readable
+  // claim, worse than the missed warning.
+  const { dir } = scaffold([
+    ['PHASE-A', QUEUED],
+    ['PHASE-B', `${QUEUED}\nnext_after: PHASE-A`],
+    ['PHASE-C', `${QUEUED}\nnext_after: phase-a`]
+  ]);
+  try {
+    const { status, report } = checkJson(dir);
+    assert.equal(status, 0, 'a fork is advisory, not a gate');
+    const f = report.findings.find((x) => x.id.startsWith('prompt_chain.fork.'));
+    assert.ok(f, 'the alias must be recognised as one target');
+    assert.equal(f.rule, 'CASP-PROMPT-009');
+    assert.match(f.detail, /as 'PHASE-A'/, "each claimant's own spelling is shown");
+    assert.match(f.detail, /as 'phase-a'/);
+    assert.ok(
+      !report.findings.some((x) => x.id === 'prompt_chain.coherent'),
+      'an unresolved fork means the chain is not coherent'
+    );
+
+    const s = JSON.parse(run(dir, 'status', '--json').stdout);
+    assert.equal(s.queue, null, 'no order is published when the order is ambiguous');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('the slug spelling aliases too (PHASE-A vs a bare a)', () => {
+  const { dir } = scaffold([
+    ['PHASE-A', QUEUED],
+    ['PHASE-B', `${QUEUED}\nnext_after: PHASE-A`],
+    ['PHASE-C', `${QUEUED}\nnext_after: a`]
+  ]);
+  try {
+    const { report } = checkJson(dir);
+    assert.ok(report.findings.some((f) => f.id.startsWith('prompt_chain.fork.')));
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('a cycle does not also emit an orphan WARN per ring member', () => {
+  // One defect must be reported once. Ring members are unreachable BECAUSE of
+  // the ring, which already FAILs — the same principle the missing-head guard
+  // honours.
+  const { dir } = scaffold([
+    ['PHASE-A', QUEUED],
+    ['PHASE-B', `${QUEUED}\nnext_after: PHASE-C`],
+    ['PHASE-C', `${QUEUED}\nnext_after: PHASE-B`]
+  ]);
+  try {
+    const { report } = checkJson(dir);
+    assert.equal(
+      report.findings.filter((f) => f.id.startsWith('prompt_chain.cycle.')).length,
+      1
+    );
+    assert.deepEqual(
+      ids(report).filter((id) => id.startsWith('prompt_chain.orphan.')),
+      [],
+      'the ring is the finding; its members are not each a second one'
+    );
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('the skipped count is stated even when the chain is NOT coherent', () => {
+  // It used to live only in the PASS line, so it vanished exactly when the
+  // report was non-trivial. Spec: never silent.
+  const { dir } = scaffold([
+    ['PHASE-A', QUEUED],
+    ['PHASE-PARKED', QUEUED],
+    ['PHASE-B', `${QUEUED}\nnext_after: gone`]
+  ]);
+  try {
+    const { status, report } = checkJson(dir);
+    assert.equal(status, 1);
+    const scope = report.findings.find((f) => f.id === 'prompt_chain.scope');
+    assert.ok(scope, 'a scope line is emitted alongside the failure');
+    assert.equal(scope.rule, 'CASP-PROMPT-007');
+    assert.match(scope.detail, /2 queued prompt\(s\) declare no next_after/);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('identity precedence is a pure function of the filenames, not of readdir order', () => {
+  // `A.md` and `PHASE-A.md` both answer to the slug `a`. The exact stem must
+  // win in both creation orders, or the same repo chains differently on two
+  // filesystems.
+  const orders = [
+    [['A', QUEUED], ['PHASE-A', QUEUED]],
+    [['PHASE-A', QUEUED], ['A', QUEUED]]
+  ];
+  const results = orders.map(([first, second]) => {
+    const { dir } = scaffold([
+      ['PHASE-HEAD', QUEUED],
+      first,
+      second,
+      ['PHASE-Z', `${QUEUED}\nnext_after: A`]
+    ]);
+    try {
+      return JSON.stringify(
+        checkJson(dir).report.findings.filter((f) => f.id.startsWith('prompt_chain.'))
+      );
+    } finally {
+      cleanup(dir);
+    }
+  });
+  assert.equal(results[0], results[1], 'creation order must not change the verdict');
+});
+
 test('a queued prompt unreachable from next_prompt WARNs, and does not block the push', () => {
   const { dir } = scaffold([
     ['PHASE-A', QUEUED],

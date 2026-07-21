@@ -176,11 +176,66 @@ corrected in this release, and the chain now resolves in that order.
 Worth stating plainly: the rule's first action was to find a defect in the
 repository that wrote it.
 
+## The review, and the blocker it caught after the first push
+
+The commissioned adversarial review of this slice was late — the first commit and
+push went out without it, on the strength of three priority checks re-run by hand.
+It returned afterwards with a **GO-WITH-FIXES** and one real blocker, which is the
+argument for commissioning it in the first place.
+
+**The blocker: an aliased fork went undetected, and `status --json` then published
+a false order.**
+
+```
+PHASE-A.md   status: queued
+PHASE-B.md   status: queued   next_after: PHASE-A
+PHASE-C.md   status: queued   next_after: phase-a
+```
+
+Fork detection was keyed on the **raw** `next_after` string — the one site in the
+module that never received the identity treatment applied everywhere else. Two
+spellings of one slice therefore looked like two different predecessors. The
+`CASP-PROMPT-009` WARN was missed; with no fork, no cycle and nothing dangling,
+the chain was declared **coherent**; and `queue` then emitted
+
+```json
+["…/PHASE-A.md", "…/PHASE-B.md", "…/PHASE-C.md"]
+```
+
+which asserts that C runs after B. C declares it runs after A. **That is a false
+machine-readable claim, and it is worse than the missed warning** — a consumer
+reading `queue` has no way to know it is wrong, whereas a missing WARN merely
+leaves them where they started. The one field this release added for agents to
+consume was the one publishing the lie.
+
+Fixed by keying fork detection on the **resolved** target: every identity of a
+slice now shares one canonical key (its path for a prompt, the string itself for a
+terminal). Fork messages also print each claimant's own spelling, so the report
+never shows a canonical name the operator never typed.
+
+Three smaller fixes from the same review, all folded in:
+
+- **A cycle also emitted an orphan WARN per ring member** — 1 FAIL + 2 WARNs for a
+  two-node ring. Ring members are unreachable *because* of the ring, which already
+  FAILs. This contradicted the "one actionable finding, not one warning per queued
+  prompt" principle the missing-head guard already honoured.
+- **The skipped count lived only in the PASS line**, so it disappeared exactly when
+  the report was non-trivial — against the spec's explicit "never silent". A scope
+  line is now emitted either way.
+- A stale comment describing the pre-tiering resolver design.
+
+All four are folded into the `0.13.0` entry rather than a `0.13.1`, because
+`0.13.0` was never published to npm. **Process note:** the push went out before the
+review returned. That is the same mistake 0.12.0 made, and it had the same shape —
+the code was green, the tests passed, and the defect was semantic. The push was
+recoverable here only because nothing was published; had `npm publish` been bundled
+into this session, a false `queue` would have shipped.
+
 ## A pre-existing crash, found by attacking this slice
 
-The commissioned review of this slice never returned a report. The three priority
-checks were therefore re-run by hand — by execution, not by reading — and the
-third found a real defect, outside this slice's scope:
+While the review was outstanding, the three priority checks were re-run by hand —
+by execution, not by reading — and the third found a real defect, outside this
+slice's scope:
 
 `state.json` accepts any JSON. With `next_prompt: 42` — a number, a list, an
 object — section 2 of `checkOne` passed the value straight to `join()`, which
@@ -216,7 +271,7 @@ YAML value treated as a declaration.
 
 ## Tests
 
-**121 → 146.** Twenty-five new, each pinning a reproduced case rather than the
+**121 → 151.** Thirty new, each pinning a reproduced case rather than the
 abstract rule:
 
 never-adopting repo emits not even a PASS line · unedited placeholder produces
