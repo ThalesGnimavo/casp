@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Updated** : 2026-07-20 (session 26-07-20-001).
+> **Updated** : 2026-07-21 (session 26-07-21-001 — 0.11.0 shipped).
 > **Source of truth** : this file + `docs/plan/sessions/*.md` (status frontmatter) + `session-logs/`.
 > **Maintenance rule** : update at the end of every session that ships something or surfaces a blocker.
 > **Note** : the validated order below was approved on 2026-06-10, materialized as drafted prompts. Commit SHAs were re-stamped after the 2026-06-17 history rewrite; reference session-log filenames (stable) over SHAs.
@@ -11,9 +11,8 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | New drift category: every `phases_shipped[]` entry ↔ a session log. **Verdict-changing** — settle the deterministic mapping + the backfill-without-lying rule BEFORE coding, so it cannot redden repos with pre-adoption history. | `docs/plan/sessions/PHASE-CHECK-SHIPPED-LOG.md` | queued |
-| 2 | **Facts layer** — opt-in `casp/facts.json` + six deterministic `CASP-FACT-001..006` rules (source hash, TTL, method provenance, static traps registry): prove a claim's **freshness**, never its truth. Answers a real 2026-07-20 incident (five costly stale claims on a production cockpit, all invisible to `casp check`). Zero LLM — the `casp lint` red line holds. Sequenced 2026-07-20, before `upgrade-command` (incident-driven beats ergonomics — invert if disagreed). | `docs/plan/sessions/PHASE-FACTS-LAYER.md` | queued |
-| 3 | `casp upgrade` — non-destructive scaffold refresh + additive `state.json` version stamp + `doctor` staleness WARN. Dogfooding (2026-07-17) surfaced that a cockpit scaffolded at an older version cannot adopt newer scaffolds: `init` refuses on an existing `casp/`, and `init --force` overwrites data (`state.json`/`now.md`/`roadmap.md`). Sequenced 2026-07-18. | `docs/plan/sessions/PHASE-UPGRADE-COMMAND.md` | queued |
+| 1 | **Facts layer** — opt-in `casp/facts.json` + six deterministic `CASP-FACT-001..006` rules (source hash, TTL, method provenance, static traps registry): prove a claim's **freshness**, never its truth. Answers a real 2026-07-20 incident (five costly stale claims on a production cockpit, all invisible to `casp check`). Zero LLM — the `casp lint` red line holds. Sequenced 2026-07-20, before `upgrade-command` (incident-driven beats ergonomics — invert if disagreed). | `docs/plan/sessions/PHASE-FACTS-LAYER.md` | queued |
+| 2 | `casp upgrade` — non-destructive scaffold refresh + additive `state.json` version stamp + `doctor` staleness WARN. Dogfooding (2026-07-17) surfaced that a cockpit scaffolded at an older version cannot adopt newer scaffolds: `init` refuses on an existing `casp/`, and `init --force` overwrites data (`state.json`/`now.md`/`roadmap.md`). Sequenced 2026-07-18. | `docs/plan/sessions/PHASE-UPGRADE-COMMAND.md` | queued |
 
 If you reach for anything BELOW Next, stop and check why.
 
@@ -39,6 +38,7 @@ If you reach for anything BELOW Next, stop and check why.
 
 | Date | Commit | Title | Notes |
 |------|--------|-------|-------|
+| 2026-07-21 | `0f67e23` | **0.11.0** — `CASP-SESSION-003` : shipped phases declared by a session log | 100/100 tests; first new drift category since rule codes; opt-in by declaration, derived adoption window, pre-adoption history exempt; **not yet published to npm** |
 | 2026-07-19 | `f682356` | **0.10.0** — `casp audit` deep-audit watermark + `/audit-batch` skill | 92/92 tests; published; cockpit bump regularized 2026-07-20 (retrospective log) |
 | 2026-07-15 | `590b979` | **0.9.0** — `casp doctor`, `casp version --json`, structured findings | 87/87 tests; published |
 | 2026-07-14 | `015c72f` | **0.8.0** — stable rule codes, injection-safe git, JSON Schemas | 74/74 tests; published |

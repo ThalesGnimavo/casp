@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-07-20 (session 26-07-20-001).
+> **Updated** : 2026-07-21 (session 26-07-21-001 — 0.11.0).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.10.0 shipped + published to npm — `casp audit`, the deep-audit watermark** (`audit status` / `audit bump`, optional `last_deep_audit` state field, `/audit-batch` skill; a production-cutover gate, never a merge gate — `casp check` gains no rule). 92/92 tests. The cockpit itself drifted around that release (shipped 2026-07-19 with no log, no state bump) and was **regularized on 2026-07-20** — see `session-logs/26-07-20-001-regularize-0-10-0-and-queue-facts-layer.md`. **Next is `PHASE-CHECK-SHIPPED-LOG.md`** (verdict-changing protocol slice), then the newly queued `facts-layer` (opt-in `casp/facts.json`, six deterministic `CASP-FACT` rules — prove freshness, not truth), then `upgrade-command`.
+**0.11.0 built — `CASP-SESSION-003`, the first new drift category since rule codes.** Every `phases_shipped[]` entry must be declared by a session log carrying `phase:` in its frontmatter. The mapping is **declared, never inferred** (filenames would need the fuzzy match the protocol bans), and adoption is **derived from the data** with no new state key: the first shipped entry any log declares opens the enforcement window, everything before it is exempt as pre-adoption, and a repo where no log declares anything gets no finding at all. 100/100 tests. **This repo dogfoods it from this session on** — the 0.11.0 log declares its phase, so the window opens there and the 21 earlier entries stay exempt. **Not yet published to npm** (separate CEO-gated act). Next is `PHASE-FACTS-LAYER.md`, then `upgrade-command`.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-CHECK-SHIPPED-LOG.md`. Its non-negotiable: settle the deterministic `phases_shipped[]` ↔ session-log mapping + the backfill-without-lying rule BEFORE coding — no fuzzy matching, no guessing.
+`casp next` → opens `PHASE-FACTS-LAYER.md`. Read its rule table (`CASP-FACT-001..006`) and the red line it must not cross: freshness, never truth; zero LLM.
 
 ### 1 hour
 
-Start `check-shipped-log` for real: the mapping decision, the pre-adoption behavior (must not redden existing repos), then the rule + tests.
+Settle the `casp/facts.json` shape and the six rules' evidence sources before any code — the same discipline that made `check-shipped-log` land clean was settling the mapping first.
 
 ### Half a day
 
-Ship `check-shipped-log` end to end (rule, tests, docs/rules.md, CHANGELOG), close the loop, and re-point `next_prompt` at `PHASE-FACTS-LAYER.md`.
+Ship `facts-layer` end to end (opt-in file, six rules, tests, docs/rules.md, CHANGELOG), close the loop, re-point `next_prompt` at `PHASE-UPGRADE-COMMAND.md`.
 
 ---
 
@@ -32,7 +32,7 @@ Ship `check-shipped-log` end to end (rule, tests, docs/rules.md, CHANGELOG), clo
 
 These items are NOT on the Next-3 (still or newly) :
 
-- **`facts-layer` implementation** — queued AFTER `check-shipped-log`; the prompt is drafted and sequenced, don't start it early.
+- **Publishing 0.11.0 to npm** — a separate CEO-gated act, never bundled into a feature session.
 - **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; split + CEO trigger before any of it runs.
 - **`casp chain <N>`** — parked, gated on real-marathon evidence (see roadmap).
 - **`casp lint`** — cut for good.

@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-07-21-001-check-shipped-log
+session_log: session-logs/26-07-21-001-check-shipped-log.md
 drafted_at: 2026-06-10
 next_after: 26-07-18-001-queue-upgrade-command
 ---
