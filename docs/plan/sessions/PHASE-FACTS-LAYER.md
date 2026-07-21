@@ -1,92 +1,91 @@
 ---
 status: shipped
-session_id: pending
+session_id: 26-07-21-008-facts-layer
 session_log: session-logs/26-07-21-008-facts-layer.md
 drafted_at: 2026-07-20
 next_after: PHASE-PROMPT-CHAIN-INTEGRITY
 parent_prompt: null
 ---
 
-# PHASE — Facts layer : prouver la fraîcheur, pas la vérité
+# PHASE — Facts layer: proving freshness, not truth
 
-> **Statut : EN FILE.** Rédigé le 2026-07-20 sur la base de la **0.10.0**, **rafraîchi le
-> 2026-07-21** à la clôture de la session `26-07-21-007` (0.13.0) — voir la première sous-section
-> de `CONTEXT` pour ce qui a bougé. Le diagnostic et la conception tiennent ; trois prémisses de
-> détail ont été corrigées.
+> **Status: QUEUED at drafting time; shipped as 0.14.0** — see the session log named in the
+> frontmatter. Drafted 2026-07-20 against **0.10.0**, **refreshed 2026-07-21** at the close of
+> session `26-07-21-007` (0.13.0) — see the first `CONTEXT` sub-section for what moved. The
+> diagnosis and the design held; three premises of detail were corrected.
 >
-> **Origine** : incident réel du 2026-07-20 sur un cockpit de production. Une journée entière de
-> travail a été bâtie sur cinq affirmations fausses, **sans que `casp check` ne signale quoi que
-> ce soit** — parce qu'aucune n'était une dérive d'état. `state.json` contre git était juste
-> toute la journée. Ce qui mentait vivait dans les documents *autour* du cockpit.
+> **Origin**: a real incident on 2026-07-20 in a production cockpit. A full working day was built
+> on five false claims, **with `casp check` reporting nothing at all** — because none of them was
+> state drift. `state.json` against git was right all day. What lied lived in the documents
+> *orbiting* the cockpit.
 
 ---
 
 ## CONTEXT
 
-### Ce qui a changé depuis la rédaction — rafraîchi le 2026-07-21
+### What changed since drafting — refreshed 2026-07-21
 
-Ce prompt a été rédigé le 2026-07-20, sur la base de la version **0.10.0**. Quatre releases ont
-été livrées depuis. Le diagnostic de l'incident et la conception de la couche tiennent
-intégralement ; trois prémisses de détail ont bougé et sont corrigées ci-dessous.
+This prompt was drafted on 2026-07-20 against version **0.10.0**. Four releases shipped in
+between. The diagnosis of the incident and the design of the layer hold in full; three premises
+of detail moved and are corrected below.
 
-| Release | Ce qui a été livré | Effet sur ce prompt |
+| Release | What shipped | Effect on this prompt |
 |---|---|---|
-| `0.11.0` | `CASP-SESSION-003` — chaque phase livrée doit être déclarée par un journal de session | Premier précédent d'**adoption dérivée des données** : aucune clé d'état, silence total tant que le dépôt n'a rien déclaré. C'est le patron exact que `facts.json` doit suivre. |
-| `0.12.0` | `casp upgrade` — rafraîchir les gabarits d'un cockpit sans manger son état | **Débloque cette phase.** `casp/facts.json` est un fichier de données à la racine du cockpit ; sans `upgrade`, aucun dépôt déjà sous CASP ne pouvait recevoir un nouveau gabarit. |
-| `0.12.1` | Correctifs de perte de données dans `upgrade` ; `saveState` rendu **atomique** | Invalide une partie du SHOULD « écriture atomique ». Voir ci-dessous. |
-| `0.13.0` | `CASP-PROMPT-007` … `010` — intégrité de la chaîne de prompts | Deuxième précédent d'adoption dérivée, et confirmation que la réservation de codes dans un espace existant fonctionne sans casser le schéma du rapport. |
+| `0.11.0` | `CASP-SESSION-003` — every shipped phase must be declared by a session log | The first precedent for **adoption derived from the data**: no state key, total silence until the repository declares something. That is the exact pattern `facts.json` must follow. |
+| `0.12.0` | `casp upgrade` — refresh a cockpit's scaffolds without eating its state | **Unblocks this phase.** `casp/facts.json` is a data file at the cockpit root; without `upgrade`, no repository already on CASP could receive a new scaffold. |
+| `0.12.1` | Data-loss fixes in `upgrade`; `saveState` made **atomic** | Invalidates part of the "atomic write" SHOULD. See below. |
+| `0.13.0` | `CASP-PROMPT-007` … `010` — prompt-chain integrity | The second precedent for derived adoption, and confirmation that reserving codes inside an existing space works without breaking the report schema. |
 
-Suite de tests à l'entrée de cette session : **143**, toutes vertes. Schéma de
-`check --json` : **1**. Schéma de `status --json` : **1**. Les deux doivent le rester —
-les findings `CASP-FACT-*` réutilisent la forme de finding existante.
+Test suite at the start of this session: **143**, all green. `check --json` schema: **1**.
+`status --json` schema: **1**. Both must stay there — `CASP-FACT-*` findings reuse the existing
+finding shape.
 
-L'espace de codes `CASP-FACT-*` est toujours entièrement libre ; `CASP-PROMPT-*` va désormais
-jusqu'à `010`.
+The `CASP-FACT-*` code space is still entirely free; `CASP-PROMPT-*` now runs up to `010`.
 
-### Ce qui s'est réellement passé le 2026-07-20
+### What actually happened on 2026-07-20
 
-Cinq incohérences, toutes coûteuses, toutes invisibles au validateur actuel.
+Five inconsistencies, all costly, all invisible to the current validator.
 
-| Ce qui a menti | Nature de la dérive | Attrapé par CASP ? |
+| What lied | Nature of the drift | Caught by CASP? |
 |---|---|---|
-| Un coût unitaire cité dans les documents de planification | Valeur **dérivée** d'un fichier de configuration, jamais recalculée après une migration de fournisseur qui divisait le coût source par quatre | Non |
-| « Cette instrumentation n'existe pas encore » | Affirmation **vraie à l'écriture**, périmée dix jours plus tard par une release | Non |
-| « Rebuild d'infrastructure toujours dû » | Ligne de prose dans un `roadmap.md`, vraie puis fausse, jamais revérifiée | Non |
-| Un comptage de lignes en base | **Mesure sans provenance** — `n_live_tup` (estimation du planificateur PostgreSQL) lue comme un comptage exact ; le réel était ~40× supérieur | Non |
-| Un pourcentage clé dans un document de synthèse | Chiffre ne se réconciliant avec **aucune** source ; la formule mécanique en donnait moins de la moitié | Non |
-| Prompt sans frontmatter | Dérive structurelle | **Oui** (CASP-PROMPT-002) |
+| A unit cost quoted in the planning documents | A value **derived** from a configuration file, never recalculated after a provider migration that divided the source cost by four | No |
+| "This instrumentation does not exist yet" | A claim **true when written**, made stale ten days later by a release | No |
+| "Infrastructure rebuild still due" | A line of prose in a `roadmap.md`, true then false, never re-verified | No |
+| A database row count | A **measurement with no provenance** — `n_live_tup` (a PostgreSQL planner estimate) read as an exact count; the real figure was roughly 40× higher | No |
+| A key percentage in a summary document | A number reconciling with **no** source; the mechanical formula produced less than half of it | No |
+| A prompt with no frontmatter | Structural drift | **Yes** (CASP-PROMPT-002) |
 
-Le score est honnête : une sur six. Et la seule attrapée était la moins coûteuse.
+The score is honest: one out of six. And the only one caught was the cheapest.
 
-Coût réel : une fausse mesure propagée dans cinq fichiers en quelques minutes, un plan
-d'implémentation de six prompts bâti sur une prémisse périmée, et un chiffre de synthèse qui ne
-survit pas à une multiplication.
+Real cost: one false measurement propagated across five files in minutes, a six-prompt
+implementation plan built on a stale premise, and a summary figure that does not survive a
+multiplication.
 
-### La contrainte de conception, non négociable
+### The design constraint, non-negotiable
 
-`casp lint` — la vérification prose contre réalité par LLM — est **explicitement coupé**
-(`README.md`, section « Cut from earlier drafts, deliberately » ; `TODO.md`, rubrique
-long-terme) : un verbe LLM dans le binaire casserait la promesse déterministe. Cette phase
-respecte cette règle intégralement. **Rien de ce qui suit n'exige un modèle.**
+`casp lint` — LLM-driven prose-against-reality checking — is **explicitly cut** (`README.md`,
+section "Cut from earlier drafts, deliberately"; `TODO.md`, long-term section): an LLM verb in
+the binary would break the deterministic promise. This phase respects that rule in full.
+**Nothing below requires a model.**
 
-> Références par section et non par numéro de ligne : le `README.md` a été réécrit deux fois
-> depuis la rédaction de ce prompt, et la référence `README.md:285` qu'il portait pointait vers
-> une ligne sans rapport au moment du rafraîchissement.
+> References by section rather than by line number: `README.md` has been rewritten twice since
+> this prompt was drafted, and the `README.md:285` reference it carried pointed at unrelated
+> prose by the time of the refresh.
 
-### Le renversement qui rend la chose possible
+### The reversal that makes this tractable
 
-On ne peut pas prouver déterministiquement qu'une affirmation est **vraie**. On peut prouver
-qu'elle a cessé d'être **vérifiée** :
+You cannot deterministically prove a claim is **true**. You can prove it has stopped being
+**verified**:
 
-- la source a-t-elle changé depuis la vérification ? → comparaison de hash ;
-- la vérification a-t-elle dépassé sa durée de validité ? → comparaison de date ;
-- la méthode de production est-elle enregistrée ? → test de présence.
+- has the source changed since verification? → hash comparison;
+- has the verification aged past its shelf life? → date comparison;
+- was the production method recorded? → presence test.
 
-Trois comparaisons, zéro modèle. C'est le même patron que `migrations_applied` : une
-déclaration, une preuve sur disque, une règle qui compare les deux.
+Three comparisons, zero model. The same pattern as `migrations_applied`: a declaration, a proof
+on disk, and a rule comparing the two.
 
-Le fait le plus dangereux n'est pas le fait faux — c'est le fait qui **a été** vrai. Et un fait
-qui a été vrai est exactement ce qu'un hash de source et un TTL attrapent.
+The most dangerous fact is not the false one — it is the one that **used to be** true. And a
+fact that used to be true is exactly what a source hash and a TTL catch.
 
 ---
 
@@ -94,8 +93,8 @@ qui a été vrai est exactement ce qu'un hash de source et un TTL attrapent.
 
 ### MUST
 
-Une seule primitive nouvelle : `casp/facts.json`. Opt-in, comme `migrations_applied` — un
-projet qui ne la pose pas ne voit aucune règle nouvelle et reste vert.
+One new primitive: `casp/facts.json`. Opt-in, like `migrations_applied` — a project that never
+creates it sees no new rule and stays green.
 
 ```jsonc
 {
@@ -105,7 +104,7 @@ projet qui ne la pose pas ne voit aucune règle nouvelle et reste vert.
       "id": "unit-cost-per-minute",
       "value": "0.012 USD/min",
       "source": "backend/config/pricing.json",
-      "source_hash": "sha256:ab12…",     // hash de la source AU MOMENT de la vérification
+      "source_hash": "sha256:ab12…",     // hash of the source AT verification time
       "method": "jq '.providers.current.cost_per_minute_usd' backend/config/pricing.json",
       "verified_at": "2026-07-20",
       "verified_commit": "0158df8",
@@ -117,151 +116,148 @@ projet qui ne la pose pas ne voit aucune règle nouvelle et reste vert.
     },
     {
       "id": "cloud-monthly-cost",
-      "value": "0 USD (free tier, 5000 unités incluses)",
-      "source": "external:cloud-provider-billing",   // hors dépôt : pas de hash possible
-      "method": "console du fournisseur → Billing → Statements",
+      "value": "0 USD (free tier, 5000 units included)",
+      "source": "external:cloud-provider-billing",   // outside the repo: no hash possible
+      "method": "provider console → Billing → Statements",
       "verified_at": "2026-07-20",
-      "ttl_days": 30                                 // le TTL est la SEULE garde ici
+      "ttl_days": 30                                 // the TTL is the ONLY guard here
     }
   ]
 }
 ```
 
-**Les règles.** Codes stables suivant le registre existant (`src/rules.ts`), findings mappés
-comme les autres.
+**The rules.** Stable codes following the existing registry (`src/rules.ts`), findings mapped
+like every other.
 
-| Code | Vérifie | Sévérité | Attrape quel cas du 20/07 |
+| Code | Checks | Severity | Which 2026-07-20 case it catches |
 |---|---|---|---|
-| `CASP-FACT-001` | La source déclarée existe (chemin dans le dépôt), ou commence par `external:` | FAIL | Le pourcentage qui ne se réconcilie avec rien |
-| `CASP-FACT-002` | `source_hash` == hash actuel de la source | **FAIL** | **Le coût unitaire jamais recalculé après migration de la configuration** |
-| `CASP-FACT-003` | `verified_at + ttl_days` ≥ aujourd'hui | WARN, FAIL au double du TTL | « Rebuild toujours dû », la facture cloud, toute mesure externe |
-| `CASP-FACT-004` | Chaque chemin de `used_in` existe **et** contient le marqueur `casp:fact <id>` | WARN | Un document dérivé supprimé ou renommé sans mise à jour |
-| `CASP-FACT-005` | `method` est présent et non vide | WARN | Une valeur non reproductible |
-| `CASP-FACT-006` | `method` ne correspond à aucun **piège connu** | FAIL | **`n_live_tup` lu comme un comptage** |
+| `CASP-FACT-001` | The declared source exists (a path in the repository), or starts with `external:` | FAIL | The percentage that reconciles with nothing |
+| `CASP-FACT-002` | `source_hash` == the source's current hash | **FAIL** | **The unit cost never recalculated after the configuration migration** |
+| `CASP-FACT-003` | `verified_at + ttl_days` ≥ today | WARN, FAIL past double the TTL | "Rebuild still due", the cloud bill, any external measurement |
+| `CASP-FACT-004` | Every `used_in` path exists **and** carries the `casp:fact <id>` marker | WARN | A derived document deleted or renamed without an update |
+| `CASP-FACT-005` | `method` is present and non-empty | WARN | A value that cannot be reproduced |
+| `CASP-FACT-006` | `method` matches no **known trap** | FAIL | **`n_live_tup` read as a count** |
 
-`CASP-FACT-002` est celle qui compte. C'est la seule qui aurait attrapé la sédimentation du
-coût unitaire, et elle est purement mécanique : la source a bougé, le fait n'a pas été revu.
+`CASP-FACT-002` is the one that matters. It is the only rule that would have caught the unit
+cost's sedimentation, and it is purely mechanical: the source moved, the fact was never revisited.
 
-**Le marquage dans les documents dérivés** — un commentaire HTML, invisible au rendu :
+**Marking derived documents** — an HTML comment, invisible when rendered:
 
 ```markdown
-Le coût unitaire est de <!-- casp:fact unit-cost-per-minute -->0,012 $/min<!-- /casp:fact -->.
+The unit cost is <!-- casp:fact unit-cost-per-minute -->0.012 USD/min<!-- /casp:fact -->.
 ```
 
-`CASP-FACT-004` vérifie que le marqueur est présent. Elle ne lit pas la valeur — c'est
-volontaire : comparer un nombre dans de la prose exigerait de parser du langage naturel, donc
-un modèle, donc la ligne rouge.
+`CASP-FACT-004` checks the marker is present. It does not read the value — deliberately:
+comparing a number inside prose would require parsing natural language, therefore a model,
+therefore the red line.
 
-**Le registre des pièges** (`src/traps.ts`, données statiques, dans l'esprit de `src/rules.ts`
-qui déclare *« No LLM, no network — this registry is static data »*). Motifs de méthodes qui
-produisent des estimations qu'on lit comme des faits :
+**The trap registry** (`src/traps.ts`, static data, in the spirit of `src/rules.ts`, which
+declares *"No LLM, no network — this registry is static data"*). Method patterns that produce
+estimates people read as facts:
 
 ```
-n_live_tup / n_dead_tup sans count(   → estimation du planificateur PostgreSQL
-EXPLAIN sans ANALYZE                  → coût estimé, pas mesuré
-reltuples                             → idem
-docker stats --no-stream              → instantané, pas une moyenne
+n_live_tup / n_dead_tup without count(   → PostgreSQL planner estimate
+EXPLAIN without ANALYZE                  → estimated cost, not measured
+reltuples                                → same
+docker stats --no-stream                 → a snapshot, not an average
 ```
 
-Extensible par projet via un champ `traps` optionnel dans `facts.json`. C'est le seul endroit
-du protocole où CASP encode un savoir de domaine, et il reste déclaratif.
+Extensible per project via an optional `traps` field in `facts.json`. It is the only place in
+the protocol where CASP encodes domain knowledge, and it stays declarative.
 
 ### SHOULD
 
-**Compare-and-swap sur l'état (concurrence multi-agents).**
+**Compare-and-swap on state (multi-agent concurrency).**
 
-> **Rafraîchi le 2026-07-21.** La rédaction initiale décrivait `saveState()` comme un
-> `writeFileSync` nu et demandait de le rendre atomique. **L'atomicité a été livrée en 0.12.1** :
-> `saveState` (`src/shared.ts`) écrit désormais dans un fichier temporaire puis fait un `rename`,
-> atomique au sein d'un système de fichiers, ce qui protège `ship`, `close`, `audit` et `upgrade`
-> d'un état tronqué par un plantage ou un disque plein. **Ne pas ré-implémenter cette partie.**
+> **Refreshed 2026-07-21.** The original draft described `saveState()` as a naked `writeFileSync`
+> and asked for it to be made atomic. **Atomicity shipped in 0.12.1**: `saveState`
+> (`src/shared.ts`) now writes to a temporary file then `rename`s, atomic within a filesystem,
+> which protects `ship`, `close`, `audit` and `upgrade` from a state truncated by a crash or a
+> full disk. **Do not re-implement that part.**
 
-Ce qui reste ouvert est l'autre moitié, et c'est celle que l'incident du 20/07 a réellement
-exhibée : l'atomicité protège d'une écriture **partielle**, pas d'une écriture **écrasée**. Il
-n'y a toujours ni verrou ni compare-and-swap. Le modèle implicite reste « un agent, une session,
-une branche ». La réalité observée : deux agents écrivaient dans le `casp/` du même cockpit en
-parallèle, et le second a corrigé le premier — par chance, pas par conception. Le mode
-multi-agents parallèles est un mode d'usage réel, pas un cas d'école.
+What remains open is the other half, and it is the one the 2026-07-20 incident actually
+exhibited: atomicity protects a **partial** write, not an **overwritten** one. There is still
+neither a lock nor a compare-and-swap. The implicit model is still "one agent, one session, one
+branch". The observed reality: two agents writing into the same cockpit's `casp/` in parallel,
+with the second correcting the first — by luck, not by design. Parallel multi-agent work is a
+real usage mode, not a textbook case.
 
-Correctif minimal, sans nouveau concept, par-dessus l'écriture atomique existante : mémoriser le
-hash du fichier tel qu'il a été lu au chargement, et le revérifier juste avant le `rename`. Si la
-source a bougé entre-temps, refus avec un message actionnable (« l'état a changé depuis la
-lecture, relancez ») et aucune écriture. Pas de lock, pas de CRDT, pas de merge — juste un refus
-honnête. La fenêtre TOCTOU résiduelle est acceptée : elle est étroite, et un CLI local n'a pas à
-prétendre à la sérialisabilité.
+The minimal fix, no new concept, layered on top of the existing atomic write: remember the hash
+of the file as it was read at load time, and re-check it just before the `rename`. If the source
+moved in between, refuse with an actionable message ("state changed since it was read, re-run")
+and write nothing. No lock, no CRDT, no merge — just an honest refusal. The residual TOCTOU
+window is accepted: it is narrow, and a local CLI has no business claiming serializability.
 
-**`casp fact` — les verbes.** Cohérents avec la grammaire existante (une syllabe, lecture
-seule par défaut) :
+**`casp fact` — the verbs.** Consistent with the existing grammar (one syllable, read-only by
+default):
 
 ```
-casp fact list [--json]        inventaire, avec l'état de fraîcheur de chacun
-casp fact check                les règles FACT seules (sous-ensemble de casp check)
-casp fact verify <id>          rejoue la méthode, met à jour hash + date, exige confirmation
-casp fact stale [--json]       ce qui a expiré ou dont la source a bougé — la liste de travail
+casp fact list [--json]        inventory, with each fact's freshness state
+casp fact check                the FACT rules alone (a subset of casp check)
+casp fact verify <id>          replays the method, updates hash + date, requires confirmation
+casp fact stale [--json]       what expired or whose source moved — the work list
 ```
 
-`casp fact verify` est le seul verbe mutant. Il ne devine rien : il exécute la `method`
-déclarée, montre l'avant/après, et demande confirmation — même posture que `casp close`.
+`casp fact verify` is the only mutating verb. It guesses nothing: it executes the declared
+`method`, shows the before/after, and asks for confirmation — the same posture as `casp close`.
 
 ### DEFER
 
-- Comparer la **valeur** du fait au contenu du document dérivé. Exige de parser la prose. Ligne
-  rouge.
-- Toute forme de résolution floue. Le refus est désormais un précédent établi **deux fois** —
-  `CASP-SESSION-003` (livré en 0.11.0) puis `CASP-PROMPT-007` (livré en 0.13.0) : si la
-  correspondance a besoin d'une supposition, il n'y a pas de finding. Un chemin de `source` ou de
-  `used_in` se résout exactement, ou pas du tout.
-- Un dépôt central de faits partagé entre cockpits. Attendre un besoin réel.
-- La détection automatique de faits dans les documents existants. Le marquage est manuel et
-  délibéré : ce qui compte assez pour être vérifié mérite d'être déclaré.
+- Comparing the fact's **value** against the derived document's content. Requires parsing prose.
+  Red line.
+- Any form of fuzzy resolution. The refusal is now a precedent established **twice** —
+  `CASP-SESSION-003` (shipped in 0.11.0) then `CASP-PROMPT-007` (shipped in 0.13.0): if a match
+  needs a guess, there is no finding. A `source` or `used_in` path resolves exactly, or not at all.
+- A central fact store shared across cockpits. Wait for a real need.
+- Automatic detection of facts in existing documents. Marking is manual and deliberate: what
+  matters enough to be verified deserves to be declared.
 
 ---
 
 ## DO NOT
 
-- **Ne pas ajouter de LLM**, sous aucune forme, même consultative, même optionnelle.
-- **Ne pas rendre `facts.json` obligatoire.** Un cockpit sans ce fichier ne voit aucune règle
-  nouvelle. L'adoption meurt de la contrainte imposée d'un coup.
-- **Ne pas faire rougir les historiques.** Deux catégories l'ont déjà fait correctement —
-  `CASP-SESSION-003` (0.11.0) et `CASP-PROMPT-007` … `010` (0.13.0) : dans les deux cas
-  l'adoption est **dérivée des données**, sans clé d'état, et un dépôt qui n'a rien déclaré
-  n'émet **aucun finding, pas même un PASS**. Lire ces deux implémentations avant de coder
-  celle-ci ; le comportement pré-adoption se règle **avant** le reste, pas après.
-- Ne pas prétendre que cette couche prouve la vérité. Elle prouve la **fraîcheur**. La
-  documentation doit être aussi explicite sur cette limite que `docs/what-casp-proves.md` l'est
-  aujourd'hui sur les siennes.
+- **Do not add an LLM**, in any form, not even advisory, not even optional.
+- **Do not make `facts.json` mandatory.** A cockpit without the file sees no new rule. Adoption
+  dies of constraint imposed all at once.
+- **Do not redden histories.** Two categories already did this correctly — `CASP-SESSION-003`
+  (0.11.0) and `CASP-PROMPT-007` … `010` (0.13.0): in both cases adoption is **derived from the
+  data**, with no state key, and a repository that declared nothing emits **no finding, not even
+  a PASS**. Read both implementations before coding this one; pre-adoption behaviour is settled
+  **before** the rest, not after.
+- Do not claim this layer proves truth. It proves **freshness**. The documentation must be as
+  explicit about that limit as `docs/what-casp-proves.md` is today about its own.
 
 ---
 
 ## VERIFY
 
-Tests attendus, chacun rejouant un cas réel du 20/07 :
+Expected tests, each replaying a real 2026-07-20 case:
 
-- source modifiée après vérification → `CASP-FACT-002` FAIL ;
-- fait expiré → WARN, puis FAIL au double du TTL ;
-- `used_in` pointant vers un fichier sans marqueur → `CASP-FACT-004` WARN ;
-- `method` contenant `n_live_tup` sans `count(` → `CASP-FACT-006` FAIL ;
-- source `external:` sans `ttl_days` → FAIL (sinon le fait n'est jamais revérifiable) ;
-- **cockpit sans `facts.json` → aucune règle FACT émise, verdict inchangé** ;
-- `saveState` avec état modifié entre lecture et écriture → refus, aucune écriture du tout.
+- source modified after verification → `CASP-FACT-002` FAIL;
+- expired fact → WARN, then FAIL past double the TTL;
+- `used_in` pointing at a file with no marker → `CASP-FACT-004` WARN;
+- `method` containing `n_live_tup` without `count(` → `CASP-FACT-006` FAIL;
+- an `external:` source with no `ttl_days` → FAIL (otherwise the fact is never re-verifiable);
+- **a cockpit without `facts.json` → no FACT rule emitted, verdict unchanged**;
+- `saveState` with state modified between read and write → refusal, nothing written at all.
 
-À l'entrée de la session, **143 tests** passent. Elles doivent toutes rester vertes, le schéma
-de `check --json` rester à **1**, et le rapport humain d'un dépôt sans `facts.json` rester
-identique octet pour octet.
+At the start of the session, **143 tests** pass. All must stay green, the `check --json` schema
+must stay at **1**, and the human report of a repository without `facts.json` must stay
+byte-identical.
 
 ---
 
-## Ce que cette couche ne résoudra pas
+## What this layer will not solve
 
-À écrire dans `docs/what-casp-proves.md` en même temps que le code.
+To be written into `docs/what-casp-proves.md` alongside the code.
 
-L'erreur du 20/07 — lire `n_live_tup` comme un comptage — était une **erreur de jugement**, pas
-de fraîcheur. Le registre des pièges l'aurait attrapée parce que ce piège-là est connu et
-catalogué. Le prochain piège inconnu passera. `CASP-FACT-005` (méthode enregistrée) rend
-l'erreur **auditable après coup**, ce qui est déjà beaucoup — ce jour-là, aucune trace ne
-disait d'où venait le chiffre.
+The 2026-07-20 error — reading `n_live_tup` as a count — was an **error of judgement**, not of
+freshness. The trap registry would have caught it because that particular trap is known and
+catalogued. The next unknown trap will pass. `CASP-FACT-005` (method recorded) makes the error
+**auditable after the fact**, which is already a great deal — on the day itself, nothing recorded
+where the number came from.
 
-De même, un fait dont la source n'a pas bougé et dont le TTL court peut être **faux depuis le
-premier jour**. CASP dira « frais ». Il aura raison, et il aura tort. La couche déplace la
-question de « est-ce vrai ? » vers « quand quelqu'un l'a-t-il vérifié, comment, et la source
-a-t-elle bougé depuis ? ». C'est un progrès considérable et ce n'est pas la vérité.
+Likewise, a fact whose source has not moved and whose TTL is still running can be **false from
+day one**. CASP will say "fresh". It will be right, and it will be wrong. The layer moves the
+question from "is this true?" to "when did someone verify it, how, and has the source moved
+since?". That is a considerable step forward and it is not truth.

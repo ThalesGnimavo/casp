@@ -1,6 +1,6 @@
 ---
 status: shipped
-session_id: pending
+session_id: 26-06-15-001-0-4-close-loop
 session_log: session-logs/26-06-15-001-0-4-close-loop.md
 drafted_at: 2026-06-15
 next_after: 26-06-10-003-field-fixes-and-zerosuite-rollout

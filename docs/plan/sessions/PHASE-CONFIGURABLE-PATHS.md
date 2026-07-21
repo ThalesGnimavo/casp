@@ -1,6 +1,6 @@
 ---
 status: shipped
-session_id: pending
+session_id: 26-06-16-002-configurable-paths
 session_log: session-logs/26-06-16-002-configurable-paths.md
 drafted_at: 2026-06-15
 next_after: 26-06-15-002-init-fix
