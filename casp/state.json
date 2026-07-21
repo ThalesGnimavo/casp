@@ -1,8 +1,8 @@
 {
   "updated_at": "2026-07-21",
-  "last_session_id": "26-07-21-008-facts-layer",
-  "last_commit": "bb7f71b",
-  "current_phase": "facts-layer",
+  "last_session_id": "26-07-21-009-fact-verify-consent-gate",
+  "last_commit": "4ceeaa2",
+  "current_phase": "fact-verify-consent-gate",
   "next_phase": null,
   "next_prompt": null,
   "phases_shipped": [
@@ -34,7 +34,8 @@
     "readme-onboarding-rewrite",
     "readme-lead-with-the-queue",
     "0.13.0-prompt-chain-integrity",
-    "facts-layer"
+    "facts-layer",
+    "fact-verify-consent-gate"
   ],
   "phases_queued": [
     "demand-gated-tail"
