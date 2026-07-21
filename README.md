@@ -244,6 +244,7 @@ Every finding carries a **stable rule code** (`CASP-<AREA>-<NNN>`) and a one-lin
 - `CASP-PROMPT-001/003` — `next_prompt` points at a missing file, or one already `status: shipped`. *(The exact bug CASP was built to catch.)*
 - `CASP-GIT-001` — `last_commit` not in `git log`, or inconsistent with HEAD.
 - `CASP-SESSION-001` — `last_session_id` does not map to a session-log file.
+- `CASP-SESSION-003` — a `phases_shipped[]` entry no session log declares. *(Opt-in by declaration: silent until a log declares a `phase:` that appears in `phases_shipped`, and pre-adoption history stays exempt.)*
 - `CASP-STATE-003` — `phases_shipped[]` has duplicates.
 - `CASP-MIGRATION-002` — `migrations_applied[]` does not match the migrations directory.
 - `CASP-PROMPT-005` — a session prompt is `status: shipped` but its `session_log` is missing.
@@ -279,7 +280,7 @@ Need the report as data instead of text? `casp check --json` emits the same find
 - **0.7** — First-class `casp help` (exit 0) with a focused per-command block for every verb. *Shipped.*
 - **0.8** — Stable **rule codes** (`CASP-<AREA>-<NNN>`) on every finding, with `casp rules` / `casp explain <CODE>`; published **JSON Schemas** for `state.json` and the `check --json` report; an injection-safe git path for untrusted state values; and precise "what CASP proves / does not prove" + threat-model docs. *Shipped.*
 - **0.9** — DX + machine-handoff: `casp doctor` (a read-only environment diagnostic that never gates), `casp version --json` (the `{ name, version, node, schema_version }` handoff), and additive `expected` / `actual` fields on `check --json` findings (schema stays v1). *Shipped.*
-- **Next** — A new drift category tying every `phases_shipped` entry to a session log (a verdict-changing protocol slice — designed on its own so it can't silently redden repos with pre-adoption history).
+- **0.11** — `CASP-SESSION-003`: every `phases_shipped[]` entry must be declared by a session log (`phase:` frontmatter). The mapping is declared, never inferred from filenames; adoption is derived from the data, so a repo with pre-CASP history is never retroactively reddened and a repo that never opts in sees nothing. *Shipped.*
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
 Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary — even advisory — would undercut the deterministic claim; prose-vs-reality checking belongs in your agent, which can read `casp/` today for free).

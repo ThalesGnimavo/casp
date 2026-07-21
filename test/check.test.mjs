@@ -481,3 +481,217 @@ test('migrations_dir set but directory genuinely empty + migrations_applied abse
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/*
+ * CASP-SESSION-003 — phases_shipped ↔ session logs.
+ *
+ * The mapping is DECLARED (`phase:` in a log's frontmatter), never inferred from
+ * filenames, and adoption is DERIVED from the data: the first shipped entry any
+ * log declares opens the enforcement window, everything before it is exempt.
+ * These tests pin all four regimes — never adopted, adopted and complete,
+ * adopted with a gap, and retroactive adoption over pre-CASP history.
+ */
+
+// Writes a log file, optionally declaring one or more phases in frontmatter.
+function writeLog(dir, id, phase) {
+  const fm =
+    phase === undefined
+      ? ''
+      : `---\nphase: ${Array.isArray(phase) ? `[${phase.join(', ')}]` : phase}\n---\n\n`;
+  writeFileSync(join(dir, 'session-logs', `${id}.md`), `${fm}# ${id} — log\n`);
+}
+
+// phases_shipped needs its history dirs to exist; scaffold() already makes both.
+function shipPhases(dir, state, phases) {
+  state.phases_shipped = phases;
+  writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+}
+
+test('no log declares a phase → category is silent (never-adopted repo, no noise)', () => {
+  const { dir, state } = scaffold();
+  try {
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'not adopting the convention must not block the push');
+    const report = JSON.parse(stdout);
+    assert.ok(
+      !report.findings.some((x) => x.id.startsWith('shipped_log.')),
+      'a repo that never declares a phase gets no finding at all'
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('every shipped phase declared → PASS, exit 0', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-02-001-a', 'phase-a');
+    writeLog(dir, '26-01-03-001-b', 'phase-b');
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0);
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.ok(f, 'expected a shipped_log.declared finding');
+    assert.equal(f.severity, 'pass');
+    assert.ok(f.detail.includes('all 2'), `expected the full-window wording, got: ${f.detail}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('shipped phase with no log → FAIL, exit 1 (the scoreboard outruns the record)', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-02-001-a', 'phase-a');
+    // phase-b is claimed shipped but no log declares it.
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'an undeclared shipped phase must block the push');
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.ok(f, 'expected a shipped_log.declared finding');
+    assert.equal(f.severity, 'fail');
+    assert.ok(f.detail.includes('phase-b'), 'the FAIL names the undeclared phase');
+    assert.ok(!f.detail.includes('phase-a'), 'a declared phase is never named as missing');
+    assert.ok(f.fix, 'a FAIL carries a → fix hint');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('retroactive adoption → pre-adoption phases exempt, window starts at the first declared', () => {
+  const { dir, state } = scaffold();
+  try {
+    // Two phases predate CASP (no logs were ever written for them); the repo
+    // adopts at phase-c and declares every entry from there on.
+    writeLog(dir, '26-01-04-001-c', 'phase-c');
+    writeLog(dir, '26-01-05-001-d', 'phase-d');
+    shipPhases(dir, state, ['old-1', 'old-2', 'phase-c', 'phase-d']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'history a repo never logged must not block it forever');
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.equal(f.severity, 'pass');
+    assert.ok(
+      f.detail.includes('2 pre-adoption entries exempt'),
+      `the exemption is stated, never silent — got: ${f.detail}`
+    );
+    assert.ok(f.detail.includes("since 'phase-c'"), 'the window names where adoption started');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a gap AFTER adoption still fails, even with pre-adoption history exempt', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-04-001-c', 'phase-c');
+    // phase-d lands after adoption with no log → inside the window.
+    shipPhases(dir, state, ['old-1', 'phase-c', 'phase-d']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1);
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.equal(f.severity, 'fail');
+    assert.ok(f.detail.includes('phase-d'));
+    assert.ok(!f.detail.includes('old-1'), 'pre-adoption history is never retroactively blamed');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('one log declaring several phases (list form) satisfies each of them', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-06-001-multi', ['phase-a', 'phase-b']);
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'one session may legitimately ship several phases');
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.equal(f.severity, 'pass');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('declared phase not in phases_shipped yet (template placeholder) → silent, no slice(-1) bug', () => {
+  const { dir, state } = scaffold();
+  try {
+    // The `casp new log` template ships `phase: <phase-id>`. An unedited log, or
+    // a log written before its state bump, declares something phases_shipped
+    // does not contain — the window never opens.
+    writeLog(dir, '26-01-07-001-fresh', '<phase-id>');
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'an unopened window must not enforce against the last entry');
+    assert.ok(
+      !JSON.parse(stdout).findings.some((x) => x.id.startsWith('shipped_log.')),
+      'no finding until adoption actually anchors in phases_shipped'
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('filenames are never consulted — a matching name without `phase:` does not count', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-08-001-a', 'phase-a');
+    // A log whose slug matches phase-b exactly, but declares nothing. The
+    // category refuses the inference on purpose: no fuzzy matching, ever.
+    writeLog(dir, '26-01-09-001-phase-b', undefined);
+    shipPhases(dir, state, ['phase-a', 'phase-b']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 1, 'a suggestive filename is not a declaration');
+    const f = JSON.parse(stdout).findings.find((x) => x.id === 'shipped_log.declared');
+    assert.equal(f.severity, 'fail');
+    assert.ok(f.detail.includes('phase-b'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a directory named *.md in the logs dir → graceful report, no EISDIR crash', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeLog(dir, '26-01-02-001-a', 'phase-a');
+    // Repo content is untrusted: a directory that ends in .md must not take the
+    // whole report down when the category reads frontmatter.
+    mkdirSync(join(dir, 'session-logs', 'not-a-log.md'), { recursive: true });
+    shipPhases(dir, state, ['phase-a']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'a stray directory must not crash the gate');
+    const report = JSON.parse(stdout);
+    assert.ok(report.findings.length > 0, 'the report still renders');
+    const f = report.findings.find((x) => x.id === 'shipped_log.declared');
+    assert.equal(f.severity, 'pass');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('non-string `phase:` values (number, bool, null, nested) are ignored, never declared', () => {
+  const { dir, state } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', '26-01-02-001-num.md'), '---\nphase: 42\n---\n\n# n\n');
+    writeFileSync(join(dir, 'session-logs', '26-01-02-002-bool.md'), '---\nphase: true\n---\n\n# b\n');
+    writeFileSync(join(dir, 'session-logs', '26-01-02-003-null.md'), '---\nphase:\n---\n\n# z\n');
+    writeFileSync(join(dir, 'session-logs', '26-01-02-004-map.md'), '---\nphase:\n  id: phase-a\n---\n\n# m\n');
+    shipPhases(dir, state, ['phase-a']);
+
+    const { status, stdout } = runCheckJson(dir);
+    assert.equal(status, 0, 'garbage frontmatter must not open the window');
+    assert.ok(
+      !JSON.parse(stdout).findings.some((x) => x.id.startsWith('shipped_log.')),
+      'only string / string-list declarations count — nothing was declared here'
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

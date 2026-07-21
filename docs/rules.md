@@ -39,6 +39,7 @@ not verify that your code is correct, deployed, or bug-free. See
 | `CASP-PROMPT-006` | PROMPT | Prompt status values are canonical |
 | `CASP-SESSION-001` | SESSION | last_session_id maps to a session log |
 | `CASP-SESSION-002` | SESSION | Shipped history directories exist |
+| `CASP-SESSION-003` | SESSION | Shipped phases are declared by a session log |
 | `CASP-GIT-001` | GIT | last_commit is consistent with git history |
 | `CASP-MIGRATION-001` | MIGRATION | Claimed migrations have a directory to verify against |
 | `CASP-MIGRATION-002` | MIGRATION | migrations_applied matches the migrations directory |

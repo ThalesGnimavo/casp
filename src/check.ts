@@ -335,6 +335,91 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     }
   }
 
+  /* 3c. phases_shipped → declaring session log --------------------------- */
+
+  // The scoreboard must not claim more than the record supports: a phase listed
+  // in phases_shipped should have a session log that says so.
+  //
+  // The mapping is DECLARED, never inferred. A log opts in with a `phase:` key
+  // in its frontmatter (a scalar id, or a list when one session shipped several).
+  // Filenames are deliberately not consulted: a log named
+  // `26-07-19-001-0-10-0-audit-watermark.md` versus the phase id
+  // `0.10.0-audit-watermark` would need exactly the fuzzy match this category
+  // refuses to make. If the mapping needs a guess, there is no finding.
+  //
+  // ADOPTION IS DERIVED, not configured. phases_shipped is ordered and
+  // append-only, so the first entry any log declares marks where the convention
+  // was adopted; from that index on, every entry must be declared. Entries
+  // before it predate adoption and are exempt — a repo that adopts CASP with
+  // history behind it is not asked to invent logs it never wrote, and a repo
+  // that never adopts the key gets no finding at all (silence, like migrations).
+  // Backfilling an old log only moves the window earlier; it never fabricates.
+  if (
+    Array.isArray(state.phases_shipped) &&
+    state.phases_shipped.length > 0 &&
+    isDir(LOGS_DIR)
+  ) {
+    const declared = new Set<string>();
+    for (const entry of readdirSync(LOGS_DIR)) {
+      if (!entry.endsWith('.md')) continue;
+      // A directory named `*.md` is repo content like any other — readFrontmatter
+      // would throw EISDIR and take the whole report down with it. Same isFile
+      // guard the sessions-dir walk uses.
+      const logPath = join(LOGS_DIR, entry);
+      if (!statSync(logPath).isFile()) continue;
+      const fm = readFrontmatter(logPath);
+      const value = fm?.phase;
+      if (typeof value === 'string') {
+        if (value.trim()) declared.add(value.trim());
+      } else if (Array.isArray(value)) {
+        for (const v of value) {
+          if (typeof v === 'string' && v.trim()) declared.add(v.trim());
+        }
+      }
+    }
+
+    // No log declares a phase → the convention is not adopted here. Silence.
+    const shipped = state.phases_shipped;
+    const from = shipped.findIndex((p) => declared.has(p));
+    // from === -1: logs declare phases, but none of them is in phases_shipped
+    // yet (a template placeholder, or a log written before its state bump).
+    // The window never opens, so there is nothing to enforce — silence, not a
+    // finding built on a slice(-1) that would check only the last entry.
+    if (declared.size > 0 && from !== -1) {
+      const inWindow = shipped.slice(from);
+      // Deduplicated: a repeated phases_shipped entry is CASP-STATE-003's finding
+      // to report, and naming it twice here would read as two separate gaps.
+      const undeclared = [...new Set(inWindow.filter((p) => !declared.has(p)))];
+
+      // Pre-adoption entries are exempt, but never silently: the count is stated
+      // so a green line can't be read as "all of history is logged".
+      const scope =
+        from > 0
+          ? `${inWindow.length} phase(s) since '${shipped[from]}' (${from} pre-adoption entr${from === 1 ? 'y' : 'ies'} exempt)`
+          : `all ${inWindow.length} shipped phase(s)`;
+
+      if (undeclared.length === 0) {
+        record(
+          'shipped_log.declared',
+          'pass',
+          'every shipped phase has a declaring session log',
+          scope
+        );
+      } else {
+        record(
+          'shipped_log.declared',
+          'fail',
+          `${undeclared.length} shipped phase(s) have no session log`,
+          `${undeclared.join(', ')} — not declared by any \`phase:\` in ${dirs.logsRel}/`,
+          `add \`phase: <id>\` to the frontmatter of the log that shipped it (or write the missing log) OR remove the entry from phases_shipped`,
+          // A real diffable pair, per docs/check-json.md: what the window
+          // requires vs what is actually missing from it.
+          { expected: inWindow.join(', '), actual: undeclared.join(', ') }
+        );
+      }
+    }
+  }
+
   /* 4. last_commit vs git ----------------------------------------------- */
 
   if (!noGit && state.last_commit && state.last_commit !== 'pending') {

@@ -1,3 +1,13 @@
+---
+# The phase(s) this session shipped. Each id must match a phases_shipped entry
+# in casp/state.json — this is what CASP-SESSION-003 reads to prove the
+# scoreboard is backed by a written record. Use a list when one session shipped
+# several: phase: [first-id, second-id]. Drop the key for a session that shipped
+# no phase (a state-surface bump, a queue edit); leave the shipped entries to
+# the log that actually shipped them.
+phase: <phase-id>
+---
+
 # YY-MM-DD-NNN — <Phase id> : <Concise title>
 
 **Session prompt :** `docs/plan/sessions/<id>-<slug>.md`.

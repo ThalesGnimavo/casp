@@ -143,6 +143,18 @@ export const RULES: Rule[] = [
     matches: (id) => id.startsWith('shipped_history.')
   },
   {
+    code: 'CASP-SESSION-003',
+    title: 'Shipped phases are declared by a session log',
+    area: 'SESSION',
+    verifies:
+      'Every phases_shipped entry from the point of adoption onward is declared by a `phase:` key in some session log’s frontmatter. Adoption is derived from the data: the first entry any log declares opens the window, and earlier entries are exempt as pre-adoption. A repo where no log declares a phase gets no finding at all.',
+    evidence:
+      'The `phase:` frontmatter key across every .md file in the resolved logs_dir, compared against phases_shipped. Filenames are never consulted — the mapping is declared, never inferred.',
+    remediation:
+      'Add `phase: <id>` to the frontmatter of the log that shipped it (or write the missing log) OR remove the entry from phases_shipped.',
+    matches: (id) => id.startsWith('shipped_log.')
+  },
+  {
     code: 'CASP-GIT-001',
     title: 'last_commit is consistent with git history',
     area: 'GIT',
