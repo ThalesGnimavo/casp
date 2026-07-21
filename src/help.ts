@@ -213,8 +213,10 @@ const COMMANDS: CmdHelp[] = [
       'CASP cannot prove a claim is true, only that it has stopped being ' +
       'verified: its source changed, its TTL expired, or no method was ever ' +
       'recorded. A repo with no casp/facts.json sees none of this. `verify` is ' +
-      'the one mutating subcommand — it replays the declared method, shows the ' +
-      'before/after, and asks for confirmation.',
+      'the one mutating subcommand, and the only place CASP runs repository ' +
+      'content: it asks before executing the declared method, then again before ' +
+      'writing the result. No TTY means it refuses rather than assumes, and no ' +
+      'gate ever calls it.',
     usage: [
       'casp fact list [--json]',
       'casp fact check [--json]',
@@ -223,7 +225,7 @@ const COMMANDS: CmdHelp[] = [
     ],
     flags: [
       ['--json', 'Emit the result as data'],
-      ['--yes', 'verify: skip the confirmation prompt']
+      ['--yes', 'verify: skip both prompts — runs the method AND writes, unattended']
     ],
     examples: [
       ['casp fact stale', 'what needs re-verifying before this goes in a doc?'],

@@ -3,10 +3,13 @@
  *
  * One syllable, read-only by default — same grammar as the rest of the CLI.
  * `verify` is the sole exception and the one deliberate code-execution surface
- * in this binary: it runs the fact's declared `method` (a shell command the
- * project itself wrote into casp/facts.json), shows the before/after, and asks
- * for confirmation before writing. Nothing else in CASP ever executes
- * repository content — see docs/threat-model.md.
+ * in this binary: it replays the fact's declared `method` (a shell command the
+ * project itself wrote into casp/facts.json — repository content, therefore
+ * untrusted). It asks TWICE, and the order is load-bearing: `run this command?`
+ * BEFORE executing, then `write this fact?` once the before/after is on screen.
+ * With no TTY it refuses outright; `--yes` is the only bypass. Nothing else in
+ * CASP ever executes repository content, and no gate ever calls this — see
+ * docs/threat-model.md.
  *
  *   casp fact list [--json]         inventory, with each fact's freshness
  *   casp fact check [--json]        FACT-only subset of `casp check`
@@ -135,6 +138,30 @@ function reasonsFor(check: FactCheck): string[] {
   return reasons;
 }
 
+/**
+ * Ask a yes/no question on a TTY. Returns false on anything but an explicit yes.
+ *
+ * With no TTY there is nobody to ask, so this never silently proceeds: it fails
+ * with `refusal` and exits non-zero. `--yes` is the only way through in CI, and
+ * it has to be typed on purpose.
+ */
+async function confirm(question: string, refusal: string): Promise<boolean> {
+  if (!stdin.isTTY) fail(refusal, 'pass --yes to confirm');
+  const rl = createInterface({ input: stdin, output: stdout });
+  let answer: string;
+  try {
+    answer = (await rl.question(question)).trim().toLowerCase();
+  } catch {
+    // Ctrl+D (or any aborted read) is a person declining, not a crash. Node
+    // rejects the pending question with an AbortError; treat it as "no" so the
+    // caller aborts cleanly instead of printing a stack trace over the prompt.
+    return false;
+  } finally {
+    rl.close();
+  }
+  return answer === 'y' || answer === 'yes';
+}
+
 async function runVerify(root: string, id: string, yes: boolean): Promise<void> {
   const path = factsPath(root);
   const file = loadFacts(path);
@@ -149,6 +176,27 @@ async function runVerify(root: string, id: string, yes: boolean): Promise<void> 
   console.log(c.bold(`casp fact verify ${id}`));
   console.log(c.gray('─'.repeat(70)));
   console.log(`  ${c.cyan('method')}  ${fact.method}`);
+
+  // SECURITY GATE — this must stay ABOVE the execSync below.
+  //
+  // `method` is repository content: casp/facts.json may have been written by an
+  // autonomous agent, or arrived with a repo someone cloned. Running it is the
+  // one deliberate code-execution surface in this binary, so the operator has to
+  // agree to it BEFORE it runs, not after. An earlier revision executed first and
+  // only then asked "write this fact?" — which read as consent but gated the
+  // write, so the command had already run by the time anyone was asked, even with
+  // no TTY and no --yes. See docs/threat-model.md.
+  if (!yes) {
+    const agreed = await confirm(
+      `  ${c.bold('run this command?')} ${c.gray('it comes from casp/facts.json')} ${c.gray('[y/N]')} `,
+      'refusing to run a fact method without confirmation in a non-interactive shell',
+    );
+    if (!agreed) {
+      console.log(c.gray('  aborted — nothing run, nothing written'));
+      exit(0);
+    }
+  }
+
   console.log(c.gray('  running…'));
 
   let stdout_: string;
@@ -171,17 +219,15 @@ async function runVerify(root: string, id: string, yes: boolean): Promise<void> 
   console.log(`           at:    ${c.green(todayISO())}`);
   console.log('');
 
+  // Data gate — separate from the security gate above and deliberately kept.
+  // The first prompt agrees to RUN the command; this one agrees to persist the
+  // value it produced, which is the first moment anyone can actually see it.
   if (!yes) {
-    const interactive = Boolean(stdin.isTTY);
-    if (!interactive) fail('refusing to write without confirmation in a non-interactive shell', 'pass --yes to confirm');
-    const rl = createInterface({ input: stdin, output: stdout });
-    let answer: string;
-    try {
-      answer = (await rl.question(`  write this fact? ${c.gray('[y/N]')} `)).trim().toLowerCase();
-    } finally {
-      rl.close();
-    }
-    if (answer !== 'y' && answer !== 'yes') {
+    const agreed = await confirm(
+      `  write this fact? ${c.gray('[y/N]')} `,
+      'refusing to write without confirmation in a non-interactive shell',
+    );
+    if (!agreed) {
       console.log(c.gray('  aborted — nothing written'));
       exit(0);
     }

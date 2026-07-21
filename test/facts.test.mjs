@@ -16,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -452,6 +452,77 @@ test('casp fact verify <id>: refuses without confirmation in a non-interactive s
     assert.equal(r.status, 1);
     const facts = JSON.parse(readFileSync(join(dir, 'casp', 'facts.json'), 'utf8'));
     assert.equal(facts.facts[0].value, 'x', 'nothing written without confirmation');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+// The regression that matters most in this file. The test above asserts nothing
+// was WRITTEN; until 0.14.0 shipped, nothing asserted nothing was RUN — and the
+// implementation executed the method first and only then asked "write this
+// fact?". So the refusal test passed while `casp fact verify <id>` on an
+// untrusted repo executed arbitrary shell with no TTY, no --yes and no consent.
+// `method` is repository content; the confirmation has to gate the execution,
+// not the persistence. Assert the side effect, not just the state file.
+test('casp fact verify <id>: without confirmation the method DOES NOT RUN', () => {
+  const dir = scaffold();
+  try {
+    const sentinel = join(dir, 'method-executed.txt');
+    writeFacts(dir, [
+      {
+        id: 'v', value: 'x', source: 'external:console',
+        method: `echo ran > ${JSON.stringify(sentinel)}`,
+        verified_at: '2026-07-20', ttl_days: 30,
+      },
+    ]);
+    commit(dir, 'fact');
+
+    const r = run(dir, 'fact', 'verify', 'v');
+
+    assert.equal(r.status, 1, 'must refuse, not proceed');
+    assert.equal(existsSync(sentinel), false, 'the method must not execute without consent');
+    assert.match(r.stderr + r.stdout, /refusing to run/i, 'the refusal must name execution, not writing');
+    const facts = JSON.parse(readFileSync(join(dir, 'casp', 'facts.json'), 'utf8'));
+    assert.equal(facts.facts[0].value, 'x', 'nothing written either');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('casp fact verify <id> --yes: the method runs (the opt-in still works)', () => {
+  const dir = scaffold();
+  try {
+    const sentinel = join(dir, 'method-executed.txt');
+    writeFacts(dir, [
+      {
+        id: 'v', value: 'x', source: 'external:console',
+        method: `echo ran > ${JSON.stringify(sentinel)}; echo 99`,
+        verified_at: '2026-07-20', ttl_days: 30,
+      },
+    ]);
+    commit(dir, 'fact');
+
+    const r = run(dir, 'fact', 'verify', 'v', '--yes');
+
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(existsSync(sentinel), true, '--yes is the explicit opt-in and must still run');
+    const facts = JSON.parse(readFileSync(join(dir, 'casp', 'facts.json'), 'utf8'));
+    assert.equal(facts.facts[0].value, '99');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('casp fact verify <id>: the method is printed before anything is decided', () => {
+  const dir = scaffold();
+  try {
+    writeFacts(dir, [
+      { id: 'v', value: 'x', source: 'external:console', method: 'echo CANARY', verified_at: '2026-07-20', ttl_days: 30 },
+    ]);
+    commit(dir, 'fact');
+    const r = run(dir, 'fact', 'verify', 'v');
+    // Refused — but the operator must have been shown what they were refusing.
+    assert.match(r.stdout, /echo CANARY/, 'the command must be visible before the gate');
   } finally {
     cleanup(dir);
   }

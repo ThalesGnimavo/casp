@@ -8,6 +8,14 @@ guiding assumption is blunt:
 > frontmatter, directory and file names, and CLI arguments may all be hostile or
 > malformed. Verifying state must never execute code those inputs control.
 
+**One verb is a deliberate, consented exception: `casp fact verify <id>`.** It
+replays a fact's declared `method` — a shell command the project wrote into
+`casp/facts.json`, which is repository content and therefore untrusted by the
+rule above. It is the only place in the binary that executes repository content,
+it never runs during `casp check` or any gate, and it cannot run without an
+explicit human yes (or `--yes`, typed on purpose). See *The one execution
+surface* below.
+
 CASP's core promise — deterministic, local-only, zero telemetry — is also its
 security posture: there is no network path, no account, no remote to attack, and
 nothing to exfiltrate. The review is one line: *it never leaves the machine.*
@@ -33,10 +41,12 @@ This document records the concrete threats the implementation defends against.
   `HEAD; rm -rf ~` becomes a single invalid git argument (git errors, we return
   `''`, the check FAILs), never a shell command. This is covered by a regression
   test.
-- **No arbitrary code execution to verify state.** CASP never runs project
-  build scripts, hooks, or test suites to reach a verdict. It reads files and
-  asks git plumbing questions. Verifying state cannot, by construction, run the
-  project's code.
+- **No arbitrary code execution to reach a verdict.** CASP never runs project
+  build scripts, hooks, or test suites to decide PASS/WARN/FAIL. It reads files
+  and asks git plumbing questions. **Every gating path — `casp check`, the
+  pre-push hook, `casp next`, `casp status`, `--all` — is execution-free by
+  construction.** The single exception is `casp fact verify`, which gates
+  nothing and cannot run unattended; see below.
 - **Symlink cycles.** The `--all` fleet walk tracks resolved real paths, so a
   symlink cycle (`a/b -> ../a`) cannot recurse forever.
 - **Malformed input.** Invalid JSON, missing frontmatter, and unexpected types
@@ -45,6 +55,38 @@ This document records the concrete threats the implementation defends against.
   `set -eu` (POSIX; `pipefail` is intentionally omitted as a bashism that would
   break `#!/bin/sh`), refuses to clobber a foreign hook, and never touches
   `core.hooksPath`.
+
+## The one execution surface — `casp fact verify`
+
+A fact declares the `method` that produced its value so the claim can be
+reproduced. `casp fact verify <id>` replays that method through a shell, in the
+repository root, and offers to write the result back. Everything else in the
+facts layer treats `method` as inert data: `casp check`, `casp fact check`,
+`casp fact list` and `casp fact stale` read it, pattern-match it against the trap
+registry, and never run it.
+
+The rules that keep this honest:
+
+- **Consent precedes execution.** The method is printed, then the operator is
+  asked `run this command?` **before** anything runs. Declining, or `Ctrl+D`,
+  aborts having run nothing.
+- **No TTY means no execution.** In a non-interactive shell — CI, a hook, an
+  agent's subprocess — `casp fact verify` refuses and exits 1 rather than
+  assuming consent. `--yes` is the only bypass and has to be typed deliberately.
+- **It never gates.** No rule, hook or CI path invokes it. A repository can be
+  fully validated without it ever running.
+- **Two regression tests pin this**, and they assert the *side effect* of the
+  method, not just the state file. That distinction is the whole lesson: an
+  earlier revision executed the method first and only then asked "write this
+  fact?", so the existing test — which checked that nothing was written — passed
+  while arbitrary shell ran with no TTY, no `--yes` and no consent. A test that
+  asserts the wrong invariant is indistinguishable from no test.
+
+**What this means for you.** Running `casp fact verify` on a repository you do
+not trust is equivalent to running a command out of one of its files, because
+that is exactly what it does. Read the printed method before answering yes. The
+gate is real, but it is a consent gate, not a sandbox: CASP does not attempt to
+constrain what the method can do once you approve it.
 
 ## Known residual work (defense-in-depth, tracked)
 
