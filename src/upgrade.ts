@@ -13,17 +13,21 @@
  * The contract, and it is the whole point:
  *
  *   - It refreshes ONLY the scaffolds — `README.md` and everything under
- *     `casp/templates/`. The list is derived from the files the package ships,
- *     minus an explicit DATA_FILES denylist, so a scaffold added in a future
- *     release is delivered without touching this code.
+ *     `casp/templates/`. That set is an ALLOWLIST: a shipped file this code has
+ *     never heard of is skipped, not written. A denylist would have made every
+ *     future root-level template an unannounced overwrite of operator data.
  *   - It NEVER writes `now.md` or `roadmap.md`, and it never templates over
  *     `state.json`. The single state write is additive: stamp `casp_version`
  *     with the installed CLI's version, round-tripped through the parsed object
  *     so every existing value stays byte-identical. The key is namespaced on
  *     purpose — `state.json` has always allowed arbitrary extra keys, and a bare
  *     `version` would have silently eaten an operator's own product version.
- *   - It never deletes, and it never writes THROUGH a symlink: a linked path in
- *     the cockpit points somewhere the operator chose, possibly outside `casp/`.
+ *   - It never deletes, and it never writes THROUGH a symlink — the leaf itself,
+ *     or any parent component: a linked path in the cockpit points somewhere the
+ *     operator chose, possibly outside `casp/`. Every write target must resolve
+ *     back inside the resolved cockpit, and an unresolvable path fails closed.
+ *   - An unrecognised flag exits 2 rather than being ignored. On the one verb
+ *     that writes into a user's repository, `--dryrun` must not mean `apply`.
  *   - A write that fails (a directory in the way, an unwritable file) is
  *     reported per file and the run continues — a partial refresh must never
  *     also skip the version stamp, or the next run repeats it forever.
@@ -41,10 +45,11 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   statSync,
   writeFileSync
 } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
 import { c, loadState, pkgVersion, saveState, setColor, todayISO } from './shared.js';
@@ -53,12 +58,50 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = join(__dirname, '..', 'templates');
 
 /**
- * The cockpit files `upgrade` must never write. These are the operator's data:
- * `state.json` is the cockpit itself, `now.md` and `roadmap.md` are hand-written
- * prose. Everything else the package ships under templates/ is a scaffold and is
- * refreshable. Paths are relative to `casp/`, POSIX-separated.
+ * What `upgrade` is ALLOWED to write — an allowlist, not a denylist, because the
+ * default for a file this code has never heard of must be "leave it alone".
+ *
+ * Everything under `casp/templates/` is by definition a scaffold: it exists to be
+ * copied out of, never edited in place. At the cockpit root the only scaffold is
+ * `README.md`; `state.json`, `now.md` and `roadmap.md` are the operator's data.
+ *
+ * The earlier shape denied those three by name and refreshed everything else,
+ * which meant a future root-level template — an operator-prose file, say, or the
+ * facts file a later phase adds — would be silently overwritten until somebody
+ * remembered to extend the list. Correctness must not depend on that memory. A
+ * new root-level scaffold is now skipped until it is deliberately opted in here.
  */
-const DATA_FILES = new Set(['state.json', 'now.md', 'roadmap.md']);
+function isRefreshable(rel: string): boolean {
+  return rel === 'README.md' || rel.startsWith('templates/');
+}
+
+/**
+ * True when the directory a file would be written into does not resolve back
+ * inside the cockpit — i.e. some component of the path is a symlink pointing
+ * out. Resolves the deepest EXISTING ancestor, because the leaf (and possibly
+ * its directory) may legitimately not exist yet on an `add`.
+ *
+ * Fails CLOSED: if the cockpit itself cannot be resolved, nothing is written.
+ */
+function escapesCockpit(cockpit: string, destAbs: string): boolean {
+  let base: string;
+  try {
+    base = realpathSync(cockpit);
+  } catch {
+    return true;
+  }
+  let dir = dirname(destAbs);
+  // Walk up to the first component that exists; that is the one realpath can
+  // resolve, and the one a write would actually land under.
+  while (!existsSync(dir) && dirname(dir) !== dir) dir = dirname(dir);
+  let resolved: string;
+  try {
+    resolved = realpathSync(dir);
+  } catch {
+    return true;
+  }
+  return resolved !== base && !resolved.startsWith(base + sep);
+}
 
 /**
  * The scaffolded README carries the date the cockpit was created — a fact about
@@ -128,23 +171,28 @@ export function planUpgrade(cockpit: string): FileVerdict[] {
   }
   for (const rel of shipped) {
     const destAbs = join(cockpit, ...rel.split('/'));
-    // Denylist by full path AND by basename: today no shipped scaffold carries a
-    // data-file basename at a nested path, and if one ever does it must still be
-    // treated as the operator's data rather than silently overwritten.
-    if (DATA_FILES.has(rel) || DATA_FILES.has(rel.split('/').pop() as string)) {
+    // Not on the allowlist → the operator's data, or a file this version has no
+    // business touching. Either way: skip.
+    if (!isRefreshable(rel)) {
       plan.push({ rel, action: 'skip', content: null });
       continue;
     }
     // A symlink in the cockpit points somewhere the operator chose — very
     // possibly outside casp/. Writing through it would rewrite a file this verb
     // was never pointed at, so a link is reported and left alone.
+    //
+    // Checking the LEAF is not enough: every parent component is followed by
+    // mkdirSync/writeFileSync, so a symlinked `casp/templates/` — or a symlinked
+    // `casp/` itself, ordinary in a monorepo — escapes the cockpit just as
+    // effectively, with no race required. So the resolved parent directory must
+    // still be inside the resolved cockpit before anything is written there.
     let link = false;
     try {
       link = lstatSync(destAbs).isSymbolicLink();
     } catch {
       link = false; // nothing there, or unreadable — the paths below handle it
     }
-    if (link) {
+    if (link || escapesCockpit(cockpit, destAbs)) {
       plan.push({ rel, action: 'symlink', content: null });
       continue;
     }
@@ -202,6 +250,17 @@ function label(action: Action): string {
 }
 
 export function runUpgrade(args: string[]): void {
+  // An unrecognised flag must never be read as "apply". This is the one verb
+  // that writes into the operator's repository, so a typo like `--dryrun` or a
+  // half-remembered `-N` has to stop the run, not silently perform the real
+  // thing the user was trying to avoid.
+  const KNOWN = new Set(['--plain', '--dry-run', '-n']);
+  const unknown = args.filter((a) => !KNOWN.has(a));
+  if (unknown.length > 0) {
+    console.error(c.red(`unknown flag: ${unknown.join(' ')}`));
+    console.error(c.gray('  → casp upgrade [--dry-run|-n] [--plain]'));
+    exit(2);
+  }
   if (args.includes('--plain')) setColor(false);
   const dryRun = args.includes('--dry-run') || args.includes('-n');
   const root = process.cwd();
@@ -278,7 +337,11 @@ export function runUpgrade(args: string[]): void {
   let stateLine: string;
   if (!existsSync(statePath)) {
     stateLine = c.yellow('state.json is missing — not stamped (run `casp init` in an empty repo)');
-  } else if (!state) {
+  } else if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    // `loadState` returns whatever the file parsed to. A bare scalar (`42`) is
+    // truthy and not null, and assigning a property onto it throws under strict
+    // mode — after the scaffolds were already written and before the stamp.
+    // A state file that is not an object is a broken cockpit, not a target.
     stateLine = c.yellow('state.json is not valid JSON — not stamped, fix the syntax and re-run');
   } else {
     const from = typeof state.casp_version === 'string' ? state.casp_version : null;

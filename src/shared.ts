@@ -3,7 +3,7 @@
  */
 
 import { execSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from 'node:fs';
 import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -188,7 +188,23 @@ export function loadState(path: string): State | null {
 // in place keeps the file's key order. 2-space indent + trailing newline match
 // what `init` scaffolds and what every state-bump commit has written so far.
 export function saveState(path: string, state: State): void {
-  writeFileSync(path, JSON.stringify(state, null, 2) + '\n');
+  // Write to a sibling temp file and rename over the target. rename(2) is atomic
+  // within a filesystem, so a crash or a full disk mid-write leaves the previous
+  // state.json intact instead of a truncated one. A naked writeFileSync here can
+  // destroy the cockpit it is trying to update — and this function is shared by
+  // every verb that mutates state (ship, close, audit, upgrade).
+  const tmp = `${path}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+    renameSync(tmp, path);
+  } catch (err) {
+    try {
+      if (existsSync(tmp)) unlinkSync(tmp);
+    } catch {
+      /* best-effort cleanup — the original is what matters and it is untouched */
+    }
+    throw err;
+  }
 }
 
 export function todayISO(): string {

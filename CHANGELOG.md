@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.1 — 2026-07-21
+
+**Fixes two data-loss paths in `casp upgrade` (0.12.0). Upgrade immediately; 0.12.0 is deprecated on npm.** Found by an adversarial review that reproduced both by execution, after 0.12.0 had already been published — the publish was premature and the fix is same-day.
+
+- **FIX — a symlinked parent directory let a write escape the cockpit.** The symlink check inspected only the final path component, but every parent is followed by `mkdirSync`/`writeFileSync`. A symlinked `casp/templates/` — or a symlinked `casp/` itself, ordinary in a monorepo — meant `upgrade` wrote into, and overwrote files in, a directory it was never pointed at. No race was required; a plain run did it. Every write target's resolved parent must now sit inside the resolved cockpit, and an unresolvable path fails closed.
+- **FIX — the refresh set was a denylist, so unknown files were overwritten by default.** It named `state.json`, `now.md` and `roadmap.md` and refreshed everything else the package ships. Any root-level template added in a future release would therefore have silently replaced whatever the operator had written at that path, with no warning line. It is now an **allowlist**: `README.md` plus everything under `casp/templates/`. A shipped file this code has not heard of is skipped, not written — the default for the unknown is "leave it alone".
+- **FIX — an unrecognised flag was ignored, so a mistyped dry run performed a real write.** `casp upgrade --dryrun` (and `-N`) applied. On the one verb that writes into a user's repository, unrecognised now exits 2 without writing anything.
+- **FIX — a `state.json` holding a bare scalar crashed the run.** `42` parses, is truthy and is not null, so it passed the guard and the property assignment threw under strict mode — after the scaffolds were written and before the version stamp, leaving a raw stack trace. A state file that is not an object is now reported as a broken cockpit and left alone.
+- **FIX — `saveState` is atomic.** It was a naked truncating `writeFileSync`: a crash or a full disk mid-write destroyed the state file it was updating. Now a temp file plus `rename`, which is atomic within a filesystem. Pre-existing and shared, so this also hardens `ship`, `close` and `audit`.
+- **Four new regression tests** (121 total), each pinning a reproduced exploit rather than the abstract rule: an escaping symlinked parent leaves the outside file byte-identical and creates nothing there; an unrecognised root-level file survives an upgrade; `--dryrun` / `-N` / `--force` each exit 2 and write nothing; a scalar `state.json` produces no `TypeError`.
+
 ## 0.12.0 — 2026-07-21
 
 The protocol's own continuity across releases. `casp upgrade` closes the gap where CASP could improve its scaffolds but had no way to deliver them to a repo already on CASP. One new command makes it a minor bump; everything is additive — no existing finding changes verdict, `casp check` gains no rule, the `check --json` schema stays v1, and every prior test stays green (118 total).

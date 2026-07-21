@@ -360,16 +360,75 @@ test('upgrade is a first-class verb in the help surface', () => {
   assert.match(one.stdout, /--dry-run/);
 });
 
-test('unknown flags do not turn upgrade destructive', () => {
+test('an unknown flag exits 2 and writes nothing — a typo must not mean "apply"', () => {
   const dir = scaffold();
   age(dir);
-  // A bogus flag is not --dry-run: upgrade still applies. What must NOT happen
-  // is a bogus flag being read as force-anything and eating the data files.
+  // The dangerous case is a MISTYPED dry run: `--dryrun` is not `--dry-run`, and
+  // ignoring it would perform the real write the user was trying to preview. On
+  // the one verb that writes into a user's repository, unrecognised means stop.
   const before = snapshot(join(dir, 'casp'));
-  const r = run(dir, 'upgrade', '--force', '--plain');
+  for (const flag of ['--dryrun', '-N', '--force']) {
+    const r = run(dir, 'upgrade', flag, '--plain');
+    assert.equal(r.status, 2, `${flag} must exit 2, not be ignored`);
+    assert.match(r.stderr, /unknown flag/);
+    assert.deepEqual(snapshot(join(dir, 'casp')), before, `${flag} must write nothing`);
+  }
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('an unrecognised root-level scaffold is skipped, never overwritten (allowlist)', () => {
+  const dir = scaffold();
+  age(dir);
+  // The regression that shipped in 0.12.0: the refresh set was a denylist of
+  // three names, so ANY future root-level template silently replaced whatever
+  // the operator had written there. The allowlist inverts the default.
+  writeFileSync(join(dir, 'casp', 'decisions.md'), '# my architecture decisions\n');
+  const r = run(dir, 'upgrade', '--plain');
   assert.equal(r.status, 0);
-  const after = snapshot(join(dir, 'casp'));
-  assert.equal(after['now.md'], before['now.md']);
-  assert.equal(after['roadmap.md'], before['roadmap.md']);
+  assert.equal(
+    readFileSync(join(dir, 'casp', 'decisions.md'), 'utf8'),
+    '# my architecture decisions\n',
+    'a root-level file that is not a known scaffold must survive untouched'
+  );
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a symlinked parent directory is refused — no write escapes the cockpit', () => {
+  const dir = scaffold();
+  age(dir);
+  // Leaf-only symlink detection let `casp/templates/` point outside the cockpit
+  // and upgrade wrote straight through it. No race is needed; a plain run does it.
+  const outside = mkdtempSync(join(tmpdir(), 'casp-outside-'));
+  const victim = join(outside, 'session-log.md');
+  writeFileSync(victim, 'PRECIOUS\n');
+  rmSync(join(dir, 'casp', 'templates'), { recursive: true, force: true });
+  symlinkSync(outside, join(dir, 'casp', 'templates'));
+
+  const r = run(dir, 'upgrade', '--plain');
+  assert.equal(r.status, 0, 'an escaping path is reported, it does not crash the run');
+  assert.equal(
+    readFileSync(victim, 'utf8'),
+    'PRECIOUS\n',
+    'a file outside the cockpit must never be written'
+  );
+  assert.deepEqual(
+    readdirSync(outside),
+    ['session-log.md'],
+    'nothing new may be created outside the cockpit either'
+  );
+  rmSync(outside, { recursive: true, force: true });
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a state.json holding a bare scalar is refused, not crashed on', () => {
+  const dir = scaffold();
+  age(dir);
+  // `42` parses, is truthy, and is not null — so it passed the old guard and the
+  // property assignment threw under strict mode, AFTER the scaffolds were written.
+  writeFileSync(join(dir, 'casp', 'state.json'), '42\n');
+  const r = run(dir, 'upgrade', '--plain');
+  assert.equal(r.status, 0, 'a broken cockpit is reported, never a stack trace');
+  assert.doesNotMatch(r.stderr, /TypeError/);
+  assert.equal(readFileSync(join(dir, 'casp', 'state.json'), 'utf8'), '42\n', 'left alone');
   rmSync(dir, { recursive: true, force: true });
 });
