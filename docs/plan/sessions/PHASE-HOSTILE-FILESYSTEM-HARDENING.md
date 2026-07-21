@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-07-21-010-hostile-filesystem-hardening
+session_log: session-logs/26-07-21-010-hostile-filesystem-hardening.md
 drafted_at: 2026-07-21
 next_after: fact-verify-consent-gate
 parent_prompt: null
@@ -9,7 +9,7 @@ parent_prompt: null
 
 # PHASE — Hostile filesystem hardening: a gate that crashes is not a verdict
 
-> **Status : QUEUED.** Every defect below was **reproduced by execution** on
+> **Status : SHIPPED.** Every defect below was **reproduced by execution** on
 > 2026-07-21 against the built 0.14.0 binary, not inferred from reading the source.
 > The commands and their exact observed output are in CONTEXT — re-run them first;
 > if any no longer reproduces, say so in the log rather than fixing something that
