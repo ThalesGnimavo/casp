@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-07-21",
   "last_session_id": "26-07-21-006-readme-lead-with-the-queue",
-  "last_commit": "ec2e1ea",
+  "last_commit": "2f6b1a0",
   "current_phase": "readme-lead-with-the-queue",
-  "next_phase": "facts-layer",
-  "next_prompt": "docs/plan/sessions/PHASE-FACTS-LAYER.md",
+  "next_phase": "prompt-chain-integrity",
+  "next_prompt": "docs/plan/sessions/PHASE-PROMPT-CHAIN-INTEGRITY.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -35,6 +35,7 @@
     "readme-lead-with-the-queue"
   ],
   "phases_queued": [
+    "prompt-chain-integrity",
     "facts-layer",
     "demand-gated-tail"
   ],
