@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-07-21-002-upgrade-command
+session_log: session-logs/26-07-21-002-upgrade-command.md
 drafted_at: 2026-07-17
 next_after: 26-07-15-001-0-9-0-doctor-version
 ---

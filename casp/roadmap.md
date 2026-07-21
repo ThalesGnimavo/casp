@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Updated** : 2026-07-21 (session 26-07-21-001 — 0.11.0 shipped).
+> **Updated** : 2026-07-21 (session 26-07-21-002 — 0.12.0 shipped).
 > **Source of truth** : this file + `docs/plan/sessions/*.md` (status frontmatter) + `session-logs/`.
 > **Maintenance rule** : update at the end of every session that ships something or surfaces a blocker.
 > **Note** : the validated order below was approved on 2026-06-10, materialized as drafted prompts. Commit SHAs were re-stamped after the 2026-06-17 history rewrite; reference session-log filenames (stable) over SHAs.
@@ -11,8 +11,9 @@
 
 | # | Item | Prompt | Status |
 |---|------|--------|--------|
-| 1 | **Facts layer** — opt-in `casp/facts.json` + six deterministic `CASP-FACT-001..006` rules (source hash, TTL, method provenance, static traps registry): prove a claim's **freshness**, never its truth. Answers a real 2026-07-20 incident (five costly stale claims on a production cockpit, all invisible to `casp check`). Zero LLM — the `casp lint` red line holds. Sequenced 2026-07-20, before `upgrade-command` (incident-driven beats ergonomics — invert if disagreed). | `docs/plan/sessions/PHASE-FACTS-LAYER.md` | queued |
-| 2 | `casp upgrade` — non-destructive scaffold refresh + additive `state.json` version stamp + `doctor` staleness WARN. Dogfooding (2026-07-17) surfaced that a cockpit scaffolded at an older version cannot adopt newer scaffolds: `init` refuses on an existing `casp/`, and `init --force` overwrites data (`state.json`/`now.md`/`roadmap.md`). Sequenced 2026-07-18. | `docs/plan/sessions/PHASE-UPGRADE-COMMAND.md` | queued |
+| 1 | **Facts layer** — opt-in `casp/facts.json` + six deterministic `CASP-FACT-001..006` rules (source hash, TTL, method provenance, static traps registry): prove a claim's **freshness**, never its truth. Answers a real 2026-07-20 incident (five costly stale claims on a production cockpit, all invisible to `casp check`). Zero LLM — the `casp lint` red line holds. | `docs/plan/sessions/PHASE-FACTS-LAYER.md` | queued |
+
+**Sequencing note (2026-07-21).** `upgrade-command` was moved ahead of `facts-layer` and shipped as 0.12.0. The 2026-07-20 argument for the reverse order — a demonstrated incident beats ergonomics — held only while `upgrade` was hypothetical. 0.11.0 made it concrete: it shipped a changed session-log template (the `phase:` frontmatter `CASP-SESSION-003` reads) that **no existing cockpit could receive**, because `init` refuses on an existing `casp/` and `--force` overwrites the operator's data. `facts-layer` would have stacked a second undeliverable scaffold (`casp/facts.json`) on top of the first.
 
 If you reach for anything BELOW Next, stop and check why.
 
@@ -38,7 +39,8 @@ If you reach for anything BELOW Next, stop and check why.
 
 | Date | Commit | Title | Notes |
 |------|--------|-------|-------|
-| 2026-07-21 | `0f67e23` | **0.11.0** — `CASP-SESSION-003` : shipped phases declared by a session log | 100/100 tests; first new drift category since rule codes; opt-in by declaration, derived adoption window, pre-adoption history exempt; **not yet published to npm** |
+| 2026-07-21 | `9cfe9ef` | **0.12.0** — `casp upgrade` : non-destructive scaffold refresh + additive `casp_version` stamp + `doctor` staleness WARN | 118/118 tests; sequenced ahead of `facts-layer` because 0.11.0's template change was otherwise unadoptable; audit GO-WITH-FIXES, five fixes folded in; **not yet published to npm** |
+| 2026-07-21 | `0f67e23` | **0.11.0** — `CASP-SESSION-003` : shipped phases declared by a session log | 102/102 tests; first new drift category since rule codes; opt-in by declaration, derived adoption window, pre-adoption history exempt; **not yet published to npm** |
 | 2026-07-19 | `f682356` | **0.10.0** — `casp audit` deep-audit watermark + `/audit-batch` skill | 92/92 tests; published; cockpit bump regularized 2026-07-20 (retrospective log) |
 | 2026-07-15 | `590b979` | **0.9.0** — `casp doctor`, `casp version --json`, structured findings | 87/87 tests; published |
 | 2026-07-14 | `015c72f` | **0.8.0** — stable rule codes, injection-safe git, JSON Schemas | 74/74 tests; published |
