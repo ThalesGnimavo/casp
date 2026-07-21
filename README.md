@@ -22,7 +22,9 @@ casp status          # one-screen "where am I"
 casp check           # validate the state against git — exits 1 on drift
 ```
 
-That's the whole product. Here is what the third command prints on a project that has drifted:
+That's the gate. There is a second half most people miss: **you also stop hand-writing session prompts** — you queue the work once and `casp next` hands your agent the next slice, in a validated order ([§00](#00--the-part-most-people-miss-you-stop-writing-prompts)).
+
+Here is what the third command prints on a project that has drifted:
 
 ```
 $ casp check
@@ -43,6 +45,48 @@ because the file told it to. That is the afternoon CASP is designed to give you 
 **C**oding-Agent · **S**tate · **P**rotocol. Works with **Claude Code**, **Cursor**, **Aider**, **Continue**, or any agent that can run a CLI. Node ≥ 20. No account, no telemetry, nothing leaves your machine.
 
 Built by **[Juste A. Gnimavo](https://justegnimavo.com)** — Chief AI-Augmented Architect, solo founder and CEO of ZeroSuite, running seven production products with Claude as the only engineer, from Abidjan, Côte d'Ivoire. CASP is the layer that keeps months of AI-driven sessions from collapsing into drift. The partnership behind it is documented in the open at [thalesandhisaictoclaude.com](https://thalesandhisaictoclaude.com).
+
+---
+
+## 00 · The part most people miss: you stop writing prompts
+
+Most people meet CASP as a drift gate. That is the floor, not the point. The reason it changes a working week is what sits on top of it:
+
+> **You describe the work once. From then on, every session starts by asking CASP what's next — and the answer is a prompt you didn't have to write.**
+
+Instead of opening each session by re-explaining your project and hand-writing a task, you turn your spec, roadmap or backlog into a queue of session prompts *once*, and let the state layer hand them out in order:
+
+```bash
+casp new prompt --slug phase-2-billing-core   # scaffold the next slice from the canonical template
+casp next                                     # print the next prompt — refuses on a drifted state
+```
+
+Each prompt is a file in your repo with frontmatter that declares its place in the line:
+
+```
+docs/plan/sessions/
+  PHASE-AUTH-GATE.md       status: shipped   next_after: null
+  PHASE-BILLING-CORE.md    status: shipped   next_after: auth-gate
+  PHASE-TEAM-ROLES.md      status: queued    next_after: billing-core   ◂ state.json.next_prompt
+  PHASE-AUDIT-LOG.md       status: queued    next_after: team-roles
+  PHASE-API-DOCS.md        status: queued    next_after: audit-log
+```
+
+`state.json.next_prompt` points at the head of that queue. Your agent's whole session-start ritual becomes one command, and the *plan itself* lives in the repo — reviewable in a PR, diffable, and readable by whatever model you use next month.
+
+**What makes it trustworthy is that the queue is validated, not merely stored.** Before handing over a prompt, `casp check` proves the head of the queue is real:
+
+| Rule | What it refuses to let past |
+|---|---|
+| `CASP-PROMPT-001` | `next_prompt` points at a file that doesn't exist |
+| `CASP-PROMPT-003` | `next_prompt` is a slice that **already shipped** — the classic re-do-last-week's-work bug |
+| `CASP-PROMPT-005` | A shipped prompt with no session log to show for it |
+| `CASP-PROMPT-006` | A prompt whose `status` isn't one of the canonical values |
+| `CASP-SESSION-003` | A phase on the shipped scoreboard that no session log declares |
+
+So the queue can't quietly rot into fiction: a prompt that lies about being queued, or a scoreboard that claims more than the written record supports, fails the gate and blocks the push.
+
+**Scope, stated honestly:** CASP does not run your sessions. `casp next` is a printer — it prints the next prompt and never executes anything, by design ([see what this is NOT](#what-this-is-not)). The autopilot is your agent; CASP is the part that makes the handoff worth trusting. The `next_after` chain is a convention the canonical template carries so a human can read the order at a glance — the validator enforces the *head* of the queue and the integrity of what's already shipped, not the ordering of what hasn't run yet.
 
 ---
 
