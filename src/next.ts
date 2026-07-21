@@ -17,11 +17,11 @@
  * printing — it stays a printer, not a runner (anti-roadmap).
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit } from 'node:process';
-import { c, loadState, readFrontmatter } from './shared.js';
-import { checkOne, summarize } from './check.js';
+import { c, describeFsFailure, loadState, readFrontmatter, readTextFile } from './shared.js';
+import { checkOneSafe, summarize } from './check.js';
 
 const ROOT = process.cwd();
 const STATE = join(ROOT, 'casp', 'state.json');
@@ -55,7 +55,15 @@ export function runNext(args: string[]): void {
     exit(1);
   }
 
-  const fm = readFrontmatter(path);
+  // Fail closed and LEGIBLY: a prompt the process cannot open is not a prompt
+  // it may start a session on, and the operator gets a sentence, not a trace.
+  const read = readFrontmatter(path);
+  if (!read.ok) {
+    console.error(c.red(`next_prompt ${describeFsFailure(read.error)}: ${nextPrompt}`));
+    console.error(c.gray('  → `npx @justethales/casp check` reports this as CASP-IO-001. Make the file readable, then retry.'));
+    exit(1);
+  }
+  const fm = read.fm;
   const status = fm ? String(fm.status ?? '?') : '(no frontmatter)';
   if (status === 'shipped') {
     console.error(
@@ -72,7 +80,7 @@ export function runNext(args: string[]): void {
   // (Missing-file / shipped-prompt drift is already caught above with sharper
   // messages; this catches the rest — stale last_commit, unmappable claims, etc.)
   if (!noCheck) {
-    const findings = checkOne(ROOT, { noGit });
+    const findings = checkOneSafe(ROOT, { noGit });
     const { fail } = summarize(findings);
     if (fail > 0) {
       console.error(c.red(`✗ state has drifted — refusing to start the next session.`));
@@ -91,6 +99,12 @@ export function runNext(args: string[]): void {
   // Header to stderr (human context), prompt body to stdout (pipe-friendly).
   console.error(c.bold(`next prompt`) + ` · ${c.cyan(nextPrompt)} · status ${c.green(status)}`);
   console.error(c.gray('─'.repeat(70)));
-  process.stdout.write(readFileSync(path, 'utf8'));
+  const body = readTextFile(path);
+  if (!body.ok) {
+    // The gate passed a moment ago and the file went away under us — say so.
+    console.error(c.red(`next_prompt ${describeFsFailure(body.error)}: ${nextPrompt}`));
+    exit(1);
+  }
+  process.stdout.write(body.content);
   exit(0);
 }

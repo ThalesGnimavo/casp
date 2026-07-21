@@ -328,6 +328,7 @@ Every finding carries a **stable rule code** (`CASP-<AREA>-<NNN>`) and a one-lin
 - `CASP-MIGRATION-002` — `migrations_applied[]` does not match the migrations directory.
 - `CASP-PROMPT-005` — a session prompt is `status: shipped` but its `session_log` is missing.
 - `CASP-WORKTREE-001` — uncommitted changes in `casp/`, the sessions dir, or the logs dir.
+- `CASP-IO-001` — a file the gate had to read could not be opened (mode `000`, a directory squatting a `*.md` path, a symlink cycle). *(A gate that crashes is not a verdict: the run completes, `--json` still parses, and the finding names the path and the reason.)*
 
 See the full catalogue with `casp rules` or in [docs/rules.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/rules.md). A claim the validator **cannot verify** — a missing backing directory for claimed migrations, shipped phases, or a session id — is a `FAIL`, never a silent green.
 

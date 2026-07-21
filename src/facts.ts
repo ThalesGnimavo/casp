@@ -21,9 +21,9 @@
  * verify <id>` ever runs it, and only after an explicit confirmation).
  */
 
-import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileHash, todayISO } from './shared.js';
+import { describeFsFailure, fileHash, readTextFile, todayISO } from './shared.js';
 import { matchTrap } from './traps.js';
 
 export interface FactEntry {
@@ -48,9 +48,10 @@ export interface FactsFile {
  *  minimally a facts file (no `facts` array) — check.ts turns the latter into
  *  a single FAIL rather than silent adoption of garbage. */
 export function loadFacts(path: string): FactsFile | null {
-  if (!existsSync(path)) return null;
+  const raw = readTextFile(path);
+  if (!raw.ok) return null;
   try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
+    const parsed = JSON.parse(raw.content) as unknown;
     if (
       !parsed ||
       typeof parsed !== 'object' ||
@@ -108,7 +109,9 @@ export interface FactCheck {
 
 export type FactsAnalysis =
   | { adopted: false }
-  | { adopted: true; malformed: true }
+  /** `detail` says WHY when the file is present but unusable — an unreadable
+   *  facts.json and a malformed one need different remediation. */
+  | { adopted: true; malformed: true; detail: string }
   | { adopted: true; malformed: false; checks: FactCheck[] };
 
 const MARKER = (id: string) => `<!-- casp:fact ${id} -->`;
@@ -178,8 +181,11 @@ function checkOneFact(root: string, fact: FactEntry, extraTraps: string[]): Fact
   const usedIn: FactUsedInCheck[] = (fact.used_in ?? []).map((p) => {
     const abs = join(root, p);
     if (!existsSync(abs)) return { path: p, ok: false, detail: `${p} not found in the repository` };
-    const content = readFileSync(abs, 'utf8');
-    const ok = content.includes(MARKER(fact.id));
+    const read = readTextFile(abs);
+    // Cannot open it → cannot see the marker. Not-ok with the reason, never a
+    // throw out of the middle of the report.
+    if (!read.ok) return { path: p, ok: false, detail: `${p} ${describeFsFailure(read.error)}` };
+    const ok = read.content.includes(MARKER(fact.id));
     return {
       path: p,
       ok,
@@ -212,8 +218,17 @@ export function analyzeFacts(root: string, factsPath: string): FactsAnalysis {
   const file = loadFacts(factsPath);
   if (file === null) {
     // Distinguish "no file" (silent, not adopted) from "file present but not
-    // even minimally shaped" (adopted intent, malformed content → FAIL).
-    return existsSync(factsPath) ? { adopted: true, malformed: true } : { adopted: false };
+    // even minimally shaped" (adopted intent, malformed content → FAIL) — and,
+    // within the latter, unreadable from unparseable.
+    if (!existsSync(factsPath)) return { adopted: false };
+    const raw = readTextFile(factsPath);
+    return {
+      adopted: true,
+      malformed: true,
+      detail: raw.ok
+        ? 'expected an object with a `facts` array'
+        : `casp/facts.json ${describeFsFailure(raw.error)}`
+    };
   }
   const extraTraps = Array.isArray(file.traps) ? file.traps : [];
   const checks = file.facts.map((fact) => checkOneFact(root, fact, extraTraps));

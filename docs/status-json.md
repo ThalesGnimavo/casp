@@ -8,8 +8,15 @@ an **embedded validator verdict** computed in-process (the same `checkOne` the
 Unlike `casp check --json`, **`status --json` never gates**: on a valid cockpit it
 **always exits `0`**, even when the embedded verdict is `drift`. Reporting is not
 gating — gating is `check`'s and `next`'s job. (It still exits `1` if there is no
-`casp/state.json` at all, or it is not valid JSON — those are "cannot produce a
-snapshot" errors, not drift.)
+`casp/state.json` at all, if it is not valid JSON, or if it exists and cannot be
+**read** — those are "cannot produce a snapshot" errors, not drift.)
+
+Unreadable content *elsewhere* in the repository — a mode-`000` prompt, a
+directory squatting a `*.md` path — is drift, not a snapshot error: it is
+reported through the embedded verdict as a `CASP-IO-001` FAIL, and `status --json`
+still exits `0`. If the snapshot cannot be assembled for any other reason, the
+document still emits with `check.verdict: null` and an `error` field, and the
+exit is still `0` — stdout is never empty.
 
 Consumers: the structured session handoff between sessions, multi-project status
 roll-ups, dashboards — anything that wants the state without scraping ANSI text.

@@ -123,4 +123,19 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+/**
+ * The last line of defence, and deliberately the least important one.
+ *
+ * Every verb's read paths return results instead of throwing (src/shared.ts), so
+ * nothing should reach here. What reaches here anyway must still leave the
+ * operator with a SENTENCE and a stable exit code — a Node stack trace is not a
+ * verdict, and an agent parsing exit codes cannot tell a crash from drift.
+ *
+ * Exit 1, never 0: a command that did not complete has proven nothing.
+ */
+main().catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`casp: ${argv[2] ?? 'command'} could not complete — ${message.split('\n')[0]}`);
+  console.error('      this is a casp bug; please report it with the command above');
+  exit(1);
+});

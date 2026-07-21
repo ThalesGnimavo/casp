@@ -54,6 +54,8 @@ not verify that your code is correct, deployed, or bug-free. See
 | `CASP-FACT-004` | FACT | used_in documents carry the fact's marker |
 | `CASP-FACT-005` | FACT | Fact records a reproduction method |
 | `CASP-FACT-006` | FACT | method does not match a known measurement trap |
+| `CASP-IO-001` | IO | Repository content the gate needs is readable |
+| `CASP-IO-002` | IO | The validation run completed |
 | `CASP-WORKTREE-001` | WORKTREE | State surface is committed |
 
 ## Severity

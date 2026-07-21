@@ -17,11 +17,11 @@
  *   casp close --commit 1a2b3c --log 26-06-15-004-foo
  */
 
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
-import { c, git, loadStateWithHash, resolveDirs, saveState, StateConflictError, todayISO } from './shared.js';
+import { c, git, isDir, loadStateWithHash, resolveDirs, readDirEntries, saveState, StateConflictError, todayISO } from './shared.js';
 import { runCheck } from './check.js';
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -33,8 +33,10 @@ function getArg(args: string[], flag: string): string | undefined {
 // Newest session log by filename (YY-MM-DD-NNN-… sorts chronologically), id
 // stripped of the .md extension. Empty string when there is no log yet.
 function newestLogId(logsDir: string): string {
-  if (!existsSync(logsDir) || !statSync(logsDir).isDirectory()) return '';
-  const logs = readdirSync(logsDir)
+  if (!isDir(logsDir)) return '';
+  const dir = readDirEntries(logsDir);
+  if (!dir.ok) return '';
+  const logs = dir.entries
     .filter((f) => /^\d{2}-\d{2}-\d{2}-\d{3}-.*\.md$/.test(f))
     .sort();
   if (logs.length === 0) return '';

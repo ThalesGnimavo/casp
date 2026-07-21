@@ -2,11 +2,11 @@
  * `casp new prompt|log --slug <kebab-id>` — copy a template, interpolate.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
-import { c, loadState, resolveDirs, todayISO } from './shared.js';
+import { c, loadState, readDirEntries, resolveDirs, todayISO } from './shared.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,10 +17,11 @@ const __dirname = dirname(__filename);
 const TEMPLATES = join(__dirname, '..', 'templates', 'templates');
 
 function nextLogIndex(dir: string): string {
-  if (!existsSync(dir)) return '001';
+  const listed = readDirEntries(dir);
+  if (!listed.ok) return '001';
   const today = todayISO();
   const yymmdd = today.slice(2).replace(/-/g, '-'); // YY-MM-DD
-  const todayLogs = readdirSync(dir).filter(
+  const todayLogs = listed.entries.filter(
     (f) => f.startsWith(yymmdd) && f.endsWith('.md')
   );
   const maxNNN = todayLogs.reduce((max, f) => {

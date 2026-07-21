@@ -13,10 +13,10 @@
  * this — installation is explicit opt-in.
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
-import { c, git } from './shared.js';
+import { c, git, readTextFile } from './shared.js';
 
 // The line that marks a pre-push hook as CASP-managed. Idempotency, --force and
 // --remove all key off this exact string: if it is present, the hook is ours to
@@ -58,7 +58,11 @@ fi
 // not merely as a substring — so a foreign hook that happens to mention the word
 // in prose is never misclassified as CASP's and silently overwritten/removed.
 export function isCaspHook(path: string): boolean {
-  return existsSync(path) && readFileSync(path, 'utf8').includes(`# ${MARKER}`);
+  // A hook that cannot be read (a directory at pre-push, mode 000) is not ours.
+  // Fail closed: `install` refuses to overwrite it, `--remove` refuses to delete
+  // it — the same posture as any foreign hook, and never a crash.
+  const read = readTextFile(path);
+  return read.ok && read.content.includes(`# ${MARKER}`);
 }
 
 /**

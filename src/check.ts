@@ -16,18 +16,24 @@
 import { existsSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, gitArgs, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
+import {
+  c,
+  describeFsFailure,
+  git,
+  gitArgs,
+  isDir,
+  pkgVersion,
+  readDirEntries,
+  readFrontmatter,
+  readStateFile,
+  resolveDirs,
+  type FsFailure
+} from './shared.js';
 import { ruleFor } from './rules.js';
 import { analyzeChain } from './chain.js';
 import { analyzeFacts } from './facts.js';
 
 type Severity = 'pass' | 'warn' | 'fail';
-
-// A claim's backing path must be a real directory — a file squatting the path
-// is just as unverifiable as a missing dir (and crashes readdirSync).
-function isDir(p: string): boolean {
-  return existsSync(p) && statSync(p).isDirectory();
-}
 export interface Finding {
   id: string;
   severity: Severity;
@@ -120,7 +126,40 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     });
   }
 
-  if (!existsSync(STATE_PATH)) {
+  /**
+   * Repository content that the gate needed to read and could not. The path and
+   * the reason are both in the finding, because "something is unreadable" is not
+   * actionable and "EACCES" alone does not say what CASP was trying to prove.
+   *
+   * FAIL, always: an unverifiable claim is not a passing claim. The gate is
+   * allowed to say "I could not check this" — it is not allowed to say "clean".
+   */
+  const reportedUnreadable = new Set<string>();
+  function recordUnreadable(what: string, rel: string, e: FsFailure): void {
+    // One path, one finding. `next_prompt` normally lives inside sessions_dir,
+    // so the same file is reached by the next_prompt block AND by the sessions
+    // walk; without this the report names it twice, with two labels and one
+    // remediation, and the drift count reads 2 for a single defect. First
+    // caller wins — it is the more specific one ("next_prompt", not "prompt").
+    if (reportedUnreadable.has(rel)) return;
+    reportedUnreadable.add(rel);
+    record(
+      `io.${rel}`,
+      'fail',
+      `${what} ${describeFsFailure(e)}`,
+      rel,
+      e.reason === 'is-directory'
+        ? 'a directory is squatting a path CASP reads as a file — move or rename it'
+        : e.reason === 'not-a-regular-file'
+          ? 'CASP reads this path as a document — a pipe or device cannot be one; move or rename it'
+          : e.reason === 'vanished'
+            ? 'the tree changed under the run — re-run `casp check` on a settled tree'
+            : 'make the file readable (chmod), or remove it — CASP cannot validate what it cannot open'
+    );
+  }
+
+  const stateRead = readStateFile(STATE_PATH);
+  if (!stateRead.ok && stateRead.kind === 'io' && stateRead.error.reason === 'vanished') {
     record(
       'state.file',
       'fail',
@@ -130,8 +169,13 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     );
     return findings;
   }
-  const state = loadState(STATE_PATH);
-  if (!state) {
+  if (!stateRead.ok && stateRead.kind === 'io') {
+    // Present but unopenable. Saying "not valid JSON" here would send the
+    // operator to fix a syntax error that does not exist.
+    recordUnreadable('casp/state.json', relative(root, STATE_PATH) || 'casp/state.json', stateRead.error);
+    return findings;
+  }
+  if (!stateRead.ok || !stateRead.state) {
     record(
       'state.file',
       'fail',
@@ -141,6 +185,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     );
     return findings;
   }
+  const state = stateRead.state;
 
   // Resolve the state-surface dirs from state (defaults when unset). Computed
   // here — after state loads — so the optional sessions_dir / logs_dir keys are
@@ -234,8 +279,11 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         state.next_prompt
       );
 
-      const fm = readFrontmatter(path);
-      if (!fm) {
+      const read = readFrontmatter(path);
+      const fm = read.ok ? read.fm : null;
+      if (!read.ok) {
+        recordUnreadable('next_prompt', state.next_prompt, read.error);
+      } else if (!fm) {
         record(
           'next_prompt.frontmatter',
           'fail',
@@ -376,15 +424,25 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     isDir(LOGS_DIR)
   ) {
     const declared = new Set<string>();
-    for (const entry of readdirSync(LOGS_DIR)) {
+    const logsDir = readDirEntries(LOGS_DIR);
+    if (!logsDir.ok) recordUnreadable(`${dirs.logsRel}/`, dirs.logsRel, logsDir.error);
+    for (const entry of logsDir.ok ? logsDir.entries : []) {
       if (!entry.endsWith('.md')) continue;
-      // A directory named `*.md` is repo content like any other — readFrontmatter
-      // would throw EISDIR and take the whole report down with it. Same isFile
-      // guard the sessions-dir walk uses.
       const logPath = join(LOGS_DIR, entry);
-      if (!statSync(logPath).isFile()) continue;
-      const fm = readFrontmatter(logPath);
-      const value = fm?.phase;
+      const read = readFrontmatter(logPath);
+      // A log this process could not read is repo content the gate needed and
+      // did not get: a finding, never a crash and never a silent skip.
+      //
+      // `vanished` is NOT exempt here, though it is tempting: this walk builds
+      // the set of DECLARED phases, and a log that disappears mid-walk empties
+      // that set, which collapses the adoption window and silences the whole
+      // `shipped_log` category — turning a genuine FAIL into no output at all.
+      // A category that cannot see all its evidence must not conclude.
+      if (!read.ok) {
+        recordUnreadable('session log', relative(root, logPath), read.error);
+        continue;
+      }
+      const value = read.fm?.phase;
       if (typeof value === 'string') {
         if (value.trim()) declared.add(value.trim());
       } else if (Array.isArray(value)) {
@@ -574,14 +632,21 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     } else if (Array.isArray(state.migrations_applied) && isDir(migrationsDir)) {
       // Migration files: SQL (drizzle, raw) or Python (alembic). Dunder entries
       // (__init__.py, __pycache__) are infrastructure, not migrations.
-      const onDisk = readdirSync(migrationsDir)
+      const dir = readDirEntries(migrationsDir);
+      // The directory is there and cannot be listed. Comparing against an empty
+      // listing would print every declared migration as "disk-missing" — a
+      // fabricated diff. Report what is actually wrong, and skip the comparison
+      // (only this block: the rest of the report is still worth having).
+      const onDisk = (dir.ok ? dir.entries : [])
         .filter((f) => /\.(sql|py)$/.test(f) && !f.startsWith('__'))
         .map((f) => f.replace(/\.(sql|py)$/, ''))
         .sort();
       const inState = [...state.migrations_applied].sort();
       const missingFromState = onDisk.filter((m) => !inState.includes(m));
       const missingFromDisk = inState.filter((m) => !onDisk.includes(m));
-      if (missingFromState.length || missingFromDisk.length) {
+      if (!dir.ok) {
+        recordUnreadable(`${dirs.migrationsRel}/`, dirs.migrationsRel, dir.error);
+      } else if (missingFromState.length || missingFromDisk.length) {
         record(
           'migrations.match',
           'fail',
@@ -604,10 +669,13 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
       // migration files, the cockpit is blind to them — a likely mis-config.
       // WARN, not FAIL: a genuinely empty dir is legitimate (fresh project), so
       // only flag when files are present. Non-blocking by design.
-      const onDisk = readdirSync(migrationsDir).filter(
-        (f) => /\.(sql|py)$/.test(f) && !f.startsWith('__')
-      );
-      if (onDisk.length > 0) {
+      const dir = readDirEntries(migrationsDir);
+      const onDisk = dir.ok
+        ? dir.entries.filter((f) => /\.(sql|py)$/.test(f) && !f.startsWith('__'))
+        : [];
+      if (!dir.ok) {
+        recordUnreadable(`${dirs.migrationsRel}/`, dirs.migrationsRel, dir.error);
+      } else if (onDisk.length > 0) {
         record(
           'migrations.untracked',
           'warn',
@@ -623,17 +691,34 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
 
   const VALID_STATUS = new Set(['queued', 'in-progress', 'shipped', 'archived']);
   if (isDir(SESSIONS_DIR)) {
-    const prompts = readdirSync(SESSIONS_DIR)
+    const sessionsDir = readDirEntries(SESSIONS_DIR);
+    if (!sessionsDir.ok) {
+      recordUnreadable(`${dirs.sessionsRel}/`, dirs.sessionsRel, sessionsDir.error);
+    }
+    const prompts = (sessionsDir.ok ? sessionsDir.entries : [])
       .filter((f) => f.endsWith('.md'))
-      .map((f) => join(SESSIONS_DIR, f))
-      .filter((f) => statSync(f).isFile());
+      .map((f) => join(SESSIONS_DIR, f));
 
     let shippedWithoutLog = 0;
     let invalidStatusValues: string[] = [];
+    // Entries that could not be read at all are counted out of the PASS lines
+    // below — "all N prompt(s) have canonical status" must never include a
+    // prompt whose status nobody was able to look at.
+    let unreadable = 0;
 
     for (const p of prompts) {
       const rel = relative(root, p);
-      const fm = readFrontmatter(p);
+      const read = readFrontmatter(p);
+      if (!read.ok) {
+        // A directory named `*.md`, a mode-000 prompt, a FIFO: enumerated as a
+        // prompt, so it is a claim the gate needed and did not get. `vanished`
+        // included — the walk's own status/session_log findings go missing with
+        // it, and a claim nobody could examine is not a claim that passed.
+        recordUnreadable('prompt', rel, read.error);
+        unreadable++;
+        continue;
+      }
+      const fm = read.fm;
       if (!fm) {
         record(
           `prompt.${rel}.frontmatter`,
@@ -681,6 +766,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
       }
     }
 
+    const readable = prompts.length - unreadable;
     if (invalidStatusValues.length) {
       record(
         'prompts.status_values',
@@ -689,15 +775,15 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         invalidStatusValues.join(' · '),
         `use one of: ${[...VALID_STATUS].join(' | ')}`
       );
-    } else if (prompts.length) {
+    } else if (readable > 0) {
       record(
         'prompts.status_values',
         'pass',
-        `all ${prompts.length} prompt(s) have canonical status`,
+        `all ${readable} prompt(s) have canonical status`,
         ''
       );
     }
-    if (shippedWithoutLog === 0 && prompts.length) {
+    if (shippedWithoutLog === 0 && readable > 0) {
       record(
         'prompts.shipped_logged',
         'pass',
@@ -820,7 +906,7 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         'fact.file',
         'fail',
         'casp/facts.json is present but not valid',
-        'expected an object with a `facts` array',
+        analysis.detail,
         'fix the JSON, or remove the file to opt back out of the facts layer'
       );
     } else if (analysis.adopted && !analysis.malformed) {
@@ -920,6 +1006,37 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
   return findings;
 }
 
+/**
+ * `checkOne` with a floor under it.
+ *
+ * Every read path above returns a result instead of throwing, so this should
+ * never fire — that is the point: the fix is the read paths, and this is the
+ * backstop, not the fix. If it ever does fire, the run still produces a REPORT
+ * (a `--json` consumer gets a parseable document; a human gets a FAIL line)
+ * rather than a Node stack trace and an empty stdout.
+ *
+ * It fails CLOSED. Swallowing the error into an exit-0 pass would turn a loud
+ * crash into a silent green, which is strictly worse than the bug it replaces.
+ */
+export function checkOneSafe(root: string, opts: { noGit?: boolean } = {}): Finding[] {
+  try {
+    return checkOne(root, opts);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return [
+      {
+        id: 'check.incomplete',
+        severity: 'fail',
+        label: 'the validation run could not complete',
+        detail: message.split('\n')[0],
+        fix: 'this is a casp bug — please report it with the command and the message above',
+        expected: null,
+        actual: null
+      }
+    ];
+  }
+}
+
 /* Human report rendering — extracted so single-root and --all share it. ---- */
 
 export function printReport(findings: Finding[], quiet: boolean): void {
@@ -1016,7 +1133,7 @@ function runAll(root: string, opts: { json: boolean; quiet: boolean; noGit: bool
 
   const results = cockpits.map((dir) => ({
     root: relative(root, dir) || basename(dir) || '.',
-    findings: checkOne(dir, { noGit: opts.noGit })
+    findings: checkOneSafe(dir, { noGit: opts.noGit })
   }));
 
   const anyFail = results.some((r) => summarize(r.findings).fail > 0);
@@ -1099,7 +1216,7 @@ export function runCheck(args: string[]): void {
   }
 
   const root = process.cwd();
-  const findings = checkOne(root, { noGit });
+  const findings = checkOneSafe(root, { noGit });
 
   if (json) emitJson(findings);
 

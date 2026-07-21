@@ -13,10 +13,10 @@
  *   casp ship some-phase --prompt docs/plan/sessions/CUSTOM.md
  */
 
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
-import { c, loadStateWithHash, resolveDirs, saveState, StateConflictError } from './shared.js';
+import { c, describeFsFailure, isDir, loadStateWithHash, readDirEntries, readTextFile, resolveDirs, saveState, StateConflictError } from './shared.js';
 
 function getArg(args: string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -66,14 +66,21 @@ export function runShip(args: string[]): void {
     promptPath = join(root, promptArg);
     if (!existsSync(promptPath)) fail(`--prompt file not found: ${promptArg}`);
   } else {
-    if (!existsSync(sessionsDir) || !statSync(sessionsDir).isDirectory()) {
+    if (!isDir(sessionsDir)) {
       fail(
         `${dirs.sessionsRel}/ not found`,
         'pass --prompt <path> to point at the prompt explicitly'
       );
     }
     const target = normalize(slug as string);
-    const matches = readdirSync(sessionsDir)
+    const listed = readDirEntries(sessionsDir);
+    if (!listed.ok) {
+      fail(
+        `${dirs.sessionsRel}/ ${describeFsFailure(listed.error)}`,
+        'pass --prompt <path> to point at the prompt explicitly'
+      );
+    }
+    const matches = listed.entries
       .filter((f) => f.endsWith('.md'))
       .filter((f) => normalize(f) === target);
     if (matches.length === 0) {
@@ -116,7 +123,14 @@ export function runShip(args: string[]): void {
     );
   }
 
-  const raw = readFileSync(promptPath, 'utf8');
+  const read = readTextFile(promptPath);
+  if (!read.ok) {
+    fail(
+      `prompt ${describeFsFailure(read.error)}: ${relative(root, promptPath)}`,
+      'make the file readable — `casp ship` rewrites its frontmatter in place'
+    );
+  }
+  const raw = read.content;
   // Tolerate CRLF on the frontmatter fences so a Windows-edited prompt is not
   // mistaken for one with no frontmatter.
   const m = raw.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);

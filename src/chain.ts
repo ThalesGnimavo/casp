@@ -26,9 +26,14 @@
  * it twice is the point of having a precedent.
  */
 
-import { readdirSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
-import { readFrontmatter, type ResolvedDirs, type State } from './shared.js';
+import {
+  pathKind,
+  readDirEntries,
+  readFrontmatter,
+  type ResolvedDirs,
+  type State
+} from './shared.js';
 
 /** A prompt file participating in (or resolvable by) the chain. */
 export interface ChainPrompt {
@@ -118,24 +123,18 @@ function promptIdentities(stem: string): string[] {
 
 /** Read every prompt in the sessions directory, with its identities. */
 function readPrompts(root: string, sessionsAbs: string): ChainPrompt[] {
-  let entries: string[];
-  try {
-    entries = readdirSync(sessionsAbs);
-  } catch {
-    return [];
-  }
+  const dir = readDirEntries(sessionsAbs);
+  if (!dir.ok) return [];
   const prompts: ChainPrompt[] = [];
-  for (const entry of entries) {
+  for (const entry of dir.entries) {
     if (!entry.endsWith('.md')) continue;
     const abs = join(sessionsAbs, entry);
-    // A directory named `*.md` is repo content like any other — readFrontmatter
-    // would throw EISDIR and take the whole report down. Same guard as check.ts.
-    try {
-      if (!statSync(abs).isFile()) continue;
-    } catch {
-      continue;
-    }
-    const fm = readFrontmatter(abs);
+    // A prompt that cannot be read (a directory named `*.md`, mode 000) declares
+    // nothing and resolves nothing. check.ts already emits CASP-IO-001 for it —
+    // the chain simply has no edge to draw, and must not invent a dangling one.
+    const read = readFrontmatter(abs);
+    if (!read.ok) continue;
+    const fm = read.fm;
     const raw = fm?.next_after;
     prompts.push({
       rel: relative(root, abs),
@@ -194,18 +193,13 @@ function buildResolver(
     if (!Array.isArray(arr)) continue;
     for (const p of arr) if (typeof p === 'string' && p.trim()) terminal(p.trim());
   }
-  try {
-    for (const entry of readdirSync(dirs.logsAbs)) {
-      if (!entry.endsWith('.md')) continue;
-      try {
-        if (!statSync(join(dirs.logsAbs, entry)).isFile()) continue;
-      } catch {
-        continue;
-      }
-      terminal(basename(entry, '.md'));
-    }
-  } catch {
-    /* no logs dir — CASP-SESSION-002 reports that; here it is simply no evidence */
+  // No logs dir (or an unlistable one) — CASP-SESSION-002 / CASP-IO-001 report
+  // that; here it is simply no evidence.
+  const logs = readDirEntries(dirs.logsAbs);
+  for (const entry of logs.ok ? logs.entries : []) {
+    if (!entry.endsWith('.md')) continue;
+    if (pathKind(join(dirs.logsAbs, entry)) !== 'file') continue;
+    terminal(basename(entry, '.md'));
   }
 
   // Prompts are inserted by identity TIER, least specific first, so a more

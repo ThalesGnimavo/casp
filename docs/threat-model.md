@@ -51,6 +51,22 @@ This document records the concrete threats the implementation defends against.
   symlink cycle (`a/b -> ../a`) cannot recurse forever.
 - **Malformed input.** Invalid JSON, missing frontmatter, and unexpected types
   degrade to findings (FAIL/WARN), not crashes.
+- **Unreadable input.** A path that exists and cannot be opened — mode `000`, a
+  directory squatting a `*.md` path, a symlink cycle, a file unlinked between the
+  existence check and the read — degrades to a `CASP-IO-001` finding, not a
+  crash. **A path that would BLOCK is refused before it is opened:** a FIFO,
+  socket or device named like a document is rejected by a `stat` first, because
+  `readFileSync` on a pipe with no writer does not fail, it hangs — and a gate
+  that never returns is worse than one that crashes, producing neither a verdict
+  nor an exit code. Every read of repository content goes through one door
+  (`readTextFile` / `readDirEntries` / `readFrontmatter` in `src/shared.ts`),
+  which returns a result instead of throwing. It fails **closed**: the finding is
+  FAIL, because an unverifiable claim is not a passing claim. `check --json` and
+  `status --json` still emit a valid, parseable report in this state — a machine
+  contract that produces nothing is a contract that does not hold — and
+  `status`/`doctor` keep their documented non-gating exit codes. A top-level
+  handler in `src/cli.ts` backstops anything unforeseen with a one-line
+  diagnostic and exit 1, never a Node stack trace.
 - **The pre-push hook is hardened.** The installed `pre-push` runs under
   `set -eu` (POSIX; `pipefail` is intentionally omitted as a bashism that would
   break `#!/bin/sh`), refuses to clobber a foreign hook, and never touches

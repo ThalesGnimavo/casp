@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, gitArgs } from './shared.js';
-import { checkOne, printReport, summarize } from './check.js';
+import { checkOneSafe, printReport, summarize } from './check.js';
 
 export function runVerify(args: string[]): void {
   const noGit = args.includes('--no-git');
@@ -50,7 +50,7 @@ export function runVerify(args: string[]): void {
       code = 1;
     } else {
       console.error(c.bold('casp verify') + ` · ${c.cyan(ref)} → ${c.gray(sha)}`);
-      const findings = checkOne(wt, { noGit });
+      const findings = checkOneSafe(wt, { noGit });
       printReport(findings, false);
       code = summarize(findings).fail > 0 ? 1 : 0;
     }

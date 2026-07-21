@@ -656,21 +656,30 @@ test('filenames are never consulted — a matching name without `phase:` does no
   }
 });
 
-test('a directory named *.md in the logs dir → graceful report, no EISDIR crash', () => {
+test('a directory named *.md in the logs dir → CASP-IO-001 finding, no EISDIR crash', () => {
   const { dir, state } = scaffold();
   try {
     writeLog(dir, '26-01-02-001-a', 'phase-a');
     // Repo content is untrusted: a directory that ends in .md must not take the
-    // whole report down when the category reads frontmatter.
+    // whole report down when the category reads frontmatter. Since the hostile-
+    // filesystem hardening it is no longer silently skipped either — a document
+    // CASP enumerated and could not read is a finding (CASP-IO-001), because a
+    // silent skip is how a broken state surface reads as clean.
     mkdirSync(join(dir, 'session-logs', 'not-a-log.md'), { recursive: true });
     shipPhases(dir, state, ['phase-a']);
 
     const { status, stdout } = runCheckJson(dir);
-    assert.equal(status, 0, 'a stray directory must not crash the gate');
+    assert.equal(status, 1, 'an unreadable document in the state surface gates');
     const report = JSON.parse(stdout);
     assert.ok(report.findings.length > 0, 'the report still renders');
+    // The rest of the report is intact — the stray entry did not abort the run.
     const f = report.findings.find((x) => x.id === 'shipped_log.declared');
     assert.equal(f.severity, 'pass');
+    const io = report.findings.find((x) => x.rule === 'CASP-IO-001');
+    assert.ok(io, 'the stray directory is reported');
+    assert.equal(io.severity, 'fail');
+    assert.match(io.label, /is a directory, not a file \(EISDIR\)/);
+    assert.match(io.detail, /not-a-log\.md/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

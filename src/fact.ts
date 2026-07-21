@@ -24,7 +24,7 @@ import { exit, stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { c, fileHash, git, todayISO } from './shared.js';
 import { ruleFor } from './rules.js';
-import { checkOne, printReport, summarize } from './check.js';
+import { checkOneSafe, printReport, summarize } from './check.js';
 import { analyzeFacts, loadFacts, saveFacts, type FactCheck } from './facts.js';
 
 function factsPath(root: string): string {
@@ -82,7 +82,7 @@ function runList(root: string, json: boolean): void {
 }
 
 function runCheckSubset(root: string, json: boolean): void {
-  const findings = checkOne(root).filter((f) => (ruleFor(f.id)?.area ?? '') === 'FACT');
+  const findings = checkOneSafe(root).filter((f) => (ruleFor(f.id)?.area ?? '') === 'FACT');
   const { fail: failCount } = summarize(findings);
   if (json) {
     console.log(

@@ -12,10 +12,10 @@
  * hook-detection the rest of the binary uses, so its verdicts never diverge.
  */
 
-import { existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit } from 'node:process';
-import { c, git, loadState, pkgVersion, resolveDirs, setColor } from './shared.js';
+import { c, git, isDir, loadState, pkgVersion, resolveDirs, setColor } from './shared.js';
 import { isCaspHook, resolveHookPath } from './install-hook.js';
 import { compareVersions } from './upgrade.js';
 
@@ -30,16 +30,6 @@ interface DoctorCheck {
   severity: Severity;
   label: string;
   detail: string;
-}
-
-function isDir(p: string): boolean {
-  // statSync can throw (EACCES on an unreadable parent) even after existsSync
-  // returned true. doctor must never crash — a throw here is "not a usable dir".
-  try {
-    return existsSync(p) && statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
 }
 
 // isCaspHook reads the hook file, which throws EISDIR if pre-push is a directory

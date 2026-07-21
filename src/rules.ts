@@ -20,7 +20,7 @@ export interface Rule {
   code: string;
   /** Short human title. */
   title: string;
-  /** Area bucket: STATE | PROMPT | SESSION | GIT | MIGRATION | FACT | WORKTREE. */
+  /** Area bucket: STATE | PROMPT | SESSION | GIT | MIGRATION | FACT | IO | WORKTREE. */
   area: string;
   /** The normative claim this rule verifies. */
   verifies: string;
@@ -295,6 +295,28 @@ export const RULES: Rule[] = [
     evidence: 'method\'s text against the static trap registry.',
     remediation: 'Use a real measurement (e.g. count(*) instead of a planner estimate) and re-verify.',
     matches: (id) => id.startsWith('fact.trap.')
+  },
+  {
+    code: 'CASP-IO-001',
+    title: 'Repository content the gate needs is readable',
+    area: 'IO',
+    verifies:
+      'Every file CASP must open to verify a claim can actually be opened: the cockpit, the next_prompt, each session prompt and session log, the state-surface directories. A path that exists and cannot be read — mode 000, a directory squatting a *.md path, a symlink cycle, a file deleted mid-run — is reported as a finding, never as a crash and never as a silent skip. FAIL, because an unverifiable claim is not a passing claim: the gate may say "I could not check this", never "clean".',
+    evidence:
+      'The read itself. The finding carries the path and the operating system\'s reason (EACCES, EISDIR, ELOOP, ENOENT…) verbatim.',
+    remediation:
+      'Make the path readable (chmod), move the directory squatting a file path, or remove the file so there is no claim left to verify.',
+    matches: (id) => id.startsWith('io.')
+  },
+  {
+    code: 'CASP-IO-002',
+    title: 'The validation run completed',
+    area: 'IO',
+    verifies:
+      'The check itself ran to the end. This is a backstop, not a check on your repository: every read path returns a result instead of throwing, so an unexpected error reaching here is a CASP bug. It fails CLOSED — the run still produces a parseable report carrying the failure, rather than a stack trace and an empty stdout.',
+    evidence: 'An unexpected exception escaping the validator.',
+    remediation: 'Report it, with the command and the message shown in the finding.',
+    matches: (id) => id === 'check.incomplete'
   },
   {
     code: 'CASP-WORKTREE-001',

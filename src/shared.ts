@@ -3,7 +3,15 @@
  */
 
 import { execSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from 'node:fs';
+import {
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+  existsSync,
+  renameSync,
+  unlinkSync
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -18,10 +26,12 @@ export function sha256(content: string | Buffer): string {
   return `sha256:${createHash('sha256').update(content).digest('hex')}`;
 }
 
-/** sha256 of a file's current content, or null when the file does not exist. */
+/** sha256 of a file's current content, or null when the file cannot be read —
+ *  missing, unreadable, a directory. Never throws: a hash that cannot be taken
+ *  is an absent hash, and every caller already treats null as "cannot compare". */
 export function fileHash(path: string): string | null {
-  if (!existsSync(path)) return null;
-  return sha256(readFileSync(path));
+  const r = readBytes(path);
+  return r.ok ? sha256(r.content) : null;
 }
 
 // Single source of truth: read package.json at runtime so the CLI strings can
@@ -106,17 +116,161 @@ export function gitArgs(args: string[], cwd: string = process.cwd()): string {
   }
 }
 
-export function readFrontmatter(
-  filePath: string
-): Record<string, unknown> | null {
-  if (!existsSync(filePath)) return null;
-  const raw = readFileSync(filePath, 'utf8');
-  const m = raw.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return null;
+/* Hostile filesystem — the one door repository content is read through. --------
+ *
+ * `existsSync` answers "is there a name here", never "can this process open it".
+ * A file that exists and cannot be read — mode 000, a directory squatting a
+ * `*.md` path, a symlink cycle, a file deleted between the check and the open —
+ * used to throw straight out of whichever verb happened to touch it, which turns
+ * a gate into a stack trace. A gate that crashes is not a verdict.
+ *
+ * So every read of REPOSITORY CONTENT goes through the helpers below, which
+ * return a discriminated result instead of throwing. Scattering try/catch at
+ * each call site would work exactly once; a single door is what keeps the next
+ * reader from reintroducing the bug.
+ */
+
+/** Why a path could not be read. Deliberately coarse — four reasons the
+ *  operator can act on, not a mirror of errno. */
+export type ReadFailure = 'unreadable' | 'is-directory' | 'not-a-regular-file' | 'vanished';
+
+export interface FsFailure {
+  reason: ReadFailure;
+  /** Node's errno name (EACCES, EISDIR, ELOOP, ENOENT…), or 'UNKNOWN' when the
+   *  thrown value carried none. Kept verbatim: it is what the operator will
+   *  recognise and what `ls -l` will explain. Empty when the condition was
+   *  detected by inspection rather than by a failed syscall — there is no errno
+   *  to quote, and inventing one would be a lie. */
+  code: string;
+  /** The path as the caller gave it. */
+  path: string;
+}
+
+export type FileRead<T> = { ok: true; content: T } | { ok: false; error: FsFailure };
+export type DirRead = { ok: true; entries: string[] } | { ok: false; error: FsFailure };
+
+export function classifyFsError(err: unknown, path: string): FsFailure {
+  const raw = (err as NodeJS.ErrnoException | null)?.code;
+  const code = typeof raw === 'string' ? raw : 'UNKNOWN';
+  // ENOENT/ENOTDIR after an existsSync that said yes is a genuine TOCTOU: the
+  // tree changed under us. EISDIR is a shape error. Everything else — EACCES,
+  // EPERM, ELOOP, EIO, EMFILE — the process simply cannot read it.
+  const reason: ReadFailure =
+    code === 'ENOENT' || code === 'ENOTDIR'
+      ? 'vanished'
+      : code === 'EISDIR'
+        ? 'is-directory'
+        : 'unreadable';
+  return { reason, code, path };
+}
+
+/** The one phrasing of a read failure, shared by every finding and diagnostic
+ *  so the same condition never reads two different ways. */
+export function describeFsFailure(e: FsFailure): string {
+  const what =
+    e.reason === 'vanished'
+      ? 'vanished while being read'
+      : e.reason === 'is-directory'
+        ? 'is a directory, not a file'
+        : e.reason === 'not-a-regular-file'
+          ? 'is not a regular file (a pipe, socket or device)'
+          : 'is unreadable';
+  return e.code ? `${what} (${e.code})` : what;
+}
+
+/**
+ * The guard that must run BEFORE any open, and the reason both readers below
+ * start with a `stat`.
+ *
+ * `readFileSync` on a FIFO with no writer does not fail — it BLOCKS in `open(2)`,
+ * forever. No `try`/`catch` catches a hang, and a pre-push gate that never
+ * returns is worse than one that crashes: it produces no verdict *and* no exit
+ * code, wedging the terminal or running CI out to its own timeout. Sockets and
+ * devices are the same family. So a path CASP intends to read as a document must
+ * be a REGULAR file, established by inspection first.
+ *
+ * The stat→open window is a genuine TOCTOU, and it is accepted: it narrows a
+ * systematic hang to a race, which is the best a local CLI can do without
+ * `O_NONBLOCK` plumbing that Node does not expose to `readFileSync`.
+ */
+export function regularFileFailure(path: string): FsFailure | null {
+  const kind = pathKind(path);
+  if (kind === 'file') return null;
+  if (kind === 'dir') return { reason: 'is-directory', code: 'EISDIR', path };
+  // Cannot stat it at all: it is gone, or a parent is unsearchable. The open
+  // below would report the difference; here it is simply not readable as a file.
+  if (kind === null) return { reason: 'vanished', code: '', path };
+  return { reason: 'not-a-regular-file', code: '', path };
+}
+
+export function readTextFile(path: string): FileRead<string> {
+  const notRegular = regularFileFailure(path);
+  if (notRegular) return { ok: false, error: notRegular };
   try {
-    return parseYaml(m[1]) as Record<string, unknown>;
+    return { ok: true, content: readFileSync(path, 'utf8') };
+  } catch (err) {
+    return { ok: false, error: classifyFsError(err, path) };
+  }
+}
+
+export function readBytes(path: string): FileRead<Buffer> {
+  const notRegular = regularFileFailure(path);
+  if (notRegular) return { ok: false, error: notRegular };
+  try {
+    return { ok: true, content: readFileSync(path) };
+  } catch (err) {
+    return { ok: false, error: classifyFsError(err, path) };
+  }
+}
+
+export function readDirEntries(path: string): DirRead {
+  try {
+    return { ok: true, entries: readdirSync(path) };
+  } catch (err) {
+    return { ok: false, error: classifyFsError(err, path) };
+  }
+}
+
+/** statSync that cannot throw. `null` when the path cannot be stat'd at all
+ *  (missing, or an unreadable parent directory). */
+export function pathKind(path: string): 'file' | 'dir' | 'other' | null {
+  try {
+    const s = statSync(path);
+    return s.isDirectory() ? 'dir' : s.isFile() ? 'file' : 'other';
   } catch {
     return null;
+  }
+}
+
+/** A claim's backing path must be a real directory — a file squatting the path
+ *  is as unverifiable as a missing one. Never throws (an unreadable parent used
+ *  to take statSync down with it). */
+export function isDir(path: string): boolean {
+  return pathKind(path) === 'dir';
+}
+
+export type FrontmatterRead =
+  | { ok: true; fm: Record<string, unknown> | null }
+  | { ok: false; error: FsFailure };
+
+/**
+ * The leading `--- … ---` block of a markdown file.
+ *
+ * Two outcomes that must not be conflated, which is why this returns a result
+ * and not a bare `null`: content that is MALFORMED (no block, unparseable YAML)
+ * degrades to `{ ok: true, fm: null }` and stays a WARN-level finding, exactly
+ * as docs/threat-model.md promises; a file that could not be READ is `ok: false`
+ * and becomes a FAIL — an unverifiable claim is not a passing claim.
+ */
+export function readFrontmatter(filePath: string): FrontmatterRead {
+  const raw = readTextFile(filePath);
+  if (!raw.ok) return raw;
+  const m = raw.content.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return { ok: true, fm: null };
+  try {
+    return { ok: true, fm: parseYaml(m[1]) as Record<string, unknown> };
+  } catch {
+    return { ok: true, fm: null };
   }
 }
 
@@ -190,26 +344,40 @@ export function resolveDirs(root: string, state: State): ResolvedDirs {
   };
 }
 
-export function loadState(path: string): State | null {
-  if (!existsSync(path)) return null;
+/**
+ * The cockpit itself, with the read failure kept distinct from the parse
+ * failure. `casp check` needs the difference to say "unreadable (EACCES)"
+ * instead of the flatly wrong "not valid JSON"; every other verb collapses
+ * both into null via `loadState` below.
+ */
+export type StateRead =
+  | { ok: true; state: State; raw: Buffer }
+  | { ok: false; kind: 'io'; error: FsFailure }
+  | { ok: false; kind: 'parse' };
+
+export function readStateFile(path: string): StateRead {
+  const raw = readBytes(path);
+  if (!raw.ok) return { ok: false, kind: 'io', error: raw.error };
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as State;
+    return { ok: true, state: JSON.parse(raw.content.toString('utf8')) as State, raw: raw.content };
   } catch {
-    return null;
+    return { ok: false, kind: 'parse' };
   }
+}
+
+export function loadState(path: string): State | null {
+  const r = readStateFile(path);
+  // `!r.state` also rejects a file whose whole content is `null` — JSON.parse
+  // succeeds on it, and every caller here means "an object I can read keys off".
+  return r.ok && r.state ? r.state : null;
 }
 
 /** loadState() plus the hash of the exact bytes read — the "as read" fingerprint
  *  a mutator threads through to saveState()'s compare-and-swap so a write can
  *  refuse if another process touched the file in between. */
 export function loadStateWithHash(path: string): { state: State; hash: string } | null {
-  if (!existsSync(path)) return null;
-  const raw = readFileSync(path);
-  try {
-    return { state: JSON.parse(raw.toString('utf8')) as State, hash: sha256(raw) };
-  } catch {
-    return null;
-  }
+  const r = readStateFile(path);
+  return r.ok ? { state: r.state, hash: sha256(r.raw) } : null;
 }
 
 /** Thrown by saveState() when expectedHash is given and no longer matches what

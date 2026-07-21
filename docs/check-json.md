@@ -77,10 +77,20 @@ text.
 
 ## Errors before validation
 
-When the validator cannot even start (`casp/state.json` missing or not valid
-JSON), `--json` still emits a well-formed v1 document with a single `fail`
-finding whose `id` is `state.file`, and exits `1`. A consumer never has to
+When the validator cannot even start, `--json` still emits a well-formed v1
+document with a single `fail` finding, and exits `1`. A consumer never has to
 handle a non-JSON response on stdout.
+
+The finding's `id` is `state.file` (rule `CASP-STATE-001`) when `casp/state.json`
+is missing or is not valid JSON, and `io.casp/state.json` (rule `CASP-IO-001`)
+when the file exists and cannot be **read** — an unopenable file is not a syntax
+error, and the remediation differs. Key on the `rule` field rather than on the
+exact `id`, which is an internal identifier.
+
+The same guarantee holds for an unexpected failure mid-run: the document still
+parses and carries the failure as a `check.incomplete` finding (rule
+`CASP-IO-002`). `--json` producing nothing is not an outcome this contract
+permits.
 
 ## Examples
 

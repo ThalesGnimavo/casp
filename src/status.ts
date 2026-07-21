@@ -2,19 +2,21 @@
  * `casp status` — read-only one-screen snapshot.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   c,
+  describeFsFailure,
   git,
   loadState,
   pkgVersion,
   readFrontmatter,
+  readTextFile,
   resolveDirs,
   setColor,
   type State
 } from './shared.js';
-import { checkOne, summarize } from './check.js';
+import { checkOneSafe, summarize } from './check.js';
 import { analyzeChain } from './chain.js';
 
 const ROOT = process.cwd();
@@ -29,10 +31,10 @@ const ROADMAP = join(ROOT, 'casp', 'roadmap.md');
 const STATUS_SCHEMA_VERSION = 1;
 
 function readProjectMeta(): { name: string; version: string | null } {
-  const pkgPath = join(ROOT, 'package.json');
-  if (existsSync(pkgPath)) {
+  const raw = readTextFile(join(ROOT, 'package.json'));
+  if (raw.ok) {
     try {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string; version?: string };
+      const pkg = JSON.parse(raw.content) as { name?: string; version?: string };
       return { name: pkg.name ?? 'casp-managed-project', version: pkg.version ?? null };
     } catch {
       /* fall through */
@@ -41,7 +43,62 @@ function readProjectMeta(): { name: string; version: string | null } {
   return { name: 'casp-managed-project', version: null };
 }
 
+/**
+ * `status --json` never leaves stdout empty.
+ *
+ * `checkOneSafe` guards the embedded verdict, but everything else assembled
+ * below — the git probes, the project metadata, the chain analysis — runs BEFORE
+ * the single `console.log`. A throw anywhere in there produced exactly the
+ * defect this hardening exists to remove, one function over: empty stdout and a
+ * non-zero exit from a verb documented never to gate.
+ *
+ * So the assembly is wrapped, and the fallback is still a VALID v1 document: the
+ * fields the caller is contractually promised, with nulls where nothing could be
+ * computed, and the exit stays 0. status reports; it does not gate.
+ */
 function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
+  try {
+    console.log(JSON.stringify(buildStatusReport(state, opts), null, 2));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(
+      JSON.stringify(
+        {
+          schema_version: STATUS_SCHEMA_VERSION,
+          casp_version: pkgVersion(),
+          project: { name: 'casp-managed-project', version: null },
+          git: { head: null, branch: null, dirty_files: 0, ahead: null },
+          state: {
+            current_phase: state.current_phase ?? null,
+            next_phase: state.next_phase ?? null,
+            next_prompt: state.next_prompt ? String(state.next_prompt) : null,
+            next_prompt_status: null,
+            next_prompt_exists: false,
+            last_session_id: state.last_session_id ?? null,
+            last_commit: state.last_commit ?? null,
+            phases_shipped_count: Array.isArray(state.phases_shipped)
+              ? state.phases_shipped.length
+              : 0,
+            phases_queued_count: Array.isArray(state.phases_queued)
+              ? state.phases_queued.length
+              : 0
+          },
+          // The snapshot could not be assembled, so it carries no verdict —
+          // `null` rather than a fabricated 'clean'. Additive field; schema
+          // stays v1, and a consumer that ignores it sees the documented shape.
+          check: { verdict: null, pass: 0, warn: 0, fail: 0 },
+          queue: null,
+          error: message.split('\n')[0]
+        },
+        null,
+        2
+      )
+    );
+  }
+  // status reports, it does not gate: a valid cockpit always exits 0, even on drift.
+}
+
+function buildStatusReport(state: State, opts: { noGit?: boolean }): Record<string, unknown> {
   const meta = readProjectMeta();
   const head = git('rev-parse --short HEAD');
   const branch = git('rev-parse --abbrev-ref HEAD');
@@ -54,13 +111,15 @@ function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
   let nextPromptExists = false;
   if (nextPromptPath && existsSync(nextPromptPath)) {
     nextPromptExists = true;
-    const fm = readFrontmatter(nextPromptPath);
-    nextPromptStatus = fm ? String(fm.status ?? '?') : null;
+    // Unreadable → the status is simply unknown (null), exactly as it is for a
+    // prompt with no frontmatter. `check` below carries the FAIL; status reports.
+    const read = readFrontmatter(nextPromptPath);
+    nextPromptStatus = read.ok && read.fm ? String(read.fm.status ?? '?') : null;
   }
 
   // Embed the validator verdict, computed in-process — the same checkOne the
   // `check` and `next` verbs run. status NEVER shells out and NEVER gates on it.
-  const findings = checkOne(ROOT, { noGit: opts.noGit });
+  const findings = checkOneSafe(ROOT, { noGit: opts.noGit });
   const sum = summarize(findings);
 
   const chain = analyzeChain(ROOT, state, resolveDirs(ROOT, state));
@@ -99,8 +158,7 @@ function emitStatusJson(state: State, opts: { noGit?: boolean }): void {
     // still exits 0 either way. The chain's integrity is `check`'s business.
     queue: chainOrder
   };
-  console.log(JSON.stringify(report, null, 2));
-  // status reports, it does not gate: a valid cockpit always exits 0, even on drift.
+  return report;
 }
 
 function section(label: string, body: string): void {
@@ -120,7 +178,17 @@ export function runStatus(args: string[]): void {
   }
   const state = loadState(STATE);
   if (!state) {
-    console.error(c.red('casp/state.json is not valid JSON'));
+    // Present and unopenable is not a syntax error — say which one it is. Both
+    // still exit 1: docs/status-json.md exempts an invalid cockpit from the
+    // always-0 contract. Anything READABLE below exits 0, drift included.
+    const probe = readTextFile(STATE);
+    console.error(
+      c.red(
+        probe.ok
+          ? 'casp/state.json is not valid JSON'
+          : `casp/state.json ${describeFsFailure(probe.error)}`
+      )
+    );
     process.exit(1);
   }
 
@@ -169,8 +237,13 @@ export function runStatus(args: string[]): void {
 
   const nextPromptPath = state.next_prompt ? join(ROOT, String(state.next_prompt)) : null;
   if (nextPromptPath && existsSync(nextPromptPath)) {
-    const fm = readFrontmatter(nextPromptPath);
-    const status = fm ? String(fm.status ?? '?') : '(no frontmatter)';
+    const read = readFrontmatter(nextPromptPath);
+    const fm = read.ok ? read.fm : null;
+    const status = read.ok
+      ? fm
+        ? String(fm.status ?? '?')
+        : '(no frontmatter)'
+      : `(${describeFsFailure(read.error)})`;
     const sessionLog = fm ? String(fm.session_log ?? 'pending') : '?';
     const statusColor =
       status === 'shipped'
@@ -185,12 +258,16 @@ export function runStatus(args: string[]): void {
     ].join('\n');
     section('NEXT PROMPT', body);
 
-    const raw = readFileSync(nextPromptPath, 'utf8');
-    const afterFm = raw.replace(/^---\n[\s\S]*?\n---\n/, '');
-    const lines = afterFm.split('\n').slice(0, 8);
-    for (const l of lines) {
-      if (!l.trim()) continue;
-      console.log(c.gray('  ' + l.slice(0, 100)));
+    const body2 = readTextFile(nextPromptPath);
+    if (body2.ok) {
+      const afterFm = body2.content.replace(/^---\n[\s\S]*?\n---\n/, '');
+      const lines = afterFm.split('\n').slice(0, 8);
+      for (const l of lines) {
+        if (!l.trim()) continue;
+        console.log(c.gray('  ' + l.slice(0, 100)));
+      }
+    } else {
+      console.log(c.yellow(`  ⚠ the prompt body ${describeFsFailure(body2.error)}`));
     }
   } else if (state.next_prompt) {
     section(
@@ -209,9 +286,9 @@ export function runStatus(args: string[]): void {
     );
   }
 
-  if (existsSync(NOW)) {
-    const raw = readFileSync(NOW, 'utf8');
-    const m = raw.match(/## Current focus[^\n]*\n\n([\s\S]*?)(?:\n---|\n##)/);
+  const now = readTextFile(NOW);
+  if (now.ok) {
+    const m = now.content.match(/## Current focus[^\n]*\n\n([\s\S]*?)(?:\n---|\n##)/);
     if (m) {
       const focus = m[1].trim().split('\n').slice(0, 4).join('\n');
       section(
@@ -224,9 +301,9 @@ export function runStatus(args: string[]): void {
     }
   }
 
-  if (existsSync(ROADMAP)) {
-    const raw = readFileSync(ROADMAP, 'utf8');
-    const m = raw.match(/## Now — Next 3[^\n]*\n([\s\S]*?)(?:\n---|\n## )/);
+  const roadmap = readTextFile(ROADMAP);
+  if (roadmap.ok) {
+    const m = roadmap.content.match(/## Now — Next 3[^\n]*\n([\s\S]*?)(?:\n---|\n## )/);
     if (m) {
       const block = m[1]
         .split('\n')
