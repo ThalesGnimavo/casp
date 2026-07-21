@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-07-21-007-prompt-chain-integrity
+session_log: session-logs/26-07-21-007-prompt-chain-integrity.md
 drafted_at: 2026-07-21
 next_after: readme-lead-with-the-queue
 parent_prompt: null

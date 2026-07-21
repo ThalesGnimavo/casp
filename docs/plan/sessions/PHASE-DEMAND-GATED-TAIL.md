@@ -3,7 +3,7 @@ status: queued
 session_id: pending
 session_log: pending
 drafted_at: 2026-06-10
-next_after: PHASE-VERIFY-AND-STATE-DIFF
+next_after: PHASE-FACTS-LAYER
 ---
 
 # Session — demand-gated-tail : holding prompt (DO NOT EXECUTE without a signal)
