@@ -117,7 +117,26 @@ c['providers']['fastedge']=collections.OrderedDict(
 p.write_text(json.dumps(c,indent=2)+'\n')
 PY
 bump_and_commit "config: migrate transcoding to fastedge"
-shot 05-fact-stale.png "casp fact check"
+# `fact list` rather than `fact check`: the check line carries both sha256 digests
+# in full, which makes one ~200-character line, which makes the whole frame
+# unreadable once it is scaled down to README width. `list` shows the same verdict
+# next to a fact that is still fresh, which is the contrast worth seeing anyway.
+shot 05-fact-stale.png "casp fact list"
 restore
+
+# --- optimise -----------------------------------------------------------------
+# freeze writes a retina-scale PNG — 7000-11000 px wide, 1-7 MB each. Unoptimised
+# that is ~25 MB of images on a README page, which every visitor downloads.
+# Terminal output has a tiny palette, so a 64-colour quantisation at 1600 px is
+# visually identical and about 60x smaller. This step is IN the script on purpose:
+# done by hand it would be skipped on the release where it mattered.
+command -v magick >/dev/null || { echo "magick (ImageMagick) not found — images left unoptimised"; exit 0; }
+echo "Optimising"
+for f in "$OUT"/*.png; do
+  before=$(stat -f%z "$f")
+  magick "$f" -resize 1600x -strip -colors 64 -define png:compression-level=9 "$f"
+  after=$(stat -f%z "$f")
+  printf "  %-26s %6s KB -> %4s KB\n" "$(basename "$f")" "$((before/1024))" "$((after/1024))"
+done
 
 echo "Done. Six shots in $OUT; demo repo restored to $START_SHA."
