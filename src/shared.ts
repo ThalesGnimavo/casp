@@ -4,10 +4,25 @@
 
 import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { stdout } from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+
+/** sha256 of file content, formatted `sha256:<hex>` — the one hash format used
+ *  both by declared facts (`casp/facts.json`) and by the state compare-and-swap
+ *  below. Accepts a Buffer or string so callers reading a file with readFileSync
+ *  (no encoding) or already-decoded text both work without a re-encode step. */
+export function sha256(content: string | Buffer): string {
+  return `sha256:${createHash('sha256').update(content).digest('hex')}`;
+}
+
+/** sha256 of a file's current content, or null when the file does not exist. */
+export function fileHash(path: string): string | null {
+  if (!existsSync(path)) return null;
+  return sha256(readFileSync(path));
+}
 
 // Single source of truth: read package.json at runtime so the CLI strings can
 // never drift from the published package again. dist/*.js lives in dist/,
@@ -184,18 +199,53 @@ export function loadState(path: string): State | null {
   }
 }
 
+/** loadState() plus the hash of the exact bytes read — the "as read" fingerprint
+ *  a mutator threads through to saveState()'s compare-and-swap so a write can
+ *  refuse if another process touched the file in between. */
+export function loadStateWithHash(path: string): { state: State; hash: string } | null {
+  if (!existsSync(path)) return null;
+  const raw = readFileSync(path);
+  try {
+    return { state: JSON.parse(raw.toString('utf8')) as State, hash: sha256(raw) };
+  } catch {
+    return null;
+  }
+}
+
+/** Thrown by saveState() when expectedHash is given and no longer matches what
+ *  is on disk — another process wrote casp/state.json after this one read it.
+ *  No lock, no merge: an honest refusal, nothing written. */
+export class StateConflictError extends Error {
+  constructor(path: string) {
+    super(`${path} changed on disk since it was read — refusing to overwrite (re-run the command)`);
+    this.name = 'StateConflictError';
+  }
+}
+
 // Round-trips state.json: parse order is preserved, so mutating arrays/fields
 // in place keeps the file's key order. 2-space indent + trailing newline match
 // what `init` scaffolds and what every state-bump commit has written so far.
-export function saveState(path: string, state: State): void {
+export function saveState(path: string, state: State, expectedHash?: string): void {
   // Write to a sibling temp file and rename over the target. rename(2) is atomic
   // within a filesystem, so a crash or a full disk mid-write leaves the previous
   // state.json intact instead of a truncated one. A naked writeFileSync here can
   // destroy the cockpit it is trying to update — and this function is shared by
   // every verb that mutates state (ship, close, audit, upgrade).
+  //
+  // Atomicity protects a PARTIAL write (crash/full-disk mid-write); it does not
+  // protect an OVERWRITTEN one. Two agents writing the same casp/ in parallel is
+  // a real observed mode, not a hypothetical — the implicit model up to here was
+  // "one agent, one session, one branch". When the caller passes expectedHash
+  // (the hash of the file as it read it), re-hash the CURRENT on-disk content
+  // right before the rename and refuse the write on any mismatch. The residual
+  // TOCTOU window between this check and the rename is accepted: it is narrow,
+  // and a local CLI has no business promising serializability.
   const tmp = `${path}.${process.pid}.tmp`;
   try {
     writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+    if (expectedHash !== undefined && fileHash(path) !== expectedHash) {
+      throw new StateConflictError(path);
+    }
     renameSync(tmp, path);
   } catch (err) {
     try {

@@ -22,6 +22,7 @@ import { runInstallHook } from './install-hook.js';
 import { runVerify } from './verify.js';
 import { runState } from './state.js';
 import { runAudit } from './audit.js';
+import { runFact } from './fact.js';
 import { runExplain, runRules } from './explain.js';
 import { runDoctor } from './doctor.js';
 import { runVersion } from './version.js';
@@ -100,6 +101,9 @@ async function main(): Promise<void> {
       break;
     case 'audit':
       runAudit(rest);
+      break;
+    case 'fact':
+      await runFact(rest);
       break;
     case 'rules':
       runRules(rest);

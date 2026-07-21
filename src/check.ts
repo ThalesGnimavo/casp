@@ -19,6 +19,7 @@ import { exit } from 'node:process';
 import { c, git, gitArgs, loadState, pkgVersion, readFrontmatter, resolveDirs } from './shared.js';
 import { ruleFor } from './rules.js';
 import { analyzeChain } from './chain.js';
+import { analyzeFacts } from './facts.js';
 
 type Severity = 'pass' | 'warn' | 'fail';
 
@@ -803,6 +804,96 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
         `${chain.declaring} chained prompt(s)${skipped}`
       );
     }
+  }
+
+  /* 7c. Facts layer (opt-in via casp/facts.json) -------------------------- */
+
+  // OPT-IN, same posture as CASP-SESSION-003 / CASP-PROMPT-007..010: a cockpit
+  // that never scaffolds casp/facts.json gets NO CASP-FACT-* finding — not even
+  // a PASS. This proves freshness, never truth: a source hash unchanged and a
+  // TTL unexpired mean "verified recently against this evidence", not "correct".
+  {
+    const factsPath = join(root, 'casp', 'facts.json');
+    const analysis = analyzeFacts(root, factsPath);
+    if (analysis.adopted && analysis.malformed) {
+      record(
+        'fact.file',
+        'fail',
+        'casp/facts.json is present but not valid',
+        'expected an object with a `facts` array',
+        'fix the JSON, or remove the file to opt back out of the facts layer'
+      );
+    } else if (analysis.adopted && !analysis.malformed) {
+      for (const check of analysis.checks) {
+        record(
+          `fact.source.${check.id}`,
+          check.source.ok ? 'pass' : 'fail',
+          check.source.ok
+            ? `fact '${check.id}': source resolves`
+            : `fact '${check.id}': source does not resolve`,
+          check.source.detail,
+          check.source.ok ? undefined : 'point source at an existing repo path, or prefix external: OR remove the fact'
+        );
+
+        if (check.hash.applicable) {
+          record(
+            `fact.hash.${check.id}`,
+            check.hash.ok ? 'pass' : 'fail',
+            check.hash.ok
+              ? `fact '${check.id}': source_hash matches`
+              : `fact '${check.id}': source_hash does not match current source`,
+            check.hash.detail,
+            check.hash.ok ? undefined : `casp fact verify ${check.id}`
+          );
+        }
+
+        record(
+          `fact.ttl.${check.id}`,
+          check.ttl.severity,
+          check.ttl.severity === 'pass'
+            ? `fact '${check.id}': within TTL`
+            : check.ttl.severity === 'warn'
+              ? `fact '${check.id}': past TTL`
+              : `fact '${check.id}': more than double the TTL`,
+          check.ttl.detail,
+          check.ttl.severity === 'pass' ? undefined : `casp fact verify ${check.id}`
+        );
+
+        for (const u of check.usedIn) {
+          record(
+            `fact.used_in.${check.id}.${u.path}`,
+            u.ok ? 'pass' : 'warn',
+            u.ok
+              ? `fact '${check.id}': ${u.path} carries its marker`
+              : `fact '${check.id}': ${u.path} does not carry its marker`,
+            u.detail,
+            u.ok ? undefined : `add <!-- casp:fact ${check.id} --> … <!-- /casp:fact --> in ${u.path}, or fix/remove the used_in entry`
+          );
+        }
+
+        record(
+          `fact.method.${check.id}`,
+          check.method.ok ? 'pass' : 'warn',
+          check.method.ok ? `fact '${check.id}': method recorded` : `fact '${check.id}': no method recorded`,
+          check.method.detail,
+          check.method.ok ? undefined : 'record the command/query/console path that produced the value'
+        );
+
+        if (check.trap.applicable) {
+          record(
+            `fact.trap.${check.id}`,
+            check.trap.hit ? 'fail' : 'pass',
+            check.trap.hit
+              ? `fact '${check.id}': method matches a known measurement trap`
+              : `fact '${check.id}': method matches no known trap`,
+            check.trap.detail,
+            check.trap.hit ? 'use a real measurement, not an estimate that reads like one — then re-verify' : undefined
+          );
+        }
+      }
+    }
+    // else: no casp/facts.json — this project has not adopted the facts layer,
+    // skip entirely (silence, exactly like an unconfigured migrations_dir).
   }
 
   /* 8. Working tree clean for casp + sessions + logs -------------------- */

@@ -52,7 +52,7 @@ import {
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
-import { c, loadState, pkgVersion, saveState, setColor, todayISO } from './shared.js';
+import { c, loadStateWithHash, pkgVersion, saveState, StateConflictError, setColor, todayISO } from './shared.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATES = join(__dirname, '..', 'templates');
@@ -333,15 +333,17 @@ export function runUpgrade(args: string[]): void {
   // defaults to apply here, deliberately; when a future key has a real default,
   // it lands in this block.
   const statePath = join(cockpit, 'state.json');
-  const state = loadState(statePath);
+  const loaded = loadStateWithHash(statePath);
+  const state = loaded?.state;
   let stateLine: string;
   if (!existsSync(statePath)) {
     stateLine = c.yellow('state.json is missing — not stamped (run `casp init` in an empty repo)');
   } else if (!state || typeof state !== 'object' || Array.isArray(state)) {
-    // `loadState` returns whatever the file parsed to. A bare scalar (`42`) is
-    // truthy and not null, and assigning a property onto it throws under strict
-    // mode — after the scaffolds were already written and before the stamp.
-    // A state file that is not an object is a broken cockpit, not a target.
+    // `loadStateWithHash` returns whatever the file parsed to. A bare scalar
+    // (`42`) is truthy and not null, and assigning a property onto it throws
+    // under strict mode — after the scaffolds were already written and before
+    // the stamp. A state file that is not an object is a broken cockpit, not a
+    // target.
     stateLine = c.yellow('state.json is not valid JSON — not stamped, fix the syntax and re-run');
   } else {
     const from = typeof state.casp_version === 'string' ? state.casp_version : null;
@@ -351,7 +353,15 @@ export function runUpgrade(args: string[]): void {
       stateLine = `state.json casp_version: ${c.gray(from ?? 'unstamped')} → ${c.green(version)}`;
       if (!dryRun) {
         state.casp_version = version;
-        saveState(statePath, state);
+        try {
+          saveState(statePath, state, loaded?.hash);
+        } catch (err) {
+          if (err instanceof StateConflictError) {
+            stateLine += c.red(` — refused: ${err.message}`);
+          } else {
+            throw err;
+          }
+        }
       }
     }
   }

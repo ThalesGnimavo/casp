@@ -27,7 +27,7 @@
 import { exit } from 'node:process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { c, git, gitArgs, loadState, saveState, type State } from './shared.js';
+import { c, git, gitArgs, loadState, loadStateWithHash, saveState, StateConflictError, type State } from './shared.js';
 
 const STATE_REL = 'casp/state.json';
 
@@ -151,11 +151,12 @@ function runBump(root: string, rest: string[]): void {
     console.error(c.red('FAIL') + ` no ${STATE_REL} (run \`casp init\` first)`);
     exit(1);
   }
-  const state = loadState(statePath);
-  if (state === null) {
+  const loaded = loadStateWithHash(statePath);
+  if (loaded === null) {
     console.error(c.red('FAIL') + ` ${STATE_REL} is not valid JSON`);
     exit(1);
   }
+  const { state, hash } = loaded;
 
   const positional = rest.filter((a) => !a.startsWith('--'));
   const target = positional[0] ?? 'HEAD';
@@ -170,7 +171,15 @@ function runBump(root: string, rest: string[]): void {
 
   const previous = typeof state.last_deep_audit === 'string' ? state.last_deep_audit : null;
   state.last_deep_audit = shortForm;
-  saveState(statePath, state);
+  try {
+    saveState(statePath, state, hash);
+  } catch (err) {
+    if (err instanceof StateConflictError) {
+      console.error(c.red('FAIL') + ` ${err.message}`);
+      exit(1);
+    }
+    throw err;
+  }
 
   console.error(c.bold('casp audit bump'));
   console.error(c.gray('─'.repeat(70)));

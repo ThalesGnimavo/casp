@@ -48,6 +48,12 @@ not verify that your code is correct, deployed, or bug-free. See
 | `CASP-MIGRATION-001` | MIGRATION | Claimed migrations have a directory to verify against |
 | `CASP-MIGRATION-002` | MIGRATION | migrations_applied matches the migrations directory |
 | `CASP-MIGRATION-003` | MIGRATION | Untracked migrations on disk (advisory) |
+| `CASP-FACT-001` | FACT | Declared fact source resolves |
+| `CASP-FACT-002` | FACT | source_hash matches the source's current content |
+| `CASP-FACT-003` | FACT | Fact has not exceeded its TTL |
+| `CASP-FACT-004` | FACT | used_in documents carry the fact's marker |
+| `CASP-FACT-005` | FACT | Fact records a reproduction method |
+| `CASP-FACT-006` | FACT | method does not match a known measurement trap |
 | `CASP-WORKTREE-001` | WORKTREE | State surface is committed |
 
 ## Severity
@@ -72,9 +78,53 @@ read, so adding them could not redden a cockpit that had not opted in:
   frontmatter. No **queued** prompt declares a real predecessor → no finding.
   The canonical template ships `next_after: <previous-session-id-or-prompt-slug>`,
   so an unedited placeholder, an empty value and `null` are not declarations.
+- `CASP-FACT-001` … `CASP-FACT-006` read `casp/facts.json`. No such file → no
+  finding at all, not even a PASS. See [the facts layer](#the-facts-layer) below.
 
-Adoption is derived from the data in both cases — there is no state key to set
-and nothing to configure.
+Adoption is derived from the data in all three cases — there is no state key to
+set and nothing to configure.
+
+## The facts layer
+
+`casp/facts.json` declares claims a project has verified once and wants to keep
+fresh — a unit cost derived from a config file, a percentage in a summary doc,
+a row count read off a live database. CASP cannot prove any of these are
+**true**; it can prove one has stopped being **verified**: the source it came
+from changed (`source_hash`), the verification aged past its declared shelf
+life (`ttl_days`), or no reproduction method was ever recorded (`method`). Three
+comparisons, zero model — the same shape as `migrations_applied`.
+
+```jsonc
+{
+  "schema_version": 1,
+  "facts": [
+    {
+      "id": "unit-cost-per-minute",
+      "value": "0.012 USD/min",
+      "source": "backend/config/pricing.json",
+      "source_hash": "sha256:…",
+      "method": "jq '.providers.current.cost_per_minute_usd' backend/config/pricing.json",
+      "verified_at": "2026-07-20",
+      "ttl_days": 90,
+      "used_in": ["docs/unit-economics.md"]
+    }
+  ]
+}
+```
+
+A document in `used_in` cites the fact with an HTML-comment marker CASP checks
+for **presence only** — never the value written around it, which would require
+parsing prose:
+
+```markdown
+The unit cost is <!-- casp:fact unit-cost-per-minute -->0.012 $/min<!-- /casp:fact -->.
+```
+
+`casp fact list|check|stale` are read-only; `casp fact verify <id>` is the one
+mutating verb — it replays the fact's `method`, shows the before/after, and asks
+for confirmation before writing the new `value` / `source_hash` / `verified_at`.
+See `docs/what-casp-proves.md` for what this layer explicitly does **not**
+prove.
 
 ### What `next_after` may name
 

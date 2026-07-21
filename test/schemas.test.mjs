@@ -29,7 +29,7 @@ function run(cwd, ...args) {
 }
 
 test('both schemas parse and declare Draft 2020-12', () => {
-  for (const name of ['state.schema.json', 'check-result.schema.json']) {
+  for (const name of ['state.schema.json', 'check-result.schema.json', 'facts.schema.json']) {
     const s = readSchema(name);
     assert.match(s.$schema, /2020-12/, `${name} declares the draft`);
     assert.ok(s.$id && s.title && s.type === 'object');

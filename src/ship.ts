@@ -16,7 +16,7 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { exit } from 'node:process';
-import { c, loadState, resolveDirs, saveState } from './shared.js';
+import { c, loadStateWithHash, resolveDirs, saveState, StateConflictError } from './shared.js';
 
 function getArg(args: string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -49,10 +49,11 @@ export function runShip(args: string[]): void {
   }
 
   const statePath = join(root, 'casp', 'state.json');
-  const state = loadState(statePath);
-  if (!state) {
+  const loaded = loadStateWithHash(statePath);
+  if (!loaded) {
     fail('no readable casp/state.json found', 'run `casp init` first, or fix the JSON');
   }
+  const { state, hash } = loaded;
 
   const dirs = resolveDirs(root, state);
 
@@ -151,7 +152,12 @@ export function runShip(args: string[]): void {
     state.phases_shipped = shipped;
   }
   writeFileSync(promptPath, rebuilt);
-  saveState(statePath, state);
+  try {
+    saveState(statePath, state, hash);
+  } catch (err) {
+    if (err instanceof StateConflictError) fail(err.message);
+    throw err;
+  }
 
   console.log(`${c.green('ship')}    ${relative(root, promptPath)} → status: shipped`);
   console.log(`        ${c.gray(`session_log: ${logPointer}`)}`);

@@ -21,7 +21,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit, stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
-import { c, git, loadState, resolveDirs, saveState, todayISO } from './shared.js';
+import { c, git, loadStateWithHash, resolveDirs, saveState, StateConflictError, todayISO } from './shared.js';
 import { runCheck } from './check.js';
 
 function getArg(args: string[], flag: string): string | undefined {
@@ -44,12 +44,13 @@ function newestLogId(logsDir: string): string {
 export async function runClose(args: string[]): Promise<void> {
   const root = process.cwd();
   const statePath = join(root, 'casp', 'state.json');
-  const state = loadState(statePath);
-  if (!state) {
+  const loaded = loadStateWithHash(statePath);
+  if (!loaded) {
     console.error(c.red('no readable casp/state.json found'));
     console.error(c.gray('  → run `casp init` first, or fix the JSON'));
     exit(1);
   }
+  const { state, hash } = loaded;
 
   const yes = args.includes('--yes') || args.includes('-y');
   const interactive = Boolean(stdin.isTTY) && !yes;
@@ -91,7 +92,15 @@ export async function runClose(args: string[]): Promise<void> {
   state.last_commit = commit;
   if (logId) state.last_session_id = logId;
   state.updated_at = todayISO();
-  saveState(statePath, state);
+  try {
+    saveState(statePath, state, hash);
+  } catch (err) {
+    if (err instanceof StateConflictError) {
+      console.error(c.red(err.message));
+      exit(1);
+    }
+    throw err;
+  }
 
   console.log('');
   console.log(`${c.green('close')}   casp/state.json bumped`);

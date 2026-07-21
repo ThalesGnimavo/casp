@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casp.sh/schemas/facts.schema.json",
+  "title": "CASP facts file",
+  "description": "casp/facts.json — an OPT-IN declaration of claims a project has verified and wants to keep fresh. A cockpit that never scaffolds this file sees no CASP-FACT-* rule at all. CASP proves the freshness of a declared fact (source unchanged, TTL unexpired, method recorded) — never the truth of its value. See docs/what-casp-proves.md.",
+  "type": "object",
+  "required": ["schema_version", "facts"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "The facts.json schema version. Additive fields do not bump it."
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "value", "source", "verified_at", "ttl_days"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable identifier for this fact, referenced by CASP-FACT-004's `casp:fact <id>` marker in derived documents."
+          },
+          "value": {
+            "type": "string",
+            "description": "The claimed value, in free text. CASP never parses or compares this field — that would require a model. It exists for humans reading the declaration."
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Repo-relative path to the source this value was derived from, or `external:<label>` for evidence outside the repository (a provider console, a dashboard) — no hash is possible for those, so ttl_days is the only guard."
+          },
+          "source_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "sha256 of the source file's content AT THE MOMENT it was verified, formatted `sha256:<hex>`. Required for a repo-relative source (CASP-FACT-002 FAILs a repo source with no hash to compare against); meaningless for `external:` sources."
+          },
+          "method": {
+            "type": "string",
+            "description": "How the value was produced or can be reproduced (a command, a query, a console path). Free text, never executed by `casp check` — only `casp fact verify <id>` executes it, and only after an explicit confirmation. Absence or emptiness is CASP-FACT-005 (WARN); a known-bad pattern (see src/traps.ts) is CASP-FACT-006 (FAIL)."
+          },
+          "verified_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "ISO date (YYYY-MM-DD) this fact was last verified."
+          },
+          "verified_commit": {
+            "type": "string",
+            "description": "The commit (short SHA) HEAD was at when this fact was last verified. Optional context, not gated on."
+          },
+          "ttl_days": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "How many days verified_at stays fresh. CASP-FACT-003 WARNs past verified_at + ttl_days, FAILs past double that. Required on every fact — an `external:` source has no hash to fall back on, and this is the only guard it gets."
+          },
+          "used_in": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Repo-relative paths of documents that cite this fact. Each must exist and contain a `<!-- casp:fact <id> --> … <!-- /casp:fact -->` marker (CASP-FACT-004, WARN) — the marker's PRESENCE is checked, never the prose around it, which would require parsing natural language."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "traps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Project-specific trap substrings, appended to the built-in registry in src/traps.ts. A `method` containing any of these strings FAILs CASP-FACT-006 the same way a built-in trap does — a plain substring match, never a regex, so a hostile facts.json cannot smuggle in a pathological pattern."
+    }
+  },
+  "additionalProperties": false
+}

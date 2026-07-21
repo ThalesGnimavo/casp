@@ -207,6 +207,30 @@ const COMMANDS: CmdHelp[] = [
     ]
   },
   {
+    name: 'fact',
+    summary: 'Manage casp/facts.json — claims verified once, kept fresh (opt-in)',
+    blurb:
+      'CASP cannot prove a claim is true, only that it has stopped being ' +
+      'verified: its source changed, its TTL expired, or no method was ever ' +
+      'recorded. A repo with no casp/facts.json sees none of this. `verify` is ' +
+      'the one mutating subcommand — it replays the declared method, shows the ' +
+      'before/after, and asks for confirmation.',
+    usage: [
+      'casp fact list [--json]',
+      'casp fact check [--json]',
+      'casp fact verify <id> [--yes]',
+      'casp fact stale [--json]'
+    ],
+    flags: [
+      ['--json', 'Emit the result as data'],
+      ['--yes', 'verify: skip the confirmation prompt']
+    ],
+    examples: [
+      ['casp fact stale', 'what needs re-verifying before this goes in a doc?'],
+      ['casp fact verify unit-cost-per-minute', 'replay the method, confirm, write']
+    ]
+  },
+  {
     name: 'rules',
     summary: 'List the verification rules casp check enforces',
     blurb:
@@ -376,6 +400,15 @@ COMMANDS
                                   (in a throwaway worktree); exits with its verdict
   state diff [A] [B]            Field-level diff of casp/state.json between two
                                   commits (default HEAD~1 → HEAD; --json for data)
+  audit status                  What is unaudited since the last deep-audit watermark
+  audit bump [<sha>]            Record a commit as deep-audited (production-cutover
+                                  gate, never a merge gate)
+  fact list                     Inventory of casp/facts.json with each fact's freshness
+                                  (opt-in — silent with no facts.json)
+  fact check                    FACT-only subset of check (--json for data)
+  fact verify <id>              Replay a fact's method, show before/after, confirm, write
+                                  (--yes to skip the prompt)
+  fact stale                    Facts that expired or drifted — the re-verify work list
   rules                         List the verification rules check enforces
                                   (stable CASP-<AREA>-<NNN> codes; --json for data)
   explain <CODE>                Print one rule's full definition (verifies /

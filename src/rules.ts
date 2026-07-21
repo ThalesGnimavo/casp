@@ -20,7 +20,7 @@ export interface Rule {
   code: string;
   /** Short human title. */
   title: string;
-  /** Area bucket: STATE | PROMPT | SESSION | GIT | MIGRATION | WORKTREE. */
+  /** Area bucket: STATE | PROMPT | SESSION | GIT | MIGRATION | FACT | WORKTREE. */
   area: string;
   /** The normative claim this rule verifies. */
   verifies: string;
@@ -235,6 +235,66 @@ export const RULES: Rule[] = [
     evidence: 'Migration files present in migrations_dir while migrations_applied is absent.',
     remediation: 'Add the applied migrations to state.migrations_applied OR remove migrations_dir if unused.',
     matches: (id) => id === 'migrations.untracked'
+  },
+  {
+    code: 'CASP-FACT-001',
+    title: 'Declared fact source resolves',
+    area: 'FACT',
+    verifies:
+      'When casp/facts.json declares a fact, its source is either a repo-relative path that exists or an external: label. Opt-in: a cockpit with no facts.json emits no CASP-FACT-* finding at all.',
+    evidence: 'casp/facts.json (existence and shape) and, for a repo-relative source, that path on disk.',
+    remediation: 'Fix the source path to an existing file, or prefix an out-of-repo source with external: OR remove the fact.',
+    matches: (id) => id === 'fact.file' || id.startsWith('fact.source.')
+  },
+  {
+    code: 'CASP-FACT-002',
+    title: 'source_hash matches the source\'s current content',
+    area: 'FACT',
+    verifies:
+      'A repo-relative fact source carries source_hash (sha256 at verification time); the hash CASP recomputes now must still match. This is the one rule that would have caught the founding incident: a unit cost derived from a config file, never recalculated after the file changed underneath it.',
+    evidence: 'sha256 of the current content at the resolved source path vs facts.json\'s recorded source_hash.',
+    remediation: 'Re-verify the fact (casp fact verify <id>) to record the new value and hash, or the source has drifted and the fact is stale.',
+    matches: (id) => id.startsWith('fact.hash.')
+  },
+  {
+    code: 'CASP-FACT-003',
+    title: 'Fact has not exceeded its TTL',
+    area: 'FACT',
+    verifies:
+      'verified_at + ttl_days has not passed (WARN once past, FAIL past double the TTL). Every fact must declare ttl_days — an external: source has no hash to fall back on, so the TTL is its only guard.',
+    evidence: 'Today\'s date vs facts.json\'s verified_at and ttl_days.',
+    remediation: 'Re-verify the fact (casp fact verify <id>) or raise ttl_days if the cadence was wrong.',
+    matches: (id) => id.startsWith('fact.ttl.')
+  },
+  {
+    code: 'CASP-FACT-004',
+    title: 'used_in documents carry the fact\'s marker',
+    area: 'FACT',
+    verifies:
+      'Every path in a fact\'s used_in exists and contains a `<!-- casp:fact <id> -->` marker. Advisory (WARN): checks the marker\'s PRESENCE only, never the value written around it — comparing a number in prose would require parsing natural language.',
+    evidence: 'The literal marker string in each used_in file.',
+    remediation: 'Add the <!-- casp:fact <id> -->…<!-- /casp:fact --> marker where the value is cited, or fix/remove the used_in entry.',
+    matches: (id) => id.startsWith('fact.used_in.')
+  },
+  {
+    code: 'CASP-FACT-005',
+    title: 'Fact records a reproduction method',
+    area: 'FACT',
+    verifies:
+      'method is present and non-empty. Advisory (WARN): a value with no recorded method is not reproducible or auditable after the fact.',
+    evidence: 'facts.json\'s method field for the fact.',
+    remediation: 'Record the command, query, or console path that produced the value.',
+    matches: (id) => id.startsWith('fact.method.')
+  },
+  {
+    code: 'CASP-FACT-006',
+    title: 'method does not match a known measurement trap',
+    area: 'FACT',
+    verifies:
+      'method does not match a pattern in the trap registry (src/traps.ts) or a project-declared trap in facts.json — a known way to produce an ESTIMATE that reads like a measurement (a planner row-count guess, EXPLAIN without ANALYZE, a single instantaneous sample). This is the rule that would have caught n_live_tup read as an exact row count.',
+    evidence: 'method\'s text against the static trap registry.',
+    remediation: 'Use a real measurement (e.g. count(*) instead of a planner estimate) and re-verify.',
+    matches: (id) => id.startsWith('fact.trap.')
   },
   {
     code: 'CASP-WORKTREE-001',
