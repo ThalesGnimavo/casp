@@ -594,6 +594,50 @@ test('no usable head → no orphan storm on top of the real finding', () => {
   }
 });
 
+test('an ALREADY-SHIPPED head → no orphan storm either', () => {
+  // The guard above tested only a head that does not exist. `byRel` holds every
+  // prompt including shipped ones, so a head that exists but already SHIPPED —
+  // the most common drift there is, and the whole reason CASP-PROMPT-003 exists —
+  // slipped through and produced one unreachable WARN per queued prompt, burying
+  // the FAIL that actually needed acting on. Reproduced on the demo cockpit while
+  // capturing the README screenshots.
+  const { dir, state } = scaffold([
+    ['PHASE-HEAD', 'status: shipped\nsession_id: pending\nsession_log: pending'],
+    ['PHASE-B', `${QUEUED}\nnext_after: PHASE-HEAD`],
+    ['PHASE-C', `${QUEUED}\nnext_after: PHASE-B`]
+  ]);
+  try {
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const { status, report } = checkJson(dir);
+    assert.equal(status, 1, 'the shipped head is the finding that matters');
+    assert.ok(codes(report).includes('CASP-PROMPT-003'), 'the head is reported as shipped');
+    assert.deepEqual(
+      ids(report).filter((id) => id.startsWith('prompt_chain.orphan.')),
+      [],
+      'the queue is coherent — it is the head that is wrong, not the plan'
+    );
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('a shipped head does not publish a queue order in status --json', () => {
+  // The order is only trustworthy when the walk actually ran. A shipped head must
+  // yield `queue: null` rather than a partial order nobody can tell is partial.
+  const { dir, state } = scaffold([
+    ['PHASE-HEAD', 'status: shipped\nsession_id: pending\nsession_log: pending'],
+    ['PHASE-B', `${QUEUED}\nnext_after: PHASE-HEAD`]
+  ]);
+  try {
+    writeFileSync(join(dir, 'casp', 'state.json'), JSON.stringify(state, null, 2));
+    const r = run(dir, 'status', '--json');
+    assert.equal(r.status, 0, 'status never gates');
+    assert.equal(JSON.parse(r.stdout).queue, null);
+  } finally {
+    cleanup(dir);
+  }
+});
+
 /* 7. The catalogue and the machine contracts. ----------------------------- */
 
 test('the new codes are in `casp rules` and resolve in `casp explain`', () => {

@@ -351,7 +351,18 @@ export function analyzeChain(
   // silent here matters: when next_prompt is missing or already shipped,
   // CASP-PROMPT-001/003 already FAIL, and burying that one actionable finding
   // under an orphan warning per queued prompt would make the report worse.
-  const hasHead = headRel !== null && byRel.has(headRel);
+  //
+  // "Usable" means the head is a prompt that can still RUN, not merely a file
+  // that exists. Testing existence alone covered only half the sentence above:
+  // `byRel` holds every prompt including shipped ones, so a next_prompt pointing
+  // at an already-shipped slice — the single most common drift, the one
+  // CASP-PROMPT-003 exists to catch — passed the guard, walked from a head with
+  // no successors, and reported every queued prompt unreachable. One WARN per
+  // queued prompt on top of the one FAIL that mattered.
+  const headPrompt = headRel !== null ? byRel.get(headRel) : undefined;
+  const hasHead =
+    headPrompt !== undefined &&
+    (headPrompt.status === 'queued' || headPrompt.status === 'in-progress');
   const reachable = new Set<string>();
   const order: string[] = [];
   if (hasHead) {
