@@ -1,8 +1,8 @@
 {
   "updated_at": "2026-07-21",
-  "last_session_id": "26-07-21-005-readme-onboarding-rewrite",
-  "last_commit": "ac832fa",
-  "current_phase": "readme-onboarding-rewrite",
+  "last_session_id": "26-07-21-006-readme-lead-with-the-queue",
+  "last_commit": "ec2e1ea",
+  "current_phase": "readme-lead-with-the-queue",
   "next_phase": "facts-layer",
   "next_prompt": "docs/plan/sessions/PHASE-FACTS-LAYER.md",
   "phases_shipped": [
@@ -31,7 +31,8 @@
     "0.12.0-upgrade-command",
     "0.12.1-upgrade-data-loss-fix",
     "author-identity",
-    "readme-onboarding-rewrite"
+    "readme-onboarding-rewrite",
+    "readme-lead-with-the-queue"
   ],
   "phases_queued": [
     "facts-layer",
