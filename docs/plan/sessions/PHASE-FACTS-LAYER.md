@@ -1,7 +1,7 @@
 ---
-status: queued
+status: shipped
 session_id: pending
-session_log: pending
+session_log: session-logs/26-07-21-008-facts-layer.md
 drafted_at: 2026-07-20
 next_after: PHASE-PROMPT-CHAIN-INTEGRITY
 parent_prompt: null
