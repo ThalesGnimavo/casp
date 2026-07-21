@@ -14,6 +14,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const CLI = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
@@ -118,4 +119,33 @@ test('casp <bogus> (unknown top-level command) → exit 1, same graceful message
 test('-V / --version short-circuit even alongside a command', () => {
   assert.match(run('-V').stdout.trim(), /^\d+\.\d+\.\d+$/);
   assert.match(run('--version').stdout.trim(), /^\d+\.\d+\.\d+$/);
+});
+
+/* ---- the naming surface and the dispatcher cannot drift apart --------- */
+
+// The upgrade-command phase's reference notes assumed a coverage test already
+// enforced "every verb has a help block" — it did not exist, and the hardcoded
+// verb list further up this file had silently fallen five verbs behind. This is
+// that missing invariant, asserted structurally in both directions so a new verb
+// can never ship dispatched-but-undocumented or documented-but-undispatched.
+test('every dispatched command has a help block, and vice-versa', async () => {
+  const { COMMAND_NAMES } = await import('../dist/help.js');
+  const cli = readFileSync(new URL('../src/cli.ts', import.meta.url), 'utf8');
+  const dispatched = [...cli.matchAll(/^\s{4}case '([a-z][a-z-]*)':/gm)].map((m) => m[1]);
+
+  for (const verb of dispatched) {
+    assert.ok(
+      COMMAND_NAMES.includes(verb),
+      `cli.ts dispatches '${verb}' but help.ts documents no such command`
+    );
+  }
+  // `help` is handled before the switch (it must exit 0 with no argument), so it
+  // is the one documented verb with no `case`.
+  for (const verb of COMMAND_NAMES) {
+    if (verb === 'help') continue;
+    assert.ok(
+      dispatched.includes(verb),
+      `help.ts documents '${verb}' but cli.ts never dispatches it`
+    );
+  }
 });

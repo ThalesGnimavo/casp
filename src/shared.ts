@@ -106,6 +106,12 @@ export function readFrontmatter(
 }
 
 export interface State {
+  // The CASP version that last scaffolded or upgraded this cockpit. Written by
+  // `casp init`, refreshed by `casp upgrade`. OPTIONAL — a cockpit scaffolded
+  // before the stamp existed has none and must never turn `check` red. The name
+  // is namespaced: state.json has always accepted arbitrary extra keys, so a
+  // bare `version` would collide with an operator's own product version.
+  casp_version?: string;
   updated_at?: string;
   last_session_id?: string;
   last_commit?: string;

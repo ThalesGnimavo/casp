@@ -42,6 +42,26 @@ const COMMANDS: CmdHelp[] = [
     examples: [['casp init', 'in a fresh repo']]
   },
   {
+    name: 'upgrade',
+    summary: "Refresh an existing cockpit's scaffolds — never touches your data",
+    blurb:
+      'Brings casp/README.md and casp/templates/** up to the installed CLI, and ' +
+      'stamps the cockpit with that version. It NEVER writes now.md or roadmap.md ' +
+      'and never templates over state.json — the only state write is the additive ' +
+      'version stamp, every existing value stays byte-identical. It never deletes, ' +
+      'it is idempotent, and it never gates (check is the gate). This is the ' +
+      'non-destructive counterpart to `init --force`, which overwrites everything.',
+    usage: ['casp upgrade [--dry-run] [--plain]'],
+    flags: [
+      ['--dry-run, -n', 'Print the plan, write nothing'],
+      ['--plain', 'No color (for pipes and logs)']
+    ],
+    examples: [
+      ['casp upgrade', "adopt a newer release's scaffolds"],
+      ['casp upgrade --dry-run', 'see exactly what would change first']
+    ]
+  },
+  {
     name: 'status',
     summary: 'Print a one-screen snapshot of where the project stands',
     blurb:
@@ -327,6 +347,10 @@ THE LOOP
 
 COMMANDS
   init                          Scaffold the casp/ continuity layer in this repo
+  upgrade                       Refresh an existing cockpit's scaffolds to this
+                                  CLI and stamp its version — never touches
+                                  state.json values, now.md or roadmap.md
+                                  (--dry-run to preview)
   status                        Print one-screen snapshot (use --plain for no color)
   status --json                 Machine-readable snapshot + embedded check verdict
                                   (stable schema; always exits 0 — reporting, not gating)

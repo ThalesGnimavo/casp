@@ -22,6 +22,7 @@ never diverge from what `check` / `install-hook` would conclude.
 | `git.present` | The `git` binary is on `PATH` (with its version string). |
 | `git.repo` | The current directory is inside a git work tree. |
 | `state.present` / `state.valid` | `casp/state.json` exists and parses as JSON. |
+| `cockpit.version` | The CASP version stamped in `state.json` (`casp_version`) vs the installed CLI. `PASS` when equal; `WARN` when the cockpit is older (run `casp upgrade`), when it carries no stamp at all (scaffolded before version tracking), or when it was stamped by a *newer* CASP than the one installed. |
 | `dirs.sessions_dir` / `dirs.logs_dir` | The resolved sessions / logs directories exist on disk. |
 | `git.hooks_path` | Whether `core.hooksPath` is set (git would then ignore `.git/hooks`). |
 | `hook.pre_push` | Whether a CASP-managed pre-push gate is installed (vs. absent or foreign). |

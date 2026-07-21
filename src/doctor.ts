@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, loadState, pkgVersion, resolveDirs, setColor } from './shared.js';
 import { isCaspHook, resolveHookPath } from './install-hook.js';
+import { compareVersions } from './upgrade.js';
 
 // doctor's own machine-readable envelope version — independent of the
 // check-json schema. Bumps only on a breaking change to this shape.
@@ -126,6 +127,45 @@ export function runChecks(root: string): DoctorCheck[] {
     );
   } else {
     add('state.valid', 'pass', 'casp/state.json present and valid JSON', 'casp/state.json');
+
+    /* 4b. cockpit CASP version --------------------------------------------
+     *
+     * The stamp `casp init` writes and `casp upgrade` refreshes. A stale or
+     * absent stamp means the cockpit's scaffolds may predate the installed
+     * CLI's — which is exactly how the 0.11.0 session-log template became
+     * unadoptable before `upgrade` existed. WARN, never FAIL: doctor never
+     * gates, and an unstamped cockpit is perfectly valid state.
+     */
+    const installed = pkgVersion();
+    // A hand-edited stamp that is not a version string at all (empty, 'abc', a
+    // number, an object) is treated as unstamped rather than rendered verbatim
+    // into a nonsense WARN label.
+    const raw = state.casp_version;
+    const stamped = typeof raw === 'string' && /^\d/.test(raw.trim()) ? raw.trim() : null;
+    if (!stamped) {
+      add(
+        'cockpit.version',
+        'warn',
+        'cockpit is not version-stamped',
+        `scaffolded before version tracking — run \`casp upgrade\` to adopt it and refresh the scaffolds (casp ${installed} installed)`
+      );
+    } else if (compareVersions(stamped, installed) < 0) {
+      add(
+        'cockpit.version',
+        'warn',
+        `cockpit scaffolded by casp ${stamped}, casp ${installed} installed`,
+        'run `casp upgrade` to refresh the scaffolds — your state.json / now.md / roadmap.md are not touched'
+      );
+    } else if (compareVersions(stamped, installed) > 0) {
+      add(
+        'cockpit.version',
+        'warn',
+        `cockpit stamped casp ${stamped}, but casp ${installed} is installed`,
+        'this CLI is older than the cockpit — update the package before running upgrade'
+      );
+    } else {
+      add('cockpit.version', 'pass', `cockpit current with casp ${installed}`, 'casp/state.json casp_version');
+    }
 
     /* 5. resolved state-surface dirs exist -------------------------------- */
     const dirs = resolveDirs(root, state);

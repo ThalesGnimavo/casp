@@ -123,6 +123,7 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | Command | What it does |
 |---|---|
 | `casp init` | Scaffold the continuity layer (`casp/`) into any repo. Idempotent — re-running never overwrites existing files. |
+| `casp upgrade` | Refresh an existing cockpit's **scaffolds** (`casp/README.md`, `casp/templates/**`) to the installed CLI and stamp its `casp_version`. **Never writes `now.md` or `roadmap.md`, and never templates over `state.json`** — the only state write is the additive version stamp; every other value stays byte-identical. `casp/README.md` **is** a scaffold and is replaced (the output line says so) — keep local notes in `now.md`. Never deletes, never writes through a symlink, idempotent, never gates. `--dry-run` prints the plan and writes nothing. The non-destructive counterpart to `init --force`, which overwrites everything. |
 | `casp status` | One-screen snapshot: phase, next, what's shipped, last 10 commits. `--plain` strips ANSI. |
 | `casp check` | The drift validator. Validates `state.json` against the filesystem and git. **Exits 1 on drift.** `--quiet` only prints on FAIL (CI-friendly); `--no-git` skips git-dependent checks; `--json` emits a machine-readable report with a stable schema ([docs/check-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/check-json.md)) — same checks, same exit code; `--all [root]` validates every cockpit under a root in one report. |
 | `casp next` | Print the next session's prompt straight from `state.next_prompt` — pipe-friendly, exits non-zero when there's no actionable prompt. **Gates on drift:** runs the validator first and refuses to print on a drifted state (`--no-check` to start anyway, `--no-git` to skip git checks). The start boundary, symmetric with `install-hook`'s push boundary. |
@@ -136,7 +137,7 @@ Trivially typed — one syllable, no homographs, the same in English, French or 
 | `casp audit status` / `bump` | The deep-audit watermark: separates the cheap per-merge gate (`check`, every session) from the expensive batch pass (adversarial sub-agent audit + full e2e + security review, on demand). `status` shows the unaudited range `last_deep_audit..HEAD` (`--json` for data); `bump [<sha>]` records HEAD as deep-audited. A **production-cutover gate, never a merge gate** — `check` doesn't block on it. Driven by the `/audit-batch` skill. |
 | `casp rules` | List the verification rules `check` enforces — the stable `CASP-<AREA>-<NNN>` codes that appear on every finding. `--json` for data. |
 | `casp explain <CODE>` | Print one rule's full definition: what it verifies, the evidence it inspects, and how to remediate. Accepts a code (`CASP-GIT-001`) or an internal finding id. |
-| `casp doctor` | Read-only environment diagnostic for onboarding: Node, git, `casp/state.json`, the resolved sessions/logs dirs, the pre-push hook and `core.hooksPath`. `PASS`/`WARN`/`FAIL` per line (`--json` for data). **Never gates** — always exits 0; it maps what to fix, `check` is the gate. |
+| `casp doctor` | Read-only environment diagnostic for onboarding: Node, git, `casp/state.json`, the cockpit's CASP version, the resolved sessions/logs dirs, the pre-push hook and `core.hooksPath`. `PASS`/`WARN`/`FAIL` per line (`--json` for data). **Never gates** — always exits 0; it maps what to fix, `check` is the gate. |
 | `casp version` | Print the version (same as `-V`). `--json` emits `{ name, version, node, schema_version }` — the machine handoff, where `schema_version` is the `check --json` report schema. |
 | `casp help [command]` | The top-level overview, or one command's focused help (usage, every flag, real examples). `casp <command> --help` is equivalent. `casp help` exits 0 — the most natural thing a user types is first-class. |
 
@@ -221,6 +222,8 @@ casp/
 
 Edit `casp/now.md`, `casp/roadmap.md` and `casp/state.json` to describe your project, draft your first session prompt with `casp new prompt --slug phase-1-first-slice`, and run `casp check` before every push. That is the whole loop.
 
+When a newer CASP ships a better scaffold, run `casp upgrade` (`--dry-run` first if you want to see the plan). It refreshes `casp/README.md` and `casp/templates/**` only, and stamps `state.casp_version`; `now.md`, `roadmap.md` and every existing `state.json` value are left byte-identical. `casp doctor` tells you when the cockpit is behind.
+
 ---
 
 ## What the validator catches
@@ -280,7 +283,9 @@ Need the report as data instead of text? `casp check --json` emits the same find
 - **0.7** — First-class `casp help` (exit 0) with a focused per-command block for every verb. *Shipped.*
 - **0.8** — Stable **rule codes** (`CASP-<AREA>-<NNN>`) on every finding, with `casp rules` / `casp explain <CODE>`; published **JSON Schemas** for `state.json` and the `check --json` report; an injection-safe git path for untrusted state values; and precise "what CASP proves / does not prove" + threat-model docs. *Shipped.*
 - **0.9** — DX + machine-handoff: `casp doctor` (a read-only environment diagnostic that never gates), `casp version --json` (the `{ name, version, node, schema_version }` handoff), and additive `expected` / `actual` fields on `check --json` findings (schema stays v1). *Shipped.*
+- **0.10** — `casp audit status` / `casp audit bump`: the deep-audit watermark that separates the cheap per-merge gate from the expensive batch pass (adversarial review + full e2e + security). A production-cutover gate, never a merge gate. *Shipped.*
 - **0.11** — `CASP-SESSION-003`: every `phases_shipped[]` entry must be declared by a session log (`phase:` frontmatter). The mapping is declared, never inferred from filenames; adoption is derived from the data, so a repo with pre-CASP history is never retroactively reddened and a repo that never opts in sees nothing. *Shipped.*
+- **0.12** — `casp upgrade`: refresh an existing cockpit's scaffolds to a newer CASP without touching a byte of its data, plus a namespaced `casp_version` stamp in `state.json` and a `doctor` staleness WARN. The protocol's own continuity across releases. *Shipped.*
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
 Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary — even advisory — would undercut the deterministic claim; prose-vs-reality checking belongs in your agent, which can read `casp/` today for free).

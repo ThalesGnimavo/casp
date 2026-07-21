@@ -14,7 +14,7 @@ import {
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exit } from 'node:process';
-import { c, todayISO } from './shared.js';
+import { c, pkgVersion, todayISO } from './shared.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,7 +73,7 @@ export function runInit(args: string[]): void {
     join(target, 'README.md')
   ];
   for (const f of interpolatables) {
-    if (existsSync(f)) interpolate(f, { TODAY: today });
+    if (existsSync(f)) interpolate(f, { TODAY: today, VERSION: pkgVersion() });
   }
 
   // Scaffold the first session prompt that state.next_prompt points at, plus

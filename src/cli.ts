@@ -11,6 +11,7 @@
 
 import { argv, exit } from 'node:process';
 import { runInit } from './init.js';
+import { runUpgrade } from './upgrade.js';
 import { runCheck } from './check.js';
 import { runStatus } from './status.js';
 import { runNew } from './new.js';
@@ -66,6 +67,9 @@ async function main(): Promise<void> {
   switch (cmd) {
     case 'init':
       runInit(rest);
+      break;
+    case 'upgrade':
+      runUpgrade(rest);
       break;
     case 'status':
       runStatus(rest);

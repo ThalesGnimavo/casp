@@ -14,6 +14,10 @@
     "phases_shipped"
   ],
   "properties": {
+    "casp_version": {
+      "type": "string",
+      "description": "The CASP version that last scaffolded or upgraded this cockpit, written by `casp init` and refreshed by `casp upgrade`. Namespaced on purpose: this object accepts arbitrary extra keys, so a bare `version` would collide with a project recording its own product version. OPTIONAL and never gating — a cockpit scaffolded before 0.12.0 carries no stamp and still PASSes `casp check`; `casp doctor` reports it as unstamped and points at `casp upgrade`."
+    },
     "updated_at": {
       "type": "string",
       "description": "ISO date (YYYY-MM-DD) of the last state bump."

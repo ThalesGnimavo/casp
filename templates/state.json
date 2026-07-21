@@ -1,4 +1,5 @@
 {
+  "casp_version": "{{VERSION}}",
   "updated_at": "{{TODAY}}",
   "last_session_id": "pending",
   "last_commit": "pending",
