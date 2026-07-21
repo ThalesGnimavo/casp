@@ -1,6 +1,14 @@
 # CASP — the Coding-Agent State Protocol
 
-> **The model holds the context. CASP proves the state is true — against git.** The new models run your whole roadmap for hours, even days, without losing the thread — which is exactly why state drift matters *more*, not less: the more an agent does between your checkpoints, the more its recorded state can quietly stop matching git. Point any coding agent at a CASP repo and it executes phase after phase across sessions, branches and a team — writing its **own next-session prompt**, logging every session — and `casp check` **blocks the push the moment the state drifts from git**. Everyone *stores* context; CASP **proves** it. It is the **deterministic floor of the self-verification loop** — the one check in "verify your work" that isn't the model checking itself. The complement to long-running, autonomous models — with **Claude Code** today, and every model that ships next. MIT, zero telemetry, no SaaS.
+> ### Your agent says the phase shipped. Git says it didn't.
+>
+> CASP is a CLI that reads what your project **claims** about itself — current phase,
+> next task, last commit, migrations applied — and checks every claim against what
+> **git actually contains**. When they disagree, it **exits non-zero and your push is
+> blocked**, so a state file that lies never reaches your remote.
+>
+> No LLM. No network. No account. The model holds the context; **CASP proves the state
+> is true — against git.**
 
 [![npm version](https://img.shields.io/npm/v/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
 [![npm downloads](https://img.shields.io/npm/dm/@justethales/casp.svg)](https://www.npmjs.com/package/@justethales/casp)
@@ -14,11 +22,27 @@ casp status          # one-screen "where am I"
 casp check           # validate the state against git — exits 1 on drift
 ```
 
+That's the whole product. Here is what the third command prints on a project that has drifted:
+
+```
+$ casp check
+
+casp:check · 22 PASS · 2 WARN · 1 FAIL
+──────────────────────────────────────────────────────────────────────
+  FAIL  CASP-PROMPT-003 next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped
+        → either update state.json.next_prompt to the real next slice, or re-execute it explicitly
+  WARN  CASP-GIT-001 last_commit is in history but not at HEAD · state=abc1234 HEAD=def5678
+        → bump state.last_commit to def5678
+
+✗ 1 drift detected. Push blocked — fix before push.
+```
+
+Without that gate, your next session starts by re-shipping `PHASE-1-AUTH` — confidently,
+because the file told it to. That is the afternoon CASP is designed to give you back.
+
 **C**oding-Agent · **S**tate · **P**rotocol. Works with **Claude Code**, **Cursor**, **Aider**, **Continue**, or any agent that can run a CLI. Node ≥ 20. No account, no telemetry, nothing leaves your machine.
 
 Built by **[Juste A. Gnimavo](https://justegnimavo.com)** — Chief AI-Augmented Architect, solo founder and CEO of ZeroSuite, running seven production products with Claude as the only engineer, from Abidjan, Côte d'Ivoire. CASP is the layer that keeps months of AI-driven sessions from collapsing into drift. The partnership behind it is documented in the open at [thalesandhisaictoclaude.com](https://thalesandhisaictoclaude.com).
-
-> Pre-flight check + black box for AI coding sessions.
 
 ---
 
@@ -118,7 +142,21 @@ CASP is **not** an AI memory layer. Memory tools remember **who you are**. CASP 
 
 ## 07 · The command deck
 
-Trivially typed — one syllable, no homographs, the same in English, French or Spanish.
+### The five that are the protocol
+
+Learn these and you are done. Everything after them is convenience.
+
+| What you type | What it does for you |
+|---|---|
+| `casp init` | Adds a `casp/` folder to your repo. That folder **is** the thread your agent picks up at the start of every session. Nothing to configure, nothing to sign up for. |
+| `casp status` | *"Where am I?"* in one screen — current phase, what's next, what already shipped, the last 10 commits. Type this after a week away instead of reading `git log` and guessing. |
+| `casp check` | **The gate.** Proves the state file still matches git, and exits 1 when it doesn't. Run it before every push — or install it as a hook and stop having to remember. |
+| `casp next` | Prints the exact prompt for the next session, straight from the state file. Hand it to your agent: no deciding what to work on, no hunting for where you stopped. It refuses to print while the state is drifted, so a bad session never starts. |
+| `casp new` | Creates the next session prompt or session log from the canonical template, so every session — yours or an agent's — comes out the same shape instead of whatever the model felt like writing. |
+
+### The full reference
+
+The rest is tooling built on top of those five — reach for it when you need it. Every name is trivially typed: one syllable, no homographs, the same in English, French or Spanish.
 
 | Command | What it does |
 |---|---|
@@ -227,20 +265,6 @@ When a newer CASP ships a better scaffold, run `casp upgrade` (`--dry-run` first
 ---
 
 ## What the validator catches
-
-```
-$ npx @justethales/casp check
-
-casp:check · 22 PASS · 2 WARN · 1 FAIL
-──────────────────────────────────────────────────────────────────────
-  FAIL  CASP-PROMPT-003 next_prompt is already SHIPPED · docs/plan/sessions/PHASE-1-AUTH.md has status: shipped
-        → either update state.json.next_prompt to the real next slice, or re-execute it explicitly
-  WARN  CASP-GIT-001 last_commit is in history but not at HEAD · state=abc1234 HEAD=def5678
-        → bump state.last_commit to def5678
-  ...
-
-✗ 1 drift detected. Push blocked — fix before push.
-```
 
 Every finding carries a **stable rule code** (`CASP-<AREA>-<NNN>`) and a one-line `→ fix` hint, so the agent can resolve without re-reading docs — or run `casp explain <CODE>` for the full definition. The rules the validator enforces cover, among others:
 
