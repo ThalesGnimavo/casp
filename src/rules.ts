@@ -68,10 +68,23 @@ export const RULES: Rule[] = [
     code: 'CASP-PROMPT-001',
     title: 'next_prompt file exists',
     area: 'PROMPT',
-    verifies: 'The file state.next_prompt points at exists on disk.',
+    verifies:
+      'state.next_prompt is a real path resolving to a file on disk — not a placeholder word (none / n/a / tbd / -), which is truthy and therefore makes every downstream reader believe a next slice exists.',
     evidence: 'The path state.next_prompt, resolved against the project root.',
-    remediation: 'Draft the prompt at that path (`casp new prompt --slug <slug>`) OR fix state.next_prompt.',
+    remediation:
+      'Draft the prompt at that path (`casp new prompt --slug <slug>`) OR fix state.next_prompt. Never a placeholder word: the only two valid values are a path and null.',
     matches: (id) => id === 'next_prompt.exists'
+  },
+  {
+    code: 'CASP-PROMPT-005',
+    title: 'next_prompt is not empty while phases are queued',
+    area: 'PROMPT',
+    verifies:
+      'next_prompt is only empty/null when phases_queued is empty too. "Parked" must be TRUE: a cockpit that reports nothing to start while its own backlog holds queued phases is contradicting itself, and the next session opens on a blank.',
+    evidence: 'state.next_prompt compared against state.phases_queued.',
+    remediation:
+      'Point next_prompt at the prompt file for the head of phases_queued. If that phase has no prompt file, draft it — a phase with no prompt is an intention, not a queue entry.',
+    matches: (id) => id === 'next_prompt.parked_while_queued'
   },
   {
     code: 'CASP-PROMPT-002',

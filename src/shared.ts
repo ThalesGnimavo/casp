@@ -274,6 +274,32 @@ export function readFrontmatter(filePath: string): FrontmatterRead {
   }
 }
 
+/**
+ * Placeholder strings an operator or agent reaches for when they have nothing
+ * to point at: 'none', 'n/a', 'tbd', '-'. This format has exactly two ways to
+ * say "no next slice" — a real path, or null — and neither of them is a word.
+ *
+ * These matter because they are TRUTHY. `if (state.next_prompt)` treats "none"
+ * as a live pointer, so the placeholder does not park the cockpit, it makes it
+ * lie: the gate reports a missing file, and every reader downstream believes a
+ * next slice exists. Recognising the class by name lets the tooling say which
+ * of the two real values was meant instead of guessing at a filename.
+ */
+const PLACEHOLDER_PATHS = new Set([
+  'none', 'null', 'nil', 'n/a', 'na', 'tbd', 'tba', 'todo', 'unknown',
+  '-', '--', '?', 'x', 'empty', 'nothing', 'aucun', 'rien'
+]);
+
+export function isPlaceholderPath(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  if (!v) return false;
+  // '.md' is stripped so a literal `none.md` — the file an operator creates
+  // after the gate tells them to "draft the prompt at that path" — is caught
+  // as the same mistake rather than passing as a legitimate prompt.
+  return PLACEHOLDER_PATHS.has(v.endsWith('.md') ? v.slice(0, -3) : v);
+}
+
 export interface State {
   // The CASP version that last scaffolded or upgraded this cockpit. Written by
   // `casp init`, refreshed by `casp upgrade`. OPTIONAL — a cockpit scaffolded

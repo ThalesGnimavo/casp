@@ -229,15 +229,110 @@ test('close --yes: bumps last_commit to HEAD + last_session_id, and NEVER commit
   }
 });
 
+/* ---- the blank-cockpit class (CASP-PROMPT-001 / -005) ----------------- */
+
+// Field history: a session closed with next_prompt set to the STRING "none"
+// while phases_queued still held eleven phases. The next session opened on a
+// cockpit reporting nothing to do, and the operator had to re-derive the
+// backlog by hand from a file that already knew it. Two independent defects
+// made that possible, so there are two rules and two tests.
+
+test('next_prompt: the placeholder string "none" FAILs as a placeholder, not as a missing file', () => {
+  const { dir } = scaffold({ next_prompt: 'none' });
+  try {
+    const r = run(dir, 'check', '--json');
+    assert.equal(r.status, 1);
+    const report = JSON.parse(r.stdout);
+    const f = report.findings.find((x) => x.id === 'next_prompt.exists');
+    assert.ok(f && f.severity === 'fail', 'a placeholder pointer is drift');
+    // The distinction is the whole point: "points at a missing file" sends the
+    // operator off to create none.md, which is not what anybody wants.
+    assert.match(f.label, /placeholder/i, `expected a placeholder verdict, got: ${f.label}`);
+    assert.doesNotMatch(f.label, /missing file/i);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('next_prompt: placeholders are caught case- and .md-insensitively', () => {
+  for (const value of ['NONE', ' n/a ', 'TBD', '-', 'none.md']) {
+    const { dir } = scaffold({ next_prompt: value });
+    try {
+      const report = JSON.parse(run(dir, 'check', '--json').stdout);
+      const f = report.findings.find((x) => x.id === 'next_prompt.exists');
+      assert.ok(f && f.severity === 'fail', `'${value}' must not pass as a path`);
+      assert.match(f.label, /placeholder/i, `'${value}' should read as a placeholder`);
+    } finally {
+      cleanup(dir);
+    }
+  }
+});
+
+test('next_prompt: null while phases are queued → FAIL (parked must be true)', () => {
+  const { dir } = scaffold({
+    next_prompt: null,
+    next_phase: null,
+    phases_queued: ['phase-2-second-slice', 'phase-3-third-slice']
+  });
+  try {
+    const r = run(dir, 'check', '--json');
+    assert.equal(r.status, 1);
+    const report = JSON.parse(r.stdout);
+    const f = report.findings.find((x) => x.id === 'next_prompt.parked_while_queued');
+    assert.ok(f && f.severity === 'fail', 'an empty pointer over a non-empty queue is a contradiction');
+    // The operator must get the COUNT back — the number is the thing that makes
+    // the contradiction obvious at a glance.
+    assert.match(f.detail, /2/, `the finding should report the queue depth: ${f.detail}`);
+    assert.match(f.detail, /phase-2-second-slice/);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('next_prompt: null with an empty queue stays a legitimate park', () => {
+  const { dir } = scaffold({ next_prompt: null, next_phase: null, phases_queued: [] });
+  try {
+    const report = JSON.parse(run(dir, 'check', '--json').stdout);
+    const f = report.findings.find((x) => x.id === 'next_prompt.parked_while_queued');
+    assert.ok(f && f.severity === 'pass', 'parking is legal — it just has to be honest');
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('casp next: an empty pointer over a queue reports the queue, not just "empty"', () => {
+  const { dir } = scaffold({
+    next_prompt: null,
+    next_phase: null,
+    phases_queued: ['phase-2-second-slice']
+  });
+  try {
+    const r = run(dir, 'next', '--no-check');
+    assert.equal(r.status, 1);
+    // stderr must name the backlog: the operator's question is "is there
+    // anything to do", and answering "the field is empty" is not an answer.
+    assert.match(r.stderr, /phases_queued holds 1/i, r.stderr);
+    assert.match(r.stderr, /phase-2-second-slice/, r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
 /* ---- optional migrations --------------------------------------------- */
 
 test('migrations: no keys at all → no migration finding, exit 0', () => {
   // A non-code cockpit: park next so the only question is migration silence.
+  // phases_queued is emptied along with the pointer -- parking is a claim about
+  // the whole state, not just one field, and CASP-PROMPT-005 now enforces that.
+  // Nulling next_prompt while leaving a phase queued is the contradiction the
+  // rule exists to catch, so a fixture that did it would be testing migrations
+  // through a cockpit that lies.
   const { dir } = scaffold({
     migrations_applied: DEL,
     migrations_dir: DEL,
     next_prompt: null,
-    next_phase: null
+    next_phase: null,
+    phases_queued: []
   });
   try {
     const r = run(dir, 'check', '--json');

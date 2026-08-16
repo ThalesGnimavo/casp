@@ -22,6 +22,7 @@ import {
   git,
   gitArgs,
   isDir,
+  isPlaceholderPath,
   pkgVersion,
   readDirEntries,
   readFrontmatter,
@@ -245,6 +246,49 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
     }
   }
 
+  /* 1b. parked is only honest when the queue is actually empty ----------- */
+
+  // The failure this closes: a cockpit reporting "nothing to start" while its
+  // own backlog holds a dozen phases. `next_prompt: null` was an unconditional
+  // PASS labelled "parked — no queued next slice", and nothing ever compared
+  // that claim against phases_queued. So an agent that could not resolve a
+  // path (typically because the next phase had no prompt file drafted yet)
+  // could null the field, pass the gate, and hand the next session a blank
+  // cockpit. The information was never lost — it sat in phases_queued, which
+  // no reader consulted.
+  //
+  // Parked stays legitimate: it just has to be TRUE. Empty queue, empty
+  // pointer — pass. Non-empty queue, empty pointer — the two halves of the
+  // state contradict each other, and the operator gets the count back.
+  {
+    const queued = Array.isArray(state.phases_queued) ? state.phases_queued : [];
+    const pointerEmpty =
+      state.next_prompt === null ||
+      state.next_prompt === undefined ||
+      (typeof state.next_prompt === 'string' &&
+        (state.next_prompt.trim() === '' || isPlaceholderPath(state.next_prompt)));
+
+    if (pointerEmpty && queued.length > 0) {
+      const head = queued.slice(0, 3).map((q) => String(q));
+      const more = queued.length > head.length ? `, +${queued.length - head.length} more` : '';
+      record(
+        'next_prompt.parked_while_queued',
+        'fail',
+        'the cockpit reports nothing to start while phases are queued',
+        `next_prompt is empty but phases_queued holds ${queued.length}: ${head.join(', ')}${more}`,
+        'point next_prompt at the prompt file for the head of the queue. If that phase has no prompt file yet, DRAFT IT — a phase with no prompt is an intention, not a queue entry. Only null next_prompt when phases_queued is genuinely empty.',
+        { expected: 'a path to the head of the queue', actual: JSON.stringify(state.next_prompt ?? null) }
+      );
+    } else if (pointerEmpty) {
+      record(
+        'next_prompt.parked_while_queued',
+        'pass',
+        'next_prompt is empty and the queue is empty too (genuinely parked)',
+        ''
+      );
+    }
+  }
+
   /* 2. next_prompt resolves --------------------------------------------- */
 
   // A non-string next_prompt (a number, a list, an object — state.json accepts
@@ -260,6 +304,23 @@ export function checkOne(root: string, opts: { noGit?: boolean } = {}): Finding[
       `next_prompt is a ${Array.isArray(state.next_prompt) ? 'list' : typeof state.next_prompt} — it must be a repo-relative path, or null when there is no queued next slice`,
       'set next_prompt to a path like "docs/plan/sessions/PHASE-<slug>.md", or to null',
       { expected: 'a repo-relative path (or null)', actual: JSON.stringify(state.next_prompt) }
+    );
+  } else if (state.next_prompt && isPlaceholderPath(state.next_prompt)) {
+    // The string 'none' is NOT a path and NOT a deliberate park — it is an
+    // operator (or agent) reaching for a sentinel this format never defined.
+    // It used to land in the branch below and be reported as "points at a
+    // missing file", whose remediation ("draft the prompt at that path") is
+    // nonsense: nobody wants a file called none.md. Worse, the string is
+    // truthy, so every downstream reader that guards on `state.next_prompt`
+    // believed a next slice existed. Own the case explicitly and say which of
+    // the two real values the operator meant.
+    record(
+      'next_prompt.exists',
+      'fail',
+      'state.json.next_prompt is a placeholder, not a path',
+      `next_prompt is "${state.next_prompt}" — this format has no string sentinel for "nothing queued"`,
+      'set next_prompt to the path of the next prompt file, or to null (the parked value). Note that null is only valid when phases_queued is empty.',
+      { expected: 'a repo-relative path, or null', actual: JSON.stringify(state.next_prompt) }
     );
   } else if (state.next_prompt) {
     const path = join(root, state.next_prompt);

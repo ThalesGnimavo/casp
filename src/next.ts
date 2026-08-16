@@ -20,7 +20,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { exit } from 'node:process';
-import { c, describeFsFailure, loadState, readFrontmatter, readTextFile } from './shared.js';
+import { c, describeFsFailure, isPlaceholderPath, loadState, readFrontmatter, readTextFile } from './shared.js';
 import { checkOneSafe, summarize } from './check.js';
 
 const ROOT = process.cwd();
@@ -41,10 +41,37 @@ export function runNext(args: string[]): void {
     exit(1);
   }
 
-  const nextPrompt = state.next_prompt ? String(state.next_prompt) : '';
+  const rawNext = state.next_prompt;
+  const placeholder = isPlaceholderPath(rawNext);
+  const nextPrompt = rawNext && !placeholder ? String(rawNext) : '';
+
   if (!nextPrompt) {
-    console.error(c.yellow('state.next_prompt is empty.'));
-    console.error(c.gray('  → set it in casp/state.json, or draft one: `npx @justethales/casp new prompt --slug <slug>`'));
+    // Report the QUEUE, not just the empty field. The operator's question is
+    // never "is this string empty" — it is "is there anything to do", and the
+    // answer to that lives in phases_queued. A cockpit that prints "empty"
+    // while holding a dozen queued phases sends the operator off to re-derive
+    // by hand a backlog the state file already knows.
+    const queued = Array.isArray(state.phases_queued) ? state.phases_queued.map(String) : [];
+
+    if (placeholder) {
+      console.error(c.red(`state.next_prompt is a placeholder, not a path: "${String(rawNext)}"`));
+      console.error(c.gray('  → this format has no string sentinel for "nothing queued": use a path, or null.'));
+    } else {
+      console.error(c.yellow('state.next_prompt is empty.'));
+    }
+
+    if (queued.length > 0) {
+      console.error('');
+      console.error(c.red(`but phases_queued holds ${queued.length} phase(s) — the cockpit is contradicting itself:`));
+      for (const q of queued.slice(0, 5)) console.error(c.gray(`    - ${q}`));
+      if (queued.length > 5) console.error(c.gray(`    … +${queued.length - 5} more`));
+      console.error('');
+      console.error(c.gray('  → point next_prompt at the prompt file for the head of that queue.'));
+      console.error(c.gray('  → if the head has no prompt file, draft it: `npx @justethales/casp new prompt --slug <slug>`'));
+      console.error(c.gray('    a phase with no prompt file is an intention, not a queue entry.'));
+    } else {
+      console.error(c.gray('  → set it in casp/state.json, or draft one: `npx @justethales/casp new prompt --slug <slug>`'));
+    }
     exit(1);
   }
 
