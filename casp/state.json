@@ -1,8 +1,8 @@
 {
   "updated_at": "2026-08-16",
-  "last_session_id": "26-08-16-002-live-review-and-release",
-  "last_commit": "66ba796",
-  "current_phase": "live-review-and-release",
+  "last_session_id": "26-08-16-003-unarmed-is-not-silent",
+  "last_commit": "cbbc1ca",
+  "current_phase": "unarmed-is-not-silent",
   "next_phase": "demand-gated-tail",
   "next_prompt": "docs/plan/sessions/PHASE-DEMAND-GATED-TAIL.md",
   "phases_shipped": [
@@ -42,12 +42,13 @@
     "readme-five-screens",
     "0.14.2-npm-readme-refresh",
     "live-coordination-layer",
-    "live-review-and-release"
+    "live-review-and-release",
+    "unarmed-is-not-silent"
   ],
   "phases_queued": [
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.15.0 is published: dist-tags.latest = 0.15.0, and the PUBLISHED tarball was verified from a scratch repo -- foreign edit on a claimed path exits 2, owner exits 0, malformed stdin / corrupt claims file / unparseable expires_at / two stale PID-less rows vs a solo session all exit 0, and git sees nothing of casp/live/. The pre-publish adversarial review closed two fail-open violations (an expires_at compared as a string never expired; stale PID-less rows armed reserved-path enforcement against a later solo session) plus four smaller findings, folded into the 0.15.0 CHANGELOG entry rather than a 0.15.1. 221 tests. One verification note worth keeping: the tarball check must scrub CLAUDE_PID from the environment -- with it set, both test sessions share one process and the ownership fallback correctly allows the write, which reads as a broken guard. next_prompt is deliberately null: the only slice left is demand-gated-tail, which ships on a demand signal, not on a schedule. A parked head is not drift. The head is PHASE-DEMAND-GATED-TAIL, the last queued slice: it ships on a real demand signal, not on a schedule, so a head that sits untouched for a long time is the intended state. Note for anyone reading the umbrella casp-sh/CLAUDE.md, which still says a parked cockpit leaves next_prompt null: that stopped being true when CASP-PROMPT-005 shipped in b657699 -- a null head while phases_queued is non-empty is now a FAIL, because a cockpit that reports nothing to start while the queue is full is exactly the false green this project exists to remove. Park by pointing the head at the queued slice, not by emptying it.",
+  "notes": "0.15.1 is COMMITTED AND PUSHED BUT NOT PUBLISHED to npm -- npm latest is 0.15.0. The publish is a separate, deliberate act and it is waiting on an explicit go-ahead, not on a technical blocker. What 0.15.1 does: 0.15.0's dormancy rule is correct and unchanged, but a reserved category that had NOT armed said nothing about it. A controller declared from a bare terminal takes the cli:<user> fallback, carries no process id and arms nothing; the only way to learn that was to notice a guard that should have fired never did. A protection believed to be on and actually off is worse than no protection, because it is trusted. casp live claims now states where the reserved category stands AND WHY in every state, --json gains reserved_paths { armed, reason }, and a kill switch reports armed: false. Reporting only: no verdict changes, no new subcommand, no rule, and check still sees none of it. Docs also name the limit that matters most -- casp live guards PATH WRITES, not the side effects of shared state. Measured case: a git add of one file followed by git commit published 945 lines of unrelated staged deletions, because git commit without a pathspec publishes the whole index, one object shared by every process in the repo. No claim would have prevented it; the guard saw a Bash call and Bash is deliberately unguarded. Same family: regenerated lockfile, schema migration, dev-server port, build cache. 222 tests.",
   "casp_version": "0.14.2"
 }
