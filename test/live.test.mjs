@@ -320,3 +320,89 @@ test('tail prints recent events; log appends a manual one', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('three states: reserved is dormant solo, enforced in a fleet, controller exempt', () => {
+  const dir = freshRepo();
+  try {
+    // Controller declared, NO worker lane: dormancy — anyone edits casp/.
+    assert.equal(run(dir, ['live', 'controller', '--label', 'cto', '--session', 'cto-1']).status, 0);
+    const solo = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'cto-1', 'casp/state.json') });
+    assert.equal(solo.status, 0, 'controller solo edits its own cockpit');
+    const soloOther = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'session-B', 'casp/state.json') });
+    assert.equal(soloOther.status, 0, 'no lane live -> reserved stays dormant for everyone');
+
+    // A worker claims a lane: the fleet is flying, reserved arms.
+    assert.equal(run(dir, ['live', 'claim', 'frontend/src', '--session', 'worker-front']).status, 0);
+    const worker = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-front', 'casp/state.json') });
+    assert.equal(worker.status, 2, 'worker blocked on cockpit while fleet active');
+    assert.match(worker.stderr, /RESERVED shared state/);
+
+    // Basename rule: a lockfile deep in the worker's OWN lane is still reserved.
+    const lock = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-front', 'frontend/src/package-lock.json') });
+    assert.equal(lock.status, 2);
+
+    // The controller itself writes reserved paths freely.
+    const cto = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'cto-1', 'casp/state.json') });
+    assert.equal(cto.status, 0);
+
+    // Free paths stay free for everyone.
+    const free = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-front', 'backend/readme.txt') });
+    assert.equal(free.status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('reserved list is configurable via casp/live.config.json (full replace)', () => {
+  const dir = freshRepo();
+  try {
+    writeFileSync(join(dir, 'casp', 'live.config.json'), JSON.stringify({ reserved: ['shared-types'] }));
+    assert.equal(run(dir, ['live', 'controller', '--session', 'cto-1']).status, 0);
+    assert.equal(run(dir, ['live', 'claim', 'src', '--session', 'worker-A']).status, 0);
+    // Default entry no longer reserved under an override…
+    const cockpit = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-A', 'casp/state.json') });
+    assert.equal(cockpit.status, 0);
+    // …the overridden entry is.
+    const types = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-A', 'shared-types/api.ts') });
+    assert.equal(types.status, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('controller row obeys TTL/liveness pruning and single-holder rule', () => {
+  const dir = freshRepo();
+  try {
+    assert.equal(run(dir, ['live', 'controller', '--session', 'cto-1']).status, 0);
+    // A second session cannot take the hat while it is held…
+    assert.equal(run(dir, ['live', 'controller', '--session', 'cto-2']).status, 1);
+    // …but a dead-PID controller is pruned on read, freeing the hat and
+    // disarming reserved (fail-open, same rule as claims).
+    const raw = JSON.parse(readFileSync(join(dir, 'casp', 'live', 'claims.json'), 'utf8'));
+    raw.controller.pid = 2 ** 30;
+    writeFileSync(join(dir, 'casp', 'live', 'claims.json'), JSON.stringify(raw));
+    assert.equal(run(dir, ['live', 'claim', 'src', '--session', 'worker-A']).status, 0);
+    const hook = run(dir, ['live', 'hook'], { input: preToolUse(dir, 'worker-A', 'casp/state.json') });
+    assert.equal(hook.status, 0, 'dead controller never blocks anyone');
+    assert.equal(run(dir, ['live', 'controller', '--session', 'cto-2']).status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a v1 claims file (no controller key) is read cleanly', () => {
+  const dir = freshRepo();
+  try {
+    mkdirSync(join(dir, 'casp', 'live'), { recursive: true });
+    writeFileSync(
+      join(dir, 'casp', 'live', 'claims.json'),
+      JSON.stringify({ version: 1, claims: [] })
+    );
+    const list = run(dir, ['live', 'claims', '--json']);
+    const parsed = JSON.parse(list.stdout);
+    assert.equal(parsed.version, 2);
+    assert.equal(parsed.controller, null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

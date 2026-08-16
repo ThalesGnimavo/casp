@@ -249,6 +249,7 @@ const COMMANDS: CmdHelp[] = [
       'casp live claim <path> [...] [--label <name>] [--ttl <min>] [--note <text>]',
       'casp live release <path> [...] | --mine',
       'casp live claims [--json]',
+      'casp live controller [--label <name>] [--ttl <min>] [--release]',
       'casp live log <type> [--msg <text>] [--paths a,b]',
       'casp live tail [-n <count>]',
       'casp live watch',
@@ -257,7 +258,7 @@ const COMMANDS: CmdHelp[] = [
       'casp live off [--global] / casp live on [--global]'
     ],
     flags: [
-      ['--label', 'claim: human name for the session shown in views'],
+      ['--label', 'claim/controller: human name for the session shown in views'],
       ['--ttl', 'claim: minutes before the claim self-expires (default 480)'],
       ['--session', 'override the session id (default: CLAUDE_CODE_SESSION_ID)'],
       ['--global', 'off/on: machine-wide switch (~/.casp/live.off)'],
@@ -454,6 +455,9 @@ COMMANDS
                                   whole-fleet stream, zero agent context cost
   live hook                     The harness hook entry: guards claimed paths
                                   (PreToolUse, fail-open) and feeds the journal
+  live controller               Declare this session the fleet controller —
+                                  sole writer of reserved shared paths while
+                                  another lane is live (dormant when solo)
   live off [--global]           Emergency stand-down, no settings edit needed
   rules                         List the verification rules check enforces
                                   (stable CASP-<AREA>-<NNN> codes; --json for data)

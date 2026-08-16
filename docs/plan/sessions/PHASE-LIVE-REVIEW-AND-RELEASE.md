@@ -30,6 +30,14 @@ next_after: 26-08-16-001-live-coordination-layer
    - **The boundary.** Prove `casp check`, `status`, `next`, the pre-push
      hook and `check --all` cannot observe anything under `casp/live/` —
      including on a cockpit where `casp/live/.gitignore` was deleted by hand.
+   - **The three-state ownership model.** Attack the dormancy rule from both
+     sides: a solo session must NEVER be blocked on reserved paths (the
+     number-one trap), and the arming condition (controller + one foreign
+     lane) must not be spoofable into a lockout by a stale row — walk every
+     path by which a controller or lane row survives its session. Check the
+     reserved matching rules (prefix vs basename) against surprising
+     entries: `casp` vs `casp-utils/`, a basename entry that is also a
+     directory name, an empty override list.
 2. **Docs pass**: README section for `casp live` (placement consistent with
    the five-screen structure), `docs/threat-model.md` addendum — the hook
    reads stdin from the harness and probes PIDs with signal 0; state why

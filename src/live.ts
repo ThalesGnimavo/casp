@@ -97,8 +97,29 @@ interface Claim {
   expires_at: string;
 }
 
+/** The controller row: the one session allowed to write RESERVED paths while
+ *  a fleet is active. Same liveness rules as a claim (TTL + PID probe). */
+interface Controller {
+  owner: string;
+  label: string | null;
+  pid: number | null;
+  created_at: string;
+  expires_at: string;
+}
+
+/** Ownership has THREE states, not two — and the file format carries all
+ *  three even where enforcement is minimal, because the format is what costs
+ *  to change later:
+ *    owned by X      — a claim row (a fleet lane is claims declared at launch)
+ *    controller-only — RESERVED paths (shared state: cockpit, logs, root
+ *                      instruction files, lockfiles) that no lane owns; only
+ *                      the declared controller writes them, and ONLY while a
+ *                      fleet is active (see reservedEnforced)
+ *    free            — everything else
+ */
 interface ClaimsFile {
-  version: 1;
+  version: 2;
+  controller: Controller | null;
   claims: Claim[];
 }
 
@@ -136,21 +157,28 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
+function emptyFile(): ClaimsFile {
+  return { version: 2, controller: null, claims: [] };
+}
+
 function loadClaims(): ClaimsFile {
   const r = readTextFile(CLAIMS);
-  if (!r.ok) return { version: 1, claims: [] };
+  if (!r.ok) return emptyFile();
   try {
     const parsed = JSON.parse(r.content) as ClaimsFile;
-    if (!Array.isArray(parsed.claims)) return { version: 1, claims: [] };
+    if (!Array.isArray(parsed.claims)) return emptyFile();
     // Normalize rows written by other versions: a missing pid means "unknown",
     // which must read as null (TTL-only), never as undefined (would probe
-    // kill(undefined) and prune the claim as dead).
+    // kill(undefined) and prune the claim as dead). A v1 file has no
+    // controller key — that reads as "none declared", never as corrupt.
     for (const cl of parsed.claims) if (cl.pid === undefined) cl.pid = null;
-    return { version: 1, claims: parsed.claims };
+    const controller = parsed.controller ?? null;
+    if (controller && controller.pid === undefined) controller.pid = null;
+    return { version: 2, controller, claims: parsed.claims };
   } catch {
     // A corrupt claims file must not wedge the repo: treat as empty. The
     // journal (append-only) is the audit trail; claims are reconstructible.
-    return { version: 1, claims: [] };
+    return emptyFile();
   }
 }
 
@@ -159,7 +187,7 @@ function loadClaims(): ClaimsFile {
  *  ours" — treated as alive, the conservative read. PID reuse is a accepted
  *  residual: the window is small and the failure mode is a claim living
  *  slightly longer than its session, bounded by the TTL anyway. */
-function holderAlive(cl: Claim): boolean {
+function holderAlive(cl: { pid: number | null }): boolean {
   if (cl.pid === null) return true; // no PID recorded — TTL is the only bound
   try {
     process.kill(cl.pid, 0);
@@ -169,17 +197,90 @@ function holderAlive(cl: Claim): boolean {
   }
 }
 
-/** Load and lazily prune claims that no longer bind: expired TTL, or a holder
- *  whose process is gone. Pruning happens on READ so there is no daemon — and
- *  the default on any doubt is ALLOW: a dead session must never hold the repo. */
+/** Load and lazily prune what no longer binds: claims (and the controller row)
+ *  past their TTL or whose holder process is gone. Pruning happens on READ so
+ *  there is no daemon — and the default on any doubt is ALLOW: a dead session
+ *  must never hold the repo. */
 function loadActiveClaims(): ClaimsFile {
   const file = loadClaims();
   const now = nowISO();
   const active = file.claims.filter((cl) => cl.expires_at > now && holderAlive(cl));
-  if (active.length !== file.claims.length) {
-    saveClaims({ version: 1, claims: active });
+  const controller =
+    file.controller && file.controller.expires_at > now && holderAlive(file.controller)
+      ? file.controller
+      : null;
+  if (active.length !== file.claims.length || controller !== file.controller) {
+    saveClaims({ version: 2, controller, claims: active });
   }
-  return { version: 1, claims: active };
+  return { version: 2, controller, claims: active };
+}
+
+// ---------------------------------------------------------------------------
+// Reserved paths — the controller-only category
+// ---------------------------------------------------------------------------
+
+/** Shared state no lane may own: the cockpit, session logs, root instruction
+ *  files, lockfiles. Two entry kinds, both deterministic, still no globs:
+ *    with a '/' or naming a top-level dir → root-relative prefix rule
+ *    without a '/'                        → exact BASENAME match at any depth
+ *  These are DEFAULTS, not law: a repo overrides the whole list with
+ *  `casp/live.config.json` `{ "reserved": [...] }` (committed, unlike the
+ *  runtime dir). An empty override list disables the category entirely. */
+const DEFAULT_RESERVED = [
+  'casp',
+  'session-logs',
+  'CLAUDE.md',
+  'AGENTS.md',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lock',
+  'bun.lockb',
+  'Podfile.lock',
+  'Cargo.lock',
+  'poetry.lock',
+  'uv.lock',
+  'composer.lock',
+  'Gemfile.lock'
+];
+
+const LIVE_CONFIG = join(ROOT, 'casp', 'live.config.json');
+
+function reservedList(): string[] {
+  const r = readTextFile(LIVE_CONFIG);
+  if (!r.ok) return DEFAULT_RESERVED;
+  try {
+    const parsed = JSON.parse(r.content) as { reserved?: unknown };
+    if (Array.isArray(parsed.reserved) && parsed.reserved.every((e) => typeof e === 'string')) {
+      return parsed.reserved;
+    }
+    return DEFAULT_RESERVED;
+  } catch {
+    return DEFAULT_RESERVED;
+  }
+}
+
+function isReserved(target: string): boolean {
+  const base = target.slice(target.lastIndexOf('/') + 1);
+  for (const entry of reservedList()) {
+    if (entry.includes('/') || pathCovered(entry, target)) {
+      if (pathCovered(entry.replace(/\/+$/, ''), target)) return true;
+    } else if (entry === base) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** THE dormancy rule — the number-one trap of this design. Reserved paths are
+ *  only enforced while a fleet is actually flying: a controller is declared
+ *  AND at least one OTHER live session holds a lane. A solo session (with or
+ *  without the controller hat) writes its own cockpit, logs and lockfiles
+ *  like it always has — a guard that blocked casp/state.json for a solo
+ *  session would break the tool's primary single-session use. */
+function reservedEnforced(file: ClaimsFile): boolean {
+  if (file.controller === null) return false;
+  return file.claims.some((cl) => cl.owner !== file.controller!.owner);
 }
 
 /** Same tmp+rename discipline as saveState(): a crash mid-write leaves the
@@ -352,11 +453,66 @@ function runRelease(args: string[]): number {
   return 0;
 }
 
+/** Declare (or release) this session as the fleet controller — the only
+ *  writer of RESERVED paths while at least one other lane is live. Dormant
+ *  when the session is alone: declaring controller solo changes nothing
+ *  until a worker claims a lane. */
+function runController(args: string[]): number {
+  const label = parseFlag(args, '--label');
+  const ttlRaw = parseFlag(args, '--ttl');
+  const explicitSession = parseFlag(args, '--session');
+  const ttl = ttlRaw === null ? DEFAULT_TTL_MINUTES : Number(ttlRaw);
+  if (!Number.isFinite(ttl) || ttl <= 0) {
+    console.error(c.red(`--ttl must be a positive number of minutes, got "${ttlRaw}"`));
+    return 1;
+  }
+  const owner = sessionId(explicitSession);
+  const file = loadActiveClaims();
+
+  if (args.includes('--release')) {
+    if (file.controller?.owner === owner) {
+      file.controller = null;
+      saveClaims(file);
+      appendEvent({ ts: nowISO(), session: owner, type: 'controller-release' });
+      console.log(c.green('controller released'));
+    } else {
+      console.log(c.gray('you are not the controller — nothing released'));
+    }
+    return 0;
+  }
+
+  if (file.controller && file.controller.owner !== owner) {
+    const who = file.controller.label ? `${file.controller.label} (${file.controller.owner})` : file.controller.owner;
+    console.error(c.red(`controller is already ${who} until ${file.controller.expires_at}`));
+    return 1;
+  }
+  const pidRaw = process.env.CLAUDE_PID;
+  file.controller = {
+    owner,
+    label,
+    pid: pidRaw && Number.isInteger(Number(pidRaw)) ? Number(pidRaw) : null,
+    created_at: nowISO(),
+    expires_at: new Date(Date.now() + ttl * 60_000).toISOString()
+  };
+  saveClaims(file);
+  appendEvent({ ts: nowISO(), session: owner, type: 'controller', label: label ?? undefined });
+  console.log(`${c.green('controller declared')} ${label ?? owner} ${c.gray(`until ${file.controller.expires_at}`)}`);
+  console.log(c.gray('reserved paths are enforced only while another session holds a lane'));
+  return 0;
+}
+
 function runClaims(args: string[]): number {
   const file = loadActiveClaims();
   if (args.includes('--json')) {
     console.log(JSON.stringify(file, null, 2));
     return 0;
+  }
+  if (file.controller) {
+    const who = file.controller.label ? `${file.controller.label} (${file.controller.owner})` : file.controller.owner;
+    const armed = reservedEnforced(file)
+      ? c.yellow('reserved paths ENFORCED')
+      : c.gray('dormant — no other lane live');
+    console.log(`${c.bold('controller')}  ${who}  ${armed}`);
   }
   if (file.claims.length === 0) {
     console.log(c.gray('no active claims'));
@@ -527,7 +683,24 @@ function runHook(): number {
         if (!FILE_TOOLS.has(tool) || !rawPath) return 0;
         const target = normalizePath(rawPath);
         if (target === null) return 0; // outside the repo — not ours to police
-        const foreign = loadActiveClaims().claims.find(
+        const file = loadActiveClaims();
+        // Reserved paths first: while a fleet is flying (controller declared
+        // AND another lane live), only the controller writes shared state.
+        // Solo sessions never hit this branch — see reservedEnforced().
+        if (
+          reservedEnforced(file) &&
+          session !== file.controller!.owner &&
+          isReserved(target)
+        ) {
+          appendEvent({ ts: nowISO(), session, type: 'denied', path: target, tool, denied_owner: file.controller!.owner });
+          console.error(
+            `casp live: "${target}" is RESERVED shared state — while a fleet is active, only the ` +
+              `controller (${file.controller!.label ?? file.controller!.owner}) writes it. ` +
+              `Report what should be recorded there via SendMessage instead of editing it.`
+          );
+          return 2;
+        }
+        const foreign = file.claims.find(
           (cl) => cl.owner !== session && pathCovered(cl.path, target)
         );
         if (!foreign) return 0;
@@ -639,6 +812,9 @@ export function runLive(args: string[]): void {
     case 'claims':
       code = runClaims(rest);
       break;
+    case 'controller':
+      code = runController(rest);
+      break;
     case 'log':
       code = runLog(rest);
       break;
@@ -663,7 +839,7 @@ export function runLive(args: string[]): void {
     default:
       console.error(
         c.red(
-          `unknown live subcommand "${sub ?? ''}" — expected claim | release | claims | log | tail | watch | hook | install | off | on`
+          `unknown live subcommand "${sub ?? ''}" — expected claim | release | claims | controller | log | tail | watch | hook | install | off | on`
         )
       );
       code = 1;

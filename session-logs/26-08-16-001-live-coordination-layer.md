@@ -42,9 +42,33 @@ entry; this log records what the entry does not.
   normalize — with the macOS `/var → /private/var` tmpdir alias as the
   canonical example (it surfaced in this session's own test run).
 
+## Second pass, same session: the three-state ownership model
+
+A design review landed mid-session, before release: file claims and fleet
+"lanes" (a session's owned directories, declared at launch) are the same
+problem, and a model born with only two states (owned/free) misses the third
+category that removes most collisions before any tooling — shared state
+nobody may own. Folded in while 0.15.0 was still unpublished, because the
+file format is what costs to change later:
+
+- `claims.json` v2: a `controller` row (same TTL + liveness rules as claims)
+  next to `claims`. v1 files read cleanly (missing key = none declared).
+- `casp live controller [--release]` — declare the sole writer of RESERVED
+  paths. Reserved list: defaults in code (cockpit, session logs, root
+  instruction files, lockfiles), full-replace override via
+  `casp/live.config.json`; entries are root-relative prefixes or exact
+  basenames, no globs.
+- **Dormancy is the load-bearing rule**: reserved paths are enforced only
+  while a controller is declared AND at least one other live session holds a
+  lane. A solo session — controller hat or not — is never blocked on its own
+  cockpit. A dead controller (TTL or PID) disarms the category.
+- Lanes need no new verb: a lane IS claims posed at launch, and the existing
+  bidirectional-overlap refusal already surfaces lane conflicts at launch
+  time rather than at the Nth write.
+
 ## Tests
 
-200 → 211 (`test/live.test.mjs`). The suite pins the two contracts by name:
+200 → 215 (`test/live.test.mjs`). The suite pins the two contracts by name:
 fail-open (expired claim, dead-PID holder, corrupt claims file, malformed
 stdin, unknown event, all three kill switches — every one exits 0) and the
 boundary (`casp/live/.gitignore` written on first touch). Plus: bidirectional
