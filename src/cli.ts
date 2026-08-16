@@ -25,6 +25,7 @@ import { runAudit } from './audit.js';
 import { runFact } from './fact.js';
 import { runExplain, runRules } from './explain.js';
 import { runDoctor } from './doctor.js';
+import { runLive } from './live.js';
 import { runVersion } from './version.js';
 import { pkgVersion } from './shared.js';
 import {
@@ -113,6 +114,9 @@ async function main(): Promise<void> {
       break;
     case 'doctor':
       runDoctor(rest);
+      break;
+    case 'live':
+      runLive(rest);
       break;
     case 'version':
       runVersion(rest);

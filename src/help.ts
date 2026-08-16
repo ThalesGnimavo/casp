@@ -233,6 +233,43 @@ const COMMANDS: CmdHelp[] = [
     ]
   },
   {
+    name: 'live',
+    summary: 'Ephemeral coordination between parallel sessions (claims, journal, watch)',
+    blurb:
+      'Advisory path claims with a TTL and a liveness check, an append-only ' +
+      'journal every session writes through its harness hooks, and a live view ' +
+      'for the human. Wired as a PreToolUse hook, `casp live hook` blocks a ' +
+      "foreign edit on a claimed path (exit 2) and names the owner. Everything " +
+      'is machine-local runtime state under casp/live/ (self-gitignored) — ' +
+      '`casp check` never reads it, and every internal failure fails OPEN: a ' +
+      'dead session, a corrupt file or a disabled switch can only ever mean ' +
+      '"no coordination", never "no editing". Disable instantly with ' +
+      '`casp live off [--global]` or CASP_LIVE=0.',
+    usage: [
+      'casp live claim <path> [...] [--label <name>] [--ttl <min>] [--note <text>]',
+      'casp live release <path> [...] | --mine',
+      'casp live claims [--json]',
+      'casp live log <type> [--msg <text>] [--paths a,b]',
+      'casp live tail [-n <count>]',
+      'casp live watch',
+      'casp live hook',
+      'casp live install',
+      'casp live off [--global] / casp live on [--global]'
+    ],
+    flags: [
+      ['--label', 'claim: human name for the session shown in views'],
+      ['--ttl', 'claim: minutes before the claim self-expires (default 480)'],
+      ['--session', 'override the session id (default: CLAUDE_CODE_SESSION_ID)'],
+      ['--global', 'off/on: machine-wide switch (~/.casp/live.off)'],
+      ['--json', 'claims: emit as data']
+    ],
+    examples: [
+      ['casp live claim src/mobile --label mobile-train', 'hold a subtree for this session'],
+      ['casp live watch', 'the human view: who does what, live'],
+      ['casp live off --global', 'emergency: stand every guard down, machine-wide']
+    ]
+  },
+  {
     name: 'rules',
     summary: 'List the verification rules casp check enforces',
     blurb:
@@ -411,6 +448,13 @@ COMMANDS
   fact verify <id>              Replay a fact's method, show before/after, confirm, write
                                   (--yes to skip the prompt)
   fact stale                    Facts that expired or drifted — the re-verify work list
+  live claim <path>             Hold a path for this session (TTL + liveness;
+                                  a dead session never blocks anyone)
+  live watch                    Live view of the shared journal — the human's
+                                  whole-fleet stream, zero agent context cost
+  live hook                     The harness hook entry: guards claimed paths
+                                  (PreToolUse, fail-open) and feeds the journal
+  live off [--global]           Emergency stand-down, no settings edit needed
   rules                         List the verification rules check enforces
                                   (stable CASP-<AREA>-<NNN> codes; --json for data)
   explain <CODE>                Print one rule's full definition (verifies /
