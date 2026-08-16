@@ -159,6 +159,30 @@ exit code. Three properties bound it:
   `workdir.clean` (never a FAIL, never an exit 1), and the next `casp live`
   command restores it.
 
+**The limit that matters most, named rather than papered over: CASP guards
+path WRITES, not the side effects of shared state.** A claim covers a path, and
+the guard fires on a file-writing tool call against that path. It has nothing to
+say about an action that stays inside its own lane and still reaches out through
+some state the whole repository shares.
+
+The canonical case, measured on this machine rather than imagined:
+`git add casp/state.json && git commit` — one path, squarely inside the actor's
+lane. The commit published **945 lines of unrelated deletions** another session
+had staged, because `git commit` without a pathspec publishes the **entire
+index**, and the index is one object shared by every process in the repository.
+No claim would have prevented it, and no claim should be expected to: the guard
+saw a `Bash` call, and `Bash` is deliberately unguarded because parsing
+arbitrary shell for file targets is guesswork.
+
+The index is not alone in this family. A dependency install that regenerates a
+shared lockfile, a schema migration, a dev-server port, a build cache — each is
+an in-lane action with an out-of-lane effect. **`casp live` does not detect any
+of them, and this document would rather say so than let the first serious user
+discover it.** The mitigations are procedural, not mechanical: commit by
+pathspec (`git commit <paths> -m …`) instead of relying on `git add` discipline,
+and keep genuinely shared surfaces in the reserved category so a lane is refused
+the *direct* write at least.
+
 **Residual, accepted and named.** Claim ownership is a session id, or failing
 that a shared harness process id. Neither is authenticated: any process on the
 machine can write `claims.json` or pass `--session <someone-else>`. This is by

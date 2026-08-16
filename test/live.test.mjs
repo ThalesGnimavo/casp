@@ -568,3 +568,43 @@ test('the journal rolls at its ceiling instead of growing without bound', () => 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('an unarmed reserved category says WHY, instead of failing open in silence', () => {
+  const dir = freshRepo();
+  try {
+    // The trap: a controller declared from a bare terminal has no process id,
+    // so it arms nothing. Failing open is the contract; failing open silently
+    // is what this asserts against — the launcher believes it armed the lanes
+    // and only a guard that never fires would ever reveal otherwise.
+    run(dir, ['live', 'controller', '--label', 'cto', '--session', 'cli:human']);
+    run(dir, ['live', 'claim', 'src/mobile', '--session', 'w1'], { env: LIVE });
+    const trap = run(dir, ['live', 'claims']);
+    assert.match(trap.stdout, /reserved paths/);
+    assert.match(trap.stdout, /not enforced/);
+    assert.match(trap.stdout, /NO PROCESS ID/);
+    assert.equal(JSON.parse(run(dir, ['live', 'claims', '--json']).stdout).reserved_paths.armed, false);
+
+    // Each other state names itself too, including "no controller at all".
+    rmSync(join(dir, 'casp', 'live'), { recursive: true, force: true });
+    run(dir, ['live', 'claim', 'src/a', '--session', 'w1'], { env: LIVE });
+    assert.match(run(dir, ['live', 'claims']).stdout, /no controller declared/);
+
+    rmSync(join(dir, 'casp', 'live'), { recursive: true, force: true });
+    run(dir, ['live', 'controller', '--session', 'cto-1'], { env: LIVE });
+    assert.match(run(dir, ['live', 'claims']).stdout, /no other lane is held/);
+
+    // …and the armed case still reads as armed, with its own reason.
+    run(dir, ['live', 'claim', 'src/mobile', '--session', 'w1'], { env: LIVE });
+    const armed = run(dir, ['live', 'claims']);
+    assert.match(armed.stdout, /ENFORCED/);
+    const j = JSON.parse(run(dir, ['live', 'claims', '--json']).stdout);
+    assert.equal(j.reserved_paths.armed, true);
+    // A kill switch must not report an armed category.
+    assert.equal(
+      JSON.parse(run(dir, ['live', 'claims', '--json'], { env: { CASP_LIVE: '0' } }).stdout).reserved_paths.armed,
+      false
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

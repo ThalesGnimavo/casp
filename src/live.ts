@@ -329,9 +329,46 @@ function isReserved(target: string): boolean {
  *  so the case this was built for keeps working — and when the evidence is
  *  absent the answer is ALLOW, every time. */
 function reservedEnforced(file: ClaimsFile): boolean {
+  return reservedStatus(file).armed;
+}
+
+/** Why reserved paths are, or are not, being enforced — in the operator's
+ *  words rather than as a bare boolean.
+ *
+ *  Failing OPEN is the contract. Failing open in SILENCE is a different thing
+ *  and it is not defensible: a controller declared from a bare terminal has no
+ *  process id, so it arms nothing, and until now the only way to learn that was
+ *  to notice that a guard which should have fired never did. A protection
+ *  believed to be on and actually off is worse than no protection, because it
+ *  is trusted. So the reason travels with the verdict, and `casp live claims`
+ *  prints it. CASP records and reports; an unarmed guard is a fact of state,
+ *  which is exactly its business. */
+function reservedStatus(file: ClaimsFile): { armed: boolean; reason: string } {
   const ctl = file.controller;
-  if (ctl === null || ctl.pid === null) return false;
-  return file.claims.some((cl) => cl.pid !== null && cl.owner !== ctl.owner);
+  if (ctl === null) {
+    return { armed: false, reason: 'no controller declared' };
+  }
+  if (ctl.pid === null) {
+    return {
+      armed: false,
+      reason:
+        'the controller row carries NO PROCESS ID, so it arms nothing — it was ' +
+        'declared from a bare terminal rather than from inside the session'
+    };
+  }
+  const foreign = file.claims.filter((cl) => cl.owner !== ctl.owner);
+  if (foreign.length === 0) {
+    return { armed: false, reason: 'no other lane is held — a solo session is never blocked' };
+  }
+  if (!foreign.some((cl) => cl.pid !== null)) {
+    return {
+      armed: false,
+      reason:
+        `no other lane carries a process id (${foreign.length} lane(s) bounded by TTL alone), ` +
+        'so none of them can arm the reserved category'
+    };
+  }
+  return { armed: true, reason: 'a controller and another lane are both backed by a live process' };
 }
 
 /** Same tmp+rename discipline as saveState(): a crash mid-write leaves the
@@ -599,8 +636,19 @@ function runController(args: string[]): number {
 
 function runClaims(args: string[]): number {
   const file = loadActiveClaims();
+  const reserved = reservedStatus(file);
   if (args.includes('--json')) {
-    console.log(JSON.stringify({ ...file, enforcing: !liveDisabled() }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ...file,
+          enforcing: !liveDisabled(),
+          reserved_paths: { armed: reserved.armed && !liveDisabled(), reason: reserved.reason }
+        },
+        null,
+        2
+      )
+    );
     return 0;
   }
   // A list of claims read as a list of things being enforced. When a kill
@@ -622,11 +670,16 @@ function runClaims(args: string[]): number {
   }
   if (file.controller) {
     const who = file.controller.label ? `${file.controller.label} (${file.controller.owner})` : file.controller.owner;
-    const armed = reservedEnforced(file)
-      ? c.yellow('reserved paths ENFORCED')
-      : c.gray('dormant — no other lane live');
-    console.log(`${c.bold('controller')}  ${who}  ${armed}`);
+    console.log(`${c.bold('controller')}  ${who}`);
   }
+  // Always state where the reserved category stands, and WHY — including when
+  // no controller was declared at all. A silent "not armed" is the failure mode
+  // this line exists to remove.
+  console.log(
+    reserved.armed
+      ? `${c.bold('reserved paths')}  ${c.yellow('ENFORCED')}  ${c.gray(reserved.reason)}`
+      : `${c.bold('reserved paths')}  ${c.gray('not enforced')}  ${c.gray(reserved.reason)}`
+  );
   if (file.claims.length === 0) {
     console.log(c.gray('no active claims'));
     return 0;
