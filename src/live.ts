@@ -157,6 +157,19 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
+/** Is this row still within its TTL?
+ *
+ *  Parsed, never string-compared. `expires_at > nowISO()` looks equivalent for
+ *  timestamps this binary wrote — and is a fail-CLOSED hole for every one it
+ *  did not: `"not-a-date"`, a `+02:00` offset, a year-9999 typo all sort ABOVE
+ *  the current instant and make the row immortal. A row that never expires and
+ *  carries no PID blocks its path forever, which is precisely the wedge the
+ *  fail-open contract forbids. Unparseable → EXPIRED → allow. */
+function stillValid(row: { expires_at?: unknown }, now: number): boolean {
+  const t = typeof row.expires_at === 'string' ? Date.parse(row.expires_at) : NaN;
+  return Number.isFinite(t) && t > now;
+}
+
 function emptyFile(): ClaimsFile {
   return { version: 2, controller: null, claims: [] };
 }
@@ -197,22 +210,29 @@ function holderAlive(cl: { pid: number | null }): boolean {
   }
 }
 
-/** Load and lazily prune what no longer binds: claims (and the controller row)
- *  past their TTL or whose holder process is gone. Pruning happens on READ so
- *  there is no daemon — and the default on any doubt is ALLOW: a dead session
- *  must never hold the repo. */
+/** Load and prune what no longer binds: claims (and the controller row) past
+ *  their TTL or whose holder process is gone. Pruning happens on READ so there
+ *  is no daemon — and the default on any doubt is ALLOW: a dead session must
+ *  never hold the repo.
+ *
+ *  Pruning is IN MEMORY and writes nothing. It used to persist the pruned file
+ *  on every read, which made the PreToolUse hook — the hottest path in the
+ *  system, one run per tool call across N sessions — a writer of claims.json.
+ *  Two writers with no CAS is last-writer-wins, and the interleaving that
+ *  matters is a prune (holding a pre-claim snapshot) landing after a fresh
+ *  `claim`: the claim is reported taken and silently vanishes. The window is
+ *  narrow and did not reproduce in 12 forced trials, but it is real and the
+ *  cure is free — the mutating commands rewrite the pruned file anyway, and a
+ *  dead row costs nothing but bytes until one of them runs. */
 function loadActiveClaims(): ClaimsFile {
   const file = loadClaims();
-  const now = nowISO();
-  const active = file.claims.filter((cl) => cl.expires_at > now && holderAlive(cl));
+  const now = Date.now();
+  const claims = file.claims.filter((cl) => stillValid(cl, now) && holderAlive(cl));
   const controller =
-    file.controller && file.controller.expires_at > now && holderAlive(file.controller)
+    file.controller && stillValid(file.controller, now) && holderAlive(file.controller)
       ? file.controller
       : null;
-  if (active.length !== file.claims.length || controller !== file.controller) {
-    saveClaims({ version: 2, controller, claims: active });
-  }
-  return { version: 2, controller, claims: active };
+  return { version: 2, controller, claims };
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +247,12 @@ function loadActiveClaims(): ClaimsFile {
  *  `casp/live.config.json` `{ "reserved": [...] }` (committed, unlike the
  *  runtime dir). An empty override list disables the category entirely. */
 const DEFAULT_RESERVED = [
-  'casp',
-  'session-logs',
+  // Trailing slash on purpose: these are ROOT-RELATIVE PREFIXES, never
+  // basenames. `casp` as a basename entry would reserve `bin/casp` (a
+  // compiled binary is not shared state) and would still miss a nested
+  // cockpit — the prefix form says exactly what it means and nothing else.
+  'casp/',
+  'session-logs/',
   'CLAUDE.md',
   'AGENTS.md',
   'package-lock.json',
@@ -260,27 +284,54 @@ function reservedList(): string[] {
   }
 }
 
+/** Two entry kinds, chosen by whether the entry contains a '/':
+ *    `casp/`, `docs/plan`   → ROOT-RELATIVE PREFIX only (exact, or on a '/'
+ *                             boundary). The explicit form.
+ *    `CLAUDE.md`, `uv.lock` → root-relative prefix OR exact BASENAME at any
+ *                             depth. The forgiving form: someone overriding
+ *                             the list with `shared-types` means the directory,
+ *                             and `package-lock.json` means every one of them.
+ *  Still no globs. Each rule fits in one sentence, which is the bar for a rule
+ *  that decides whether a tool call gets refused.
+ *
+ *  The defaults spell `casp/` and `session-logs/` with the slash on purpose:
+ *  as bare basenames they reserved `bin/casp` — a compiled binary is not shared
+ *  state, and a guard that blocks on a name collision is a guard people turn
+ *  off. */
 function isReserved(target: string): boolean {
   const base = target.slice(target.lastIndexOf('/') + 1);
   for (const entry of reservedList()) {
-    if (entry.includes('/') || pathCovered(entry, target)) {
-      if (pathCovered(entry.replace(/\/+$/, ''), target)) return true;
-    } else if (entry === base) {
-      return true;
-    }
+    if (pathCovered(entry.replace(/\/+$/, ''), target)) return true;
+    if (!entry.includes('/') && entry === base) return true;
   }
   return false;
 }
 
 /** THE dormancy rule — the number-one trap of this design. Reserved paths are
- *  only enforced while a fleet is actually flying: a controller is declared
- *  AND at least one OTHER live session holds a lane. A solo session (with or
- *  without the controller hat) writes its own cockpit, logs and lockfiles
- *  like it always has — a guard that blocked casp/state.json for a solo
- *  session would break the tool's primary single-session use. */
+ *  only enforced while a fleet is DEMONSTRABLY flying: a controller is
+ *  declared AND at least one OTHER lane is held, and BOTH rows are backed by a
+ *  live process this machine can probe. A solo session (with or without the
+ *  controller hat) writes its own cockpit, logs and lockfiles like it always
+ *  has — a guard that blocked casp/state.json for a solo session would break
+ *  the tool's primary single-session use.
+ *
+ *  Why PID-backed and not merely un-expired: a row with `pid: null` carries no
+ *  liveness evidence at all, only an 8-hour default TTL. Two such rows — a
+ *  controller and one lane, both left by sessions that died hours ago — used
+ *  to arm this category against a brand-new SOLO session and lock it out of
+ *  its own `casp/state.json` until the TTL ran out. Reproduced, then closed
+ *  here. A PID-less row still binds its own path (that is the claimer's
+ *  explicit intent, and it is advisory); what it may no longer do is extend
+ *  the reserved category over a third party's shared state on no evidence.
+ *
+ *  The cost is honest and small: a fleet whose harness exports no process id
+ *  gets claims without reserved enforcement. Claude Code exports CLAUDE_PID,
+ *  so the case this was built for keeps working — and when the evidence is
+ *  absent the answer is ALLOW, every time. */
 function reservedEnforced(file: ClaimsFile): boolean {
-  if (file.controller === null) return false;
-  return file.claims.some((cl) => cl.owner !== file.controller!.owner);
+  const ctl = file.controller;
+  if (ctl === null || ctl.pid === null) return false;
+  return file.claims.some((cl) => cl.pid !== null && cl.owner !== ctl.owner);
 }
 
 /** Same tmp+rename discipline as saveState(): a crash mid-write leaves the
@@ -303,17 +354,64 @@ function saveClaims(file: ClaimsFile): void {
   }
 }
 
+/** Hard ceiling on the journal before it rolls. One `edit` line is ~120 bytes,
+ *  so 5 MB is on the order of 40 000 tool calls — weeks of fleet work, and a
+ *  file `tail` and `watch` still read instantly. */
+const JOURNAL_MAX_BYTES = 5 * 1024 * 1024;
+const JOURNAL_PREV = join(LIVE_DIR, 'journal.1.jsonl');
+
+/** Roll the journal when it crosses the ceiling: rename to journal.1.jsonl
+ *  (replacing the previous roll) and start fresh. Lazy, on write, no daemon —
+ *  same principle as pruning. Two generations are kept; the journal is a live
+ *  view and a short forensic trail, not an archive. `watch` already treats a
+ *  size drop as a rotation and re-syncs its offset. Best-effort by
+ *  construction: a rotation that fails must never cost an event, let alone a
+ *  tool call. */
+function rotateJournalIfNeeded(): void {
+  try {
+    if (!existsSync(JOURNAL)) return;
+    if (statSync(JOURNAL).size < JOURNAL_MAX_BYTES) return;
+    renameSync(JOURNAL, JOURNAL_PREV);
+  } catch {
+    /* a journal that cannot roll keeps growing — never a reason to fail */
+  }
+}
+
 /** Append one event. A single JSON line under PIPE_BUF is an atomic write on
  *  every platform we care about, so concurrent sessions can append without a
  *  lock and lines never interleave. */
 function appendEvent(ev: JournalEvent): void {
   ensureLiveDir();
+  rotateJournalIfNeeded();
   appendFileSync(JOURNAL, JSON.stringify(ev) + '\n');
 }
 
 // ---------------------------------------------------------------------------
 // Identity and paths
 // ---------------------------------------------------------------------------
+
+/** The harness process id of the CURRENT process, when the harness exports
+ *  one. Null everywhere else — and a null never matches anything. */
+function callerPid(): number | null {
+  const raw = process.env.CLAUDE_PID;
+  return raw && Number.isInteger(Number(raw)) ? Number(raw) : null;
+}
+
+/** Does the caller of this hook own `row`?
+ *
+ *  Session id first — that is the identity scheme. The PID fallback covers the
+ *  case the session id alone gets wrong: a SUBAGENT. A subagent runs inside its
+ *  parent's harness process but a harness is free to hand it its own
+ *  `session_id`, and then the subagent would be DENIED on the very lane its
+ *  parent claimed — a block, the one direction this design is not allowed to
+ *  fail in. Same process id means same session for every harness that forks
+ *  subagents in-process, and when no PID is recorded on either side the test
+ *  simply does not fire. */
+function callerOwns(row: { owner: string; pid: number | null }, session: string): boolean {
+  if (row.owner === session) return true;
+  const mine = callerPid();
+  return mine !== null && row.pid === mine;
+}
 
 function sessionId(explicit?: string | null): string {
   if (explicit) return explicit;
@@ -402,8 +500,7 @@ function runClaim(args: string[]): number {
     // Re-claiming your own path refreshes the TTL instead of stacking rows.
     const mine = file.claims.findIndex((cl) => cl.owner === owner && cl.path === p);
     if (mine !== -1) file.claims.splice(mine, 1);
-    const pidRaw = process.env.CLAUDE_PID;
-    const pid = pidRaw && Number.isInteger(Number(pidRaw)) ? Number(pidRaw) : null;
+    const pid = callerPid();
     file.claims.push({ path: p, owner, label, note, pid, created_at: created, expires_at: expires });
     taken.push(p);
   }
@@ -486,11 +583,10 @@ function runController(args: string[]): number {
     console.error(c.red(`controller is already ${who} until ${file.controller.expires_at}`));
     return 1;
   }
-  const pidRaw = process.env.CLAUDE_PID;
   file.controller = {
     owner,
     label,
-    pid: pidRaw && Number.isInteger(Number(pidRaw)) ? Number(pidRaw) : null,
+    pid: callerPid(),
     created_at: nowISO(),
     expires_at: new Date(Date.now() + ttl * 60_000).toISOString()
   };
@@ -504,8 +600,25 @@ function runController(args: string[]): number {
 function runClaims(args: string[]): number {
   const file = loadActiveClaims();
   if (args.includes('--json')) {
-    console.log(JSON.stringify(file, null, 2));
+    console.log(JSON.stringify({ ...file, enforcing: !liveDisabled() }, null, 2));
     return 0;
+  }
+  // A list of claims read as a list of things being enforced. When a kill
+  // switch is set they are enforcing nothing, and the human reading this
+  // screen to debug a guard has to be told so on the first line.
+  if (liveDisabled()) {
+    console.log(
+      c.yellow('casp live is OFF') +
+        c.gray(' — the guard stands down; the rows below block nothing (casp live on)')
+    );
+  }
+  // Restore the self-gitignore if it was removed by hand: without it the
+  // runtime dir surfaces in `git status` and the cockpit carries a standing
+  // workdir warning. Read-only commands are a safe place to heal it.
+  try {
+    ensureLiveDir();
+  } catch {
+    /* best-effort */
   }
   if (file.controller) {
     const who = file.controller.label ? `${file.controller.label} (${file.controller.owner})` : file.controller.owner;
@@ -689,7 +802,7 @@ function runHook(): number {
         // Solo sessions never hit this branch — see reservedEnforced().
         if (
           reservedEnforced(file) &&
-          session !== file.controller!.owner &&
+          !callerOwns(file.controller!, session) &&
           isReserved(target)
         ) {
           appendEvent({ ts: nowISO(), session, type: 'denied', path: target, tool, denied_owner: file.controller!.owner });
@@ -701,7 +814,7 @@ function runHook(): number {
           return 2;
         }
         const foreign = file.claims.find(
-          (cl) => cl.owner !== session && pathCovered(cl.path, target)
+          (cl) => !callerOwns(cl, session) && pathCovered(cl.path, target)
         );
         if (!foreign) return 0;
         const who = foreign.label ? `${foreign.label} (${foreign.owner})` : foreign.owner;
@@ -800,6 +913,19 @@ function runOn(args: string[]): number {
 // ---------------------------------------------------------------------------
 
 export function runLive(args: string[]): void {
+  try {
+    runLiveInner(args);
+  } catch (err) {
+    // Belt and braces over runHook's own catch: an unexpected throw anywhere
+    // under `casp live hook` must still exit 0. Nothing this verb can fail at
+    // is worth blocking a tool call over.
+    if (args[0] === 'hook') exit(0);
+    console.error(c.red(`casp live: ${err instanceof Error ? err.message : String(err)}`));
+    exit(1);
+  }
+}
+
+function runLiveInner(args: string[]): void {
   const [sub, ...rest] = args;
   let code: number;
   switch (sub) {

@@ -30,14 +30,16 @@ casp check           # validate the state against git — exits 1 on drift
 
 ---
 
-## What it does, in five screens
+## What it does, in six screens
 
 Every image below is **real `casp` output**, byte for byte, captured on **0.14.1** against a
 demo cockpit whose queue and history are genuinely chained — not a mockup, not an
 AI-generated terminal, and not a screenshot anyone touched up. Reproduce them yourself with
 [`docs/img/capture-readme-shots.sh`](https://github.com/ThalesGnimavo/casp/blob/main/docs/img/capture-readme-shots.sh)
 — it refuses to run unless your installed `casp` matches the release it documents, so these
-screenshots cannot quietly fall behind the binary.
+screenshots cannot quietly fall behind the binary. Screen 6 arrived with 0.15.0 and is a
+**text** capture rather than a PNG — pasted verbatim from a real run, not yet part of that
+script's set.
 
 ### 1 · A push that lies gets blocked
 
@@ -181,6 +183,74 @@ reads like a measurement is how a number gets believed for a month.
 Opt-in like the chain rules: a cockpit with no `casp/facts.json` sees no `CASP-FACT-*`
 finding at all.
 
+### 6 · Two sessions, one repo, no collision
+
+Everything above is the **durable** record: `state.json` syncs at session boundaries and git
+is the witness. Between those boundaries there is a second problem, and it only appears once
+you run more than one agent at a time. Session B has no way to know session A is halfway
+through `src/billing/`. The usual answers are to coordinate by hand, or to pipe every session
+into one shared stream — which puts every message in N contexts and invalidates N prompt
+caches to tell N-1 sessions something they did not need.
+
+`casp live` shares the **state** instead of the stream. A session declares what it holds:
+
+```bash
+casp live claim src/billing --label billing-train --ttl 120
+```
+
+Wire `casp live hook` as a `PreToolUse` hook (`casp live install` prints the block) and the
+claim stops being a note in a doc. A foreign session's `Edit` on that path is refused before
+it happens, with the owner named:
+
+```
+casp live: "src/billing/rates.ts" is claimed by billing-train (a3f9c1d2) until
+2026-08-16T06:59:56.531Z. Work elsewhere, message that session, or have the human
+release the claim (casp live release src/billing --session a3f9c1d2).
+```
+
+That message goes to stderr, which the harness hands back to the model — so the blocked
+session is told who to talk to, not merely that it failed. Meanwhile the human — the one
+reader for whom reading is free — gets the whole picture in one terminal, and no agent
+context pays for it:
+
+```
+$ casp live claims
+src/billing  billing-train (a3f9c1d2)  until 2026-08-16T06:59:56.531Z
+app/mobile  mobile-train (7c21ba55)  until 2026-08-16T06:59:56.710Z
+
+$ casp live tail
+04:59:56  billing-train  claim   src/billing
+04:59:56  mobile-train   claim   app/mobile
+04:59:56  a3f9c1d2  edit    Edit   src/billing/invoice.ts
+04:59:57  7c21ba55  edit    Write  app/mobile/screens/Cart.tsx
+04:59:57  7c21ba55  denied  Edit   src/billing/rates.ts  held by a3f9c1d2
+```
+
+`casp live watch` is the same view that keeps printing as lines land.
+
+**Two properties do the load-bearing work.**
+
+*It fails open, absolutely.* A tool built to coordinate work must never be able to forbid it.
+An expired claim, a claim whose process is gone, an unparseable timestamp, a corrupt claims
+file, malformed hook input, an unknown event, any internal error — every one of them means
+*no coordination*, never *no editing*. The only non-zero exit in the whole verb is a live
+foreign claim on the exact path. And because the guard runs inside the session that would be
+blocked, the off ramp lives outside it: `CASP_LIVE=0`, `casp live off`, or `casp live off
+--global` for the whole machine.
+
+*It never touches the gate.* `casp/live/` writes its own `.gitignore` on first touch, so
+runtime churn never reaches `git status` and therefore never reaches `casp check`. Live does
+not gate a push and check does not read live — they are two records with one wall between
+them. No LLM, no network, no telemetry; polling a local file is the entire "real-time"
+machinery.
+
+> **`state.json` is the durable register; `casp live` is the in-flight one.** Both are
+> records. Neither schedules, assigns, or runs anything — `casp live claim` states what a
+> session holds and the guard refuses a write against it. What runs the sessions is still
+> you.
+
+Single-session projects can ignore this entirely: with no claims declared, nothing changes.
+
 ---
 
 ## Quickstart
@@ -320,6 +390,7 @@ is trivially typed: one syllable, no homographs, the same in English, French or 
 | `casp verify <commit>` | Run the validator against a historical commit in a throwaway worktree — proves whether that commit's recorded state was in sync. Exits with that verdict; never mutates the worktree, index or history. |
 | `casp state diff [A] [B]` | Field-level diff of `casp/state.json` between two commits (default `HEAD~1` → `HEAD`), with element-level deltas for array fields. `--json` for data. |
 | `casp audit status` / `bump` | The deep-audit watermark: separates the cheap per-merge gate (`check`, every session) from the expensive batch pass (adversarial sub-agent audit + full e2e + security review, on demand). `status` shows the unaudited range `last_deep_audit..HEAD` (`--json` for data); `bump [<sha>]` records HEAD as deep-audited. A **production-cutover gate, never a merge gate** — `check` doesn't block on it. Driven by the `/audit-batch` skill. |
+| `casp live claim` / `release` / `claims` / `controller` / `watch` / `tail` / `hook` / `install` / `off` / `on` | Coordination between parallel sessions on **one machine** — the in-flight record beside the durable one. `claim` holds a repo-relative path prefix for a session with a TTL and a holder-liveness probe (overlap with a foreign claim is refused in both directions; segment-boundary prefixes, no globs). `hook` is one command wired for every harness event: as `PreToolUse` it refuses a file-writing tool call on a path a living foreign session holds (**the only non-zero exit in the verb**), otherwise it journals. `controller` declares the one session allowed to write shared state — the cockpit, session logs, root instruction files, lockfiles — and is **dormant unless a fleet is demonstrably flying**, so a solo session is never blocked from its own `casp/state.json`. `watch` / `tail` are the human's view of `casp/live/journal.jsonl`. **Fails open by contract** and stands down entirely on `CASP_LIVE=0` or `casp live off [--global]`. `casp/live/` is machine-local runtime state, self-gitignored — **`casp check` never reads it and it never gates a push**. |
 | `casp fact list` / `check` / `stale` / `verify <id>` | The facts layer (opt-in via `casp/facts.json` — see [docs/rules.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/rules.md#the-facts-layer)): claims verified once, kept fresh by comparing a source hash and a TTL, never by a model judging prose. `list`/`check`/`stale` are read-only; `verify <id>` replays the fact's declared method, shows the before/after, and asks for confirmation (`--yes` to skip it) before writing. The one deliberate code-execution surface in the binary — everything else only reads, and no gating path can reach it. |
 | `casp rules` | List the verification rules `check` enforces — the stable `CASP-<AREA>-<NNN>` codes that appear on every finding. `--json` for data. |
 | `casp explain <CODE>` | Print one rule's full definition: what it verifies, the evidence it inspects, and how to remediate. Accepts a code (`CASP-GIT-001`) or an internal finding id. |
@@ -433,7 +504,7 @@ and roll-ups. See [docs/check-json.md](https://github.com/ThalesGnimavo/casp/blo
 
 - **Not a task tracker.** Use Linear, Jira, GitHub Issues. CASP is about *which session ships next*, not *which issues are open*.
 - **Not an AI memory / RAG layer.** It validates project state against git; it doesn't store user facts or do similarity recall.
-- **Not an orchestrator.** `casp next` prints a prompt; it never runs a session. That is a deliberate design limit, not a missing feature.
+- **Not an orchestrator.** `casp next` prints a prompt; it never runs a session. `casp live` records which session holds which path and refuses a write against it; it does not launch, schedule, sequence or assign anything. That is a deliberate design limit, not a missing feature.
 - **Not a CI tool.** It runs locally. You can wire `casp check` into CI as a pre-push gate, but it doesn't replace your test runner.
 - **Not opinionated about your code.** Rust, Python, TypeScript, Go — CASP cares about session state, not your stack.
 - **Not a replacement for `CLAUDE.md`.** That's your project's constitution (rules, conventions). CASP is the operating state on top of it.
@@ -453,6 +524,7 @@ and roll-ups. See [docs/check-json.md](https://github.com/ThalesGnimavo/casp/blo
 - **0.12** — `casp upgrade`: refresh an existing cockpit's scaffolds to a newer CASP without touching a byte of its data. The protocol's own continuity across releases. *Shipped.*
 - **0.13** — `CASP-PROMPT-007` … `010`: prompt-chain integrity — a `next_after`-declared queue is checked as an ordered, executable plan. `casp status --json` gains the resolved `queue`. *Shipped.*
 - **0.14** — The facts layer: `casp/facts.json` (opt-in) declares claims verified once and kept fresh by comparing a source hash and a TTL, never by a model reading prose — plus a static trap registry for known false-measurement patterns, and compare-and-swap on every `state.json` write so two agents racing the same cockpit get an honest refusal instead of a silent clobber. *Shipped.*
+- **0.15** — `casp live`: the in-flight record beside the durable one. Advisory path claims with a TTL and a holder-liveness probe, an append-only journal fed by harness lifecycle hooks, a `PreToolUse` guard that refuses a write onto a living foreign claim, and `casp live watch` for the human. Fail-open by contract, self-gitignored, and walled off from the gate — `check` never reads it. *Shipped.*
 - **Demand-gated** — native binaries, a narrow `casp rollback` (state mutation only, never code), a CI status-check installer, a generic webhook notifier (user-owned outbound, off by default).
 
 Cut from earlier drafts, deliberately: `casp lint` (an LLM verb inside the CASP binary —

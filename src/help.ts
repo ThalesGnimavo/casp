@@ -262,7 +262,7 @@ const COMMANDS: CmdHelp[] = [
       ['--ttl', 'claim: minutes before the claim self-expires (default 480)'],
       ['--session', 'override the session id (default: CLAUDE_CODE_SESSION_ID)'],
       ['--global', 'off/on: machine-wide switch (~/.casp/live.off)'],
-      ['--json', 'claims: emit as data']
+      ['--json', 'claims: emit as data (adds `enforcing`: false when a switch is off)']
     ],
     examples: [
       ['casp live claim src/mobile --label mobile-train', 'hold a subtree for this session'],

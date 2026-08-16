@@ -30,6 +30,8 @@ This document records the concrete threats the implementation defends against.
 | File and directory names on disk | **Untrusted** | Enumerated with `readdirSync`; never passed to a shell. |
 | CLI arguments (`casp verify <ref>`, `casp state diff A B`) | **Semi-trusted** (the user's own shell) | Still routed through `gitArgs()` so a crafted ref cannot inject. |
 | The `git` binary and the local filesystem | **Trusted** | The verification substrate. |
+| `casp live hook` stdin (a harness hook payload) | **Untrusted** | `JSON.parse`d as data and read for three string fields; never executed, never shelled, never written back. Unparseable input exits 0. |
+| `casp/live/claims.json`, `casp/live.config.json` | **Untrusted** | Parsed as data. Path entries are compared as strings — no globs, no regex, no shell. A corrupt or hostile file can only make the guard stand down. |
 
 ## Threats addressed
 
@@ -104,12 +106,78 @@ that is exactly what it does. Read the printed method before answering yes. The
 gate is real, but it is a consent gate, not a sandbox: CASP does not attempt to
 constrain what the method can do once you approve it.
 
+## `casp live` — two surfaces, neither of them execution
+
+`casp live` (0.15.0) reads a hook payload on **stdin** and probes process ids
+with **signal 0**. Both look like new attack surface at a glance; neither is an
+execution surface, and this section states why in the same terms as the rest of
+this document.
+
+**stdin is parsed, never run.** `casp live hook` reads one JSON object from the
+harness and uses exactly three fields — `session_id`, `hook_event_name`,
+`tool_name` — plus `tool_input.file_path`. Every one is treated as an opaque
+string: compared against claim owners, matched against a set of tool names, or
+normalized as a path. Nothing from stdin reaches a shell, a `git` invocation, a
+regular expression, or the filesystem as anything but a **relative path used for
+string comparison**. A path that resolves outside the repository root is
+discarded rather than policed. Malformed JSON, a missing field, an unknown
+event: exit 0, silently. The worst a hostile payload achieves is a journal line
+it chose the contents of, in a file that is gitignored and that nothing in the
+gate reads.
+
+**`kill(pid, 0)` signals nothing.** Liveness is `process.kill(pid, 0)`, which
+performs the permission and existence check of a signal delivery and then
+delivers no signal — the standard POSIX probe. It cannot stop, kill, or perturb
+the target. The pid it probes comes from `claims.json` (untrusted), so a hostile
+file can name any integer; the only outcomes are *this pid exists*, *it does
+not* (`ESRCH`), or *it exists and belongs to another user* (`EPERM`, read as
+alive — the conservative direction). The information disclosed is whether a
+given pid is running, to a process already running as that user on that machine,
+which could equally run `ps`. There is no path from that answer to anything but
+a claim being kept or pruned.
+
+**The blast radius, stated plainly.** This is the first CASP verb that can
+refuse an action in *another* process: as a `PreToolUse` hook it returns exit 2
+and the harness blocks the tool call. Every other verb only ever chose its own
+exit code. Three properties bound it:
+
+- **Fail-open is absolute.** Every degraded state — expired claim, dead holder,
+  unparseable timestamp, corrupt claims file, bad stdin, unknown event, any
+  internal throw — exits 0. The single non-zero case is a live foreign claim on
+  the exact path. A coordination layer that breaks must degrade to *no
+  coordination*, never to *no editing*.
+- **The kill switch does not require the wedged session.** A misfiring guard
+  blocks file writes, so an escape hatch that means "edit `settings.json`" is no
+  escape hatch. `CASP_LIVE=0` is checked on every invocation before any file is
+  touched; `casp live off` writes a repo marker; `casp live off --global` writes
+  `~/.casp/live.off` and stands every guard on the machine down. `casp` is
+  usually installed globally, so the off ramp is machine-sized too.
+- **It is walled off from the gate.** `casp/live/` self-writes a `.gitignore` on
+  first touch. `casp check` has no code path that reads anything under it, and
+  the boundary is enforced by the filesystem rather than by convention. Deleting
+  that `.gitignore` by hand degrades the cockpit to a **non-blocking WARN** on
+  `workdir.clean` (never a FAIL, never an exit 1), and the next `casp live`
+  command restores it.
+
+**Residual, accepted and named.** Claim ownership is a session id, or failing
+that a shared harness process id. Neither is authenticated: any process on the
+machine can write `claims.json` or pass `--session <someone-else>`. This is by
+design — claims are **advisory coordination between cooperating sessions on one
+machine**, not an access-control mechanism, and treating them as one would be
+the mistake. There is no trust boundary here to breach: an attacker who can
+write `casp/live/claims.json` can already write the repository itself.
+
 ## Known residual work (defense-in-depth, tracked)
 
 - **Full `gitArgs()` migration.** The interpolating call sites are already
   inject-safe. The remaining `git()` calls take only static literals (no
   injection surface), but migrating them all to the argv form is a defense-in-
   depth cleanup slated to land incrementally, not as one churny rewrite.
+- **`casp live` claim matching does not resolve symlinks.** A repository reached
+  through a symlink, or a payload spelling the same file through one, reads as
+  "outside the repo" and the guard stands down for that call. The direction is
+  ALLOW, consistent with the fail-open contract; resolving real paths would
+  require the target to exist, which `Write` contradicts.
 - **Path containment for configured directories.** `sessions_dir`, `logs_dir`
   and `migrations_dir` are read from state; today a value like `../../etc` would
   resolve outside the project root. This is a read-only enumeration (no writes,
