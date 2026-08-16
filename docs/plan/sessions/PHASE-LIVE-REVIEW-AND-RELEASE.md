@@ -1,17 +1,28 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: in-progress
+session_id: 26-08-16-002-live-review-and-release
+session_log: session-logs/26-08-16-002-live-review-and-release.md
 drafted_at: 2026-08-16
 next_after: 26-08-16-001-live-coordination-layer
 ---
 
 # Session — live-review-and-release : adversarial review of `casp live`, then publish 0.15.0
 
-> **Status : QUEUED.** The implementation shipped in `26-08-16-001` (new verb
-> `casp live`: claims + journal + watch + hook guard, 211 tests green). This
-> session is the independent pass BEFORE the release reaches npm: review the
-> new surface adversarially, fix what the review finds, then publish.
+> **Status : IN-PROGRESS.** The implementation shipped in `26-08-16-001` (new
+> verb `casp live`: claims + journal + watch + hook guard). The adversarial
+> review ran in `26-08-16-002` and its fixes are in — two fail-open holes
+> closed, four smaller findings, 221 tests, `casp check` 17/0/0. **MUST HAVE 1
+> and 2 are done; 3 and 4 are not.** The npm publish is blocked on a
+> credential: the stored token returns 401 while the registry itself is
+> reachable, so `latest` is still 0.14.2. MUST HAVE 4 (the casp.sh verb list)
+> is deliberately sequenced behind the publish — the site must not announce a
+> verb `npm i -g` does not install.
+>
+> **To finish this phase:** restore a valid npm token, `npm publish`, verify the
+> tarball (`npx @justethales/casp@0.15.0 live claims` in a scratch repo), then
+> refresh the site — the verb list in `llms.txt` and one roadmap entry per
+> language in `roadmap.html` (EN, FR, ES, DE) — and re-verify the site's
+> `npm-published-version` fact, which correctly still reads 0.14.2.
 
 **Project root.** `/Users/juste/ZeroSuite/casp-sh/casp-core`
 **Expected size.** 2-3 h.
