@@ -1,10 +1,10 @@
 {
   "updated_at": "2026-08-16",
   "last_session_id": "26-08-16-002-live-review-and-release",
-  "last_commit": "39f2a9e",
+  "last_commit": "66ba796",
   "current_phase": "live-review-and-release",
-  "next_phase": "live-review-and-release",
-  "next_prompt": "docs/plan/sessions/PHASE-LIVE-REVIEW-AND-RELEASE.md",
+  "next_phase": "demand-gated-tail",
+  "next_prompt": "docs/plan/sessions/PHASE-DEMAND-GATED-TAIL.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -41,13 +41,13 @@
     "0.14.1-shipped-head-orphan-storm",
     "readme-five-screens",
     "0.14.2-npm-readme-refresh",
-    "live-coordination-layer"
+    "live-coordination-layer",
+    "live-review-and-release"
   ],
   "phases_queued": [
-    "live-review-and-release",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.15.0 is in the repository and gated green (221 tests, casp check 17 PASS / 0 WARN / 0 FAIL) but is NOT on npm: the publish returns 401 on the stored credential while the registry reads fine unauthenticated, so npm 'latest' remains 0.14.2. The pre-publish adversarial review closed two fail-open violations -- an unparseable expires_at that never expired, and stale PID-less rows that armed reserved-path enforcement against a later solo session -- plus four smaller findings, all folded into the 0.15.0 CHANGELOG entry rather than a 0.15.1. The casp.sh verb list is deliberately NOT updated: the site must not announce a verb that npm i -g does not install. next_prompt stays at PHASE-LIVE-REVIEW-AND-RELEASE with status in-progress because two of its four MUST HAVEs are outstanding.",
+  "notes": "0.15.0 is published: dist-tags.latest = 0.15.0, and the PUBLISHED tarball was verified from a scratch repo -- foreign edit on a claimed path exits 2, owner exits 0, malformed stdin / corrupt claims file / unparseable expires_at / two stale PID-less rows vs a solo session all exit 0, and git sees nothing of casp/live/. The pre-publish adversarial review closed two fail-open violations (an expires_at compared as a string never expired; stale PID-less rows armed reserved-path enforcement against a later solo session) plus four smaller findings, folded into the 0.15.0 CHANGELOG entry rather than a 0.15.1. 221 tests. One verification note worth keeping: the tarball check must scrub CLAUDE_PID from the environment -- with it set, both test sessions share one process and the ownership fallback correctly allows the write, which reads as a broken guard. next_prompt is deliberately null: the only slice left is demand-gated-tail, which ships on a demand signal, not on a schedule. A parked head is not drift. The head is PHASE-DEMAND-GATED-TAIL, the last queued slice: it ships on a real demand signal, not on a schedule, so a head that sits untouched for a long time is the intended state. Note for anyone reading the umbrella casp-sh/CLAUDE.md, which still says a parked cockpit leaves next_prompt null: that stopped being true when CASP-PROMPT-005 shipped in b657699 -- a null head while phases_queued is non-empty is now a FAIL, because a cockpit that reports nothing to start while the queue is full is exactly the false green this project exists to remove. Park by pointing the head at the queued slice, not by emptying it.",
   "casp_version": "0.14.2"
 }

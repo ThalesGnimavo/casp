@@ -156,3 +156,36 @@ throw under `hook` with exit 0.
 The phase prompt stays at the head with status `in-progress` rather than
 `shipped`: two of its four MUST HAVEs are outstanding, and marking it shipped
 would be the kind of claim this project exists to make impossible.
+
+---
+
+## Addendum, same session — the release completed
+
+The npm credential was replaced mid-session and everything above under
+"Not done" is now done. Recorded here rather than rewritten above: what the
+session found blocked, and what unblocked it, are both part of the record.
+
+- **`@justethales/casp@0.15.0` is published.** `dist-tags.latest` = `0.15.0`,
+  shasum `70304510016fa872f6cf28255839c1ec96a88adf`, 41 files, 144.8 kB packed.
+- **The published tarball was verified from a scratch repo**, not from `dist/`,
+  and with a scrubbed environment — the first attempt read exit 0 on a foreign
+  edit because the shell exported `CLAUDE_PID`, which made both "sessions" the
+  same process and the ownership fallback correctly allowed the write. With the
+  environment cleaned: a foreign session's edit on a claimed path exits **2**
+  with the owner named, the owner's own edit exits 0, malformed stdin exits 0,
+  a corrupt claims file exits 0, an unparseable `expires_at` exits 0, two stale
+  PID-less rows do **not** lock a solo session out of `casp/state.json`, the
+  kill switch prints its stand-down banner, and `git status` sees nothing of
+  `casp/live/`. Both fixed holes are confirmed present in the artifact users
+  install.
+- **The casp.sh verb list shipped** in the same window: one 0.15 card per
+  language in `roadmap.html` (EN, FR, ES, DE) and a `casp live` entry in
+  `llms.txt`.
+- **The site's two facts were re-verified by their own declared methods.**
+  `npm-published-version` → `0.15.0` (corrected). `casp-rule-count` → **29,
+  unchanged** — the expected result and the one worth recording: `casp live`
+  adds no rule, because the verb gates nothing.
+
+The phase moves to `shipped`. `next_prompt` returns to `null`: the only slice
+left in the queue is `demand-gated-tail`, which ships on a demand signal rather
+than on a schedule, so a parked head is the correct state and not drift.
