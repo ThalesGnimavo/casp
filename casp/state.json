@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-08-16",
+  "updated_at": "2026-08-17",
   "last_session_id": "26-08-16-003-unarmed-is-not-silent",
   "last_commit": "cbbc1ca",
   "current_phase": "unarmed-is-not-silent",
-  "next_phase": "demand-gated-tail",
-  "next_prompt": "docs/plan/sessions/PHASE-DEMAND-GATED-TAIL.md",
+  "next_phase": "fleet-ships-with-casp",
+  "next_prompt": "docs/plan/sessions/PHASE-FLEET-SHIPS-WITH-CASP.md",
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -46,6 +46,7 @@
     "unarmed-is-not-silent"
   ],
   "phases_queued": [
+    "fleet-ships-with-casp",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
