@@ -1,6 +1,6 @@
 # What I'm doing NOW
 
-> **Updated** : 2026-07-21 (session 26-07-21-002 — 0.12.0).
+> **Updated** : 2026-08-17 (session 26-08-17-001 — 0.16.0).
 >
 > **Read this first.** The single most important file in casp/. "Where am I?" has a one-screen answer here.
 
@@ -8,7 +8,7 @@
 
 ## Current focus (1 sentence)
 
-**0.12.0 built — `casp upgrade`, the protocol's own continuity across releases.** An existing cockpit can now adopt a newer CASP's scaffolds without losing a byte of `state.json` / `now.md` / `roadmap.md`: the refresh list is derived from what the package ships minus a data denylist, the single state write is an additive namespaced `casp_version` stamp, and the verb never deletes, never writes through a symlink, and never gates. **The queue was inverted on purpose** — `facts-layer` was first, but 0.11.0 shipped a changed session-log template that no existing cockpit could receive, so the newest rule was unadoptable until this verb existed. 118/118 tests. **Neither 0.11.0 nor 0.12.0 is published to npm** — two stacked minors that should go out together (separate CEO-gated act). Next is `PHASE-FACTS-LAYER.md`.
+**0.16.0 published — the `fleet` skill ships in the package, and says plainly it is not CASP.** A fourth Claude Code skill (`skills/fleet`, next to `/casp`, `/next`, `/audit-batch`) distills three measured multi-session trials: default shape one writer + N adversarial readers, the measured value is contradiction not speed, gates-isolable-per-session is a per-project property to measure first, commit by pathspec, stale belief is the dominant failure mode. The boundary is stated and tested: fleet launches sessions, therefore it orchestrates, therefore it is never a CASP feature; no `casp check` rule reads it; its model default is empty. Wiring path claims into a launcher is **ruled out on measurement** (14 incidents: 1 caught, 2 false refusals), not pending. 228/228 tests.
 
 ---
 
@@ -16,15 +16,15 @@
 
 ### 15 minutes
 
-`casp next` → opens `PHASE-FACTS-LAYER.md`. Read its rule table (`CASP-FACT-001..006`) and the red line it must not cross: freshness, never truth; zero LLM.
+Nothing owed — 0.16.0 is published (`dist-tags.latest` = 0.16.0, verified from the registry) and the site's `npm-published-version` fact is re-verified at 0.16.0. `casp status` to confirm the cockpit is quiet.
 
 ### 1 hour
 
-Settle the `casp/facts.json` shape and the six rules' evidence sources before any code — the same discipline that made `check-shipped-log` and `upgrade` land clean was settling the design first.
+Only if a demand signal for `demand-gated-tail` has appeared: read `PHASE-DEMAND-GATED-TAIL.md` and bring the signal to the sequencing decision. Otherwise nothing.
 
 ### Half a day
 
-Ship `facts-layer` end to end (opt-in file, six rules, tests, `docs/rules.md`, CHANGELOG), close the loop, re-point `next_prompt` at `PHASE-DEMAND-GATED-TAIL.md` — or at whatever the CEO sequences next.
+Nothing — the head of the queue is `demand-gated-tail`, which ships on a real demand signal, not on a schedule. A head that sits untouched is the intended state. Do not invent work to fill it.
 
 ---
 
@@ -32,8 +32,9 @@ Ship `facts-layer` end to end (opt-in file, six rules, tests, `docs/rules.md`, C
 
 These items are NOT on the Next-3 (still or newly) :
 
-- **Publishing 0.11.0 + 0.12.0 to npm** — a separate CEO-gated act, never bundled into a feature session. Worth raising: 0.12.0 is the verb that lets installed users adopt 0.11.0's template, so the two belong in one release window.
-- **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; split + CEO trigger before any of it runs.
+- **Anything in `PHASE-DEMAND-GATED-TAIL.md`** — queue marker, demand-gated; a demand signal and an explicit go before any of it runs.
+- **Wiring path claims into any launcher** — ruled out on measurement (see CHANGELOG 0.16.0). Do not re-propose without a measurement that overturns the 14/1/2 count.
+- **Teaching `casp check` to read `casp/live/` or the fleet skill** — the wall is the product.
 - **`casp chain <N>`** — parked, gated on real-marathon evidence (see roadmap).
 - **`casp lint`** — cut for good.
 
@@ -41,7 +42,7 @@ These items are NOT on the Next-3 (still or newly) :
 
 ## Constraints active today
 
-- `npm publish` is a separate CEO-gated act — never bundled into a routine feature session.
+- `npm publish` is a separate, deliberately gated act — never bundled into a routine feature session.
 - This is a **public** repo: session logs, phase prompts + `state.json` `notes` stay technical-only (CHANGELOG register). Private context goes to `private-docs/` (see `casp-sh/CLAUDE.md` §3).
 - `npx @justethales/casp check` is mandatory before push when the casp state was bumped.
 

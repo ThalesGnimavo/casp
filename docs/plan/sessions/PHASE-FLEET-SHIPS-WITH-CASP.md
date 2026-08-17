@@ -1,7 +1,7 @@
 ---
-status: queued
-session_id: pending
-session_log: pending
+status: shipped
+session_id: 26-08-17-001-fleet-ships-with-casp
+session_log: session-logs/26-08-17-001-fleet-ships-with-casp.md
 drafted_at: 2026-08-17
 next_after: PHASE-LIVE-REVIEW-AND-RELEASE
 ---

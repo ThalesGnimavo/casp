@@ -1,10 +1,17 @@
 {
   "updated_at": "2026-08-17",
-  "last_session_id": "26-08-16-003-unarmed-is-not-silent",
-  "last_commit": "cbbc1ca",
-  "current_phase": "unarmed-is-not-silent",
-  "next_phase": "fleet-ships-with-casp",
-  "next_prompt": "docs/plan/sessions/PHASE-FLEET-SHIPS-WITH-CASP.md",
+  "last_session_id": "26-08-17-001-fleet-ships-with-casp",
+  "last_commit": "f0dfa79",
+  "current_phase": "fleet-ships-with-casp",
+  "next_phase": "demand-gated-tail",
+  "next_prompt": "docs/plan/sessions/PHASE-DEMAND-GATED-TAIL.md",
+  "arbitration": {
+    "phase": "fleet-ships-with-casp",
+    "shape": "solo",
+    "decided_at": "2026-08-17",
+    "by": "26-08-17-001",
+    "reason": "internally coupled slice -- one boundary statement across three files, no second writing lane; adversarial review covered by the pre-commit read-only audit; the npm publish is inside this session's explicit scope"
+  },
   "phases_shipped": [
     "0.1.0-initial-release",
     "0.2.0-casp-rebrand",
@@ -43,13 +50,13 @@
     "0.14.2-npm-readme-refresh",
     "live-coordination-layer",
     "live-review-and-release",
-    "unarmed-is-not-silent"
+    "unarmed-is-not-silent",
+    "fleet-ships-with-casp"
   ],
   "phases_queued": [
-    "fleet-ships-with-casp",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "0.15.1 is COMMITTED AND PUSHED BUT NOT PUBLISHED to npm -- npm latest is 0.15.0. The publish is a separate, deliberate act and it is waiting on an explicit go-ahead, not on a technical blocker. What 0.15.1 does: 0.15.0's dormancy rule is correct and unchanged, but a reserved category that had NOT armed said nothing about it. A controller declared from a bare terminal takes the cli:<user> fallback, carries no process id and arms nothing; the only way to learn that was to notice a guard that should have fired never did. A protection believed to be on and actually off is worse than no protection, because it is trusted. casp live claims now states where the reserved category stands AND WHY in every state, --json gains reserved_paths { armed, reason }, and a kill switch reports armed: false. Reporting only: no verdict changes, no new subcommand, no rule, and check still sees none of it. Docs also name the limit that matters most -- casp live guards PATH WRITES, not the side effects of shared state. Measured case: a git add of one file followed by git commit published 945 lines of unrelated staged deletions, because git commit without a pathspec publishes the whole index, one object shared by every process in the repo. No claim would have prevented it; the guard saw a Bash call and Bash is deliberately unguarded. Same family: regenerated lockfile, schema migration, dev-server port, build cache. 222 tests.",
-  "casp_version": "0.14.2"
+  "notes": "0.16.0 is PUBLISHED -- npm dist-tags.latest is 0.16.0, shasum 4c0555a4a8fd95e42d8b09292e351037b64eabbb, 42 files. What it ships: the fleet skill (skills/fleet/SKILL.md), a public rewrite distilled from three measured multi-session trials -- default shape one writer plus N adversarial read-only reviewers, the measured value is contradiction not speed, gates-isolable-per-session is a per-project property to measure before launching, commit by pathspec, stale belief is the dominant failure mode. The boundary is stated and mechanically tested: fleet launches sessions, therefore it orchestrates, therefore it is never a CASP feature; no casp check rule reads it; its model default is empty. Launcher decision: skill only, no launch script ships (reason in CHANGELOG). Wiring path claims into a launcher is RULED OUT on measurement (14 incidents: 1 caught, 2 false refusals) -- do not re-propose without a measurement that overturns that count. 222 -> 228 tests; test/fleet-skill.test.mjs enforces the acceptance greps so the rewrite cannot silently regress. The published tarball was verified from the registry, not from dist/. The head of the queue is demand-gated-tail, which ships on a real demand signal, not on a schedule: an untouched head is the intended state, not drift.",
+  "casp_version": "0.16.0"
 }
