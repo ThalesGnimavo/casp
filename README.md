@@ -408,15 +408,34 @@ in once:
 ```bash
 cp -r node_modules/@justethales/casp/skills/casp ~/.claude/skills/
 cp -r node_modules/@justethales/casp/skills/next ~/.claude/skills/
+cp -r node_modules/@justethales/casp/skills/fleet ~/.claude/skills/
 ```
 
 | Command | What it does |
 |---|---|
 | `/casp` | Read-only status — the agent reads the current thread before it writes a single line. |
 | `/next` | Auto-start the next session straight from `state.next_prompt`. No copy-paste, no guessing. |
+| `/fleet` | Coordinate several parallel agent sessions on one repository — one writer, N adversarial readers. Distributed by casp, **not part of CASP** (see below). |
 
 Works with **Claude Code** · **Cursor** · **Aider** · **Continue** — anything that reads
 files. The CLI is the contract; the slash-commands are an optional convenience.
+
+### `fleet` is distributed by casp — it is not part of CASP
+
+The package ships a `fleet` skill because parallel agent sessions are where state drift
+hurts most. The boundary is strict, and each claim is testable:
+
+- **`fleet` launches sessions, therefore it orchestrates — therefore it is never a CASP
+  feature.** CASP validates recorded state against git; it does not launch, schedule, or
+  assign anything.
+- **No `casp check` rule reads `fleet` or anything it produces, and nothing in it gates a
+  push.**
+- **Its model default is empty.** The reasoning ships — a controller and its workers do
+  not need to run at the same tier — but a model name never does: naming one would
+  contradict a model-agnostic tool and date the file at the next release.
+
+The skill's default shape is one writer plus N adversarial read-only reviewers, because
+the measured value of a fleet is contradiction, not speed — and no speed gain is claimed.
 
 ---
 
