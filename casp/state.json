@@ -62,5 +62,5 @@
   ],
   "phases_backlog": [],
   "notes": "site-schedule-surface shipped: casp.sh now describes the ninth rule area and the schedule verb in 18 languages, measured against the published 0.18.0 binary (35 rules, 9 areas) rather than from memory. The five-verb command deck stayed intact -- schedule is tooling ergonomics, not protocol canon. The site's recorded rule-count method was itself a false measurement: unpinned npx reused a cached 0.17.0 and returned 31 while the registry latest enforced 35, with every fact assertion passing. PHASE-NPX-CACHE-TRAP is queued from that measurement and PHASE-DEMAND-GATED-TAIL re-chained behind it, so the head stays movable while the tail stays gated on demand.",
-  "casp_version": "0.18.0"
+  "casp_version": "0.18.1"
 }
