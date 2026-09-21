@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`casp ship --help` documents `--log <session-id>` and `--prompt <path>`.** Both flags have been read by `ship` since 0.4 and were absent from the help text. The default for `--log` is `state.last_session_id`, which is the previous session's log until `close` bumps it — so a `ship` run before `close` wires the wrong log, and `CASP-PROMPT-*` only checks that the pointed file exists. The help says so. No behaviour change.
+
 ## 0.18.0 — 2026-09-10
 
 **A cockpit could carry dates and prove nothing about them.** The roadmap held dates, `state.json` held phases, and nothing connected the two — so no verb could answer the question every operator eventually asks: *when does this end?* Answering it meant reading a roadmap by hand, counting logs by calendar date to derive a rate, and doing the arithmetic on paper, from inputs already sitting in `state.json` and in git. A downstream cockpit had already written `launch_date` and `feature_freeze` into its `state.json` as unschematized fields, tolerated by `casp check` and verified by nothing. Someone needed this and wrote it into the file anyway, where it rotted quietly. **A dated claim nobody confronts with the calendar does not go stale — it goes false.**

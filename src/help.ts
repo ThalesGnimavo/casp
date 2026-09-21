@@ -164,8 +164,18 @@ const COMMANDS: CmdHelp[] = [
       'Records that a queued phase is done: flips its prompt frontmatter to ' +
       'shipped, wires the session_log pointer, and moves the slug from queued ' +
       'to shipped. No git.',
-    usage: ['casp ship <slug>'],
-    examples: [['casp ship phase-2-auth-flow', 'after the work is committed']]
+    usage: ['casp ship <slug> [--log <session-id>] [--prompt <path>]'],
+    flags: [
+      [
+        '--log <session-id>',
+        'Session log to wire (default: state.last_session_id — stale at close time, so name it)'
+      ],
+      ['--prompt <path>', 'Prompt file to flip (default: the sessions dir entry matching the slug)']
+    ],
+    examples: [
+      ['casp ship phase-2-auth-flow', 'after the work is committed'],
+      ['casp ship phase-2-auth-flow --log 26-09-21-001-phase-2-auth-flow', 'wire this session\'s log, not the previous one']
+    ]
   },
   {
     name: 'close',
