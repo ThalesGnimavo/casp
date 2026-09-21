@@ -40,4 +40,5 @@ node dist/cli.js ship --help
   --prompt <path>      Prompt file to flip (default: the sessions dir entry matching the slug)
 ```
 
-Not published. `CHANGELOG.md` carries an Unreleased entry.
+Published as **0.18.1** the same day (`npm publish` → `+ @justethales/casp@0.18.1`,
+50 files, 176.3 kB). `CHANGELOG.md` carries the entry.

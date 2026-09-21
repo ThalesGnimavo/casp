@@ -1,7 +1,7 @@
 {
   "updated_at": "2026-09-21",
   "last_session_id": "26-09-21-001-ship-help-flags",
-  "last_commit": "257e79d",
+  "last_commit": "cf64c70",
   "current_phase": "site-schedule-surface",
   "next_phase": "npx-cache-trap",
   "next_prompt": "docs/plan/sessions/PHASE-NPX-CACHE-TRAP.md",
