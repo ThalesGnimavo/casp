@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.1 — 2026-09-21
 
 - **`casp ship --help` documents `--log <session-id>` and `--prompt <path>`.** Both flags have been read by `ship` since 0.4 and were absent from the help text. The default for `--log` is `state.last_session_id`, which is the previous session's log until `close` bumps it — so a `ship` run before `close` wires the wrong log, and `CASP-PROMPT-*` only checks that the pointed file exists. The help says so. No behaviour change.
 
