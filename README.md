@@ -618,7 +618,7 @@ Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGn
 
 MIT. Use it, fork it, ship it.
 
-Built by **[Juste A. Gnimavo](https://justegnimavo.com)** — Chief AI-Augmented Architect and
+Built by **[Juste Thales Gnimavo](https://justegnimavo.com)** — Chief AI-Augmented Architect and
 solo founder of ZeroSuite, running seven production products with Claude as the only
 engineer, from Abidjan, Côte d'Ivoire. CASP is the layer that keeps months of AI-driven
 sessions from collapsing into drift. The partnership behind it is documented in the open at
