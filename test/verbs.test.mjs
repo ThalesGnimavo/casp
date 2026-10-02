@@ -229,6 +229,111 @@ test('close --yes: bumps last_commit to HEAD + last_session_id, and NEVER commit
   }
 });
 
+// Field regression (0.18.0): a project mixing a dated log (`26-06-18-001-…`)
+// with compact sequence-named logs (`261015-…`, `261024b-…`). close filtered to
+// the dated style and regressed last_session_id to that lone file at every run.
+// Detection now comes from git, never from the filename.
+test('close: mixed log naming — the log most recently added in git wins, not the dated one', () => {
+  const { dir, sessionId } = scaffold();
+  try {
+    for (const name of ['261015-cles-api', '261024b-proxy']) {
+      writeFileSync(join(dir, 'session-logs', `${name}.md`), `# ${name}\n`);
+      git(dir, 'add', '-A');
+      git(dir, 'commit', '-q', '-m', name);
+    }
+    assert.notEqual(sessionId, '261024b-proxy');
+    const r = run(dir, 'close', '--yes');
+    assert.equal(readState(dir).last_session_id, '261024b-proxy', r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('close: an uncommitted new log beats every committed one, whatever its name', () => {
+  const { dir } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', '99-12-31-999-committed-later-name.md'), '# c\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'committed');
+    writeFileSync(join(dir, 'session-logs', '000001-this-session.md'), '# this\n');
+    const r = run(dir, 'close', '--yes');
+    assert.equal(readState(dir).last_session_id, '000001-this-session', r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('close: several uncommitted logs — proposes one and says so; --log overrides', () => {
+  const { dir } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', '261030-a.md'), '# a\n');
+    writeFileSync(join(dir, 'session-logs', '261030b-b.md'), '# b\n');
+    const r = run(dir, 'close', '--yes');
+    assert.match(r.stderr, /2 uncommitted session logs/);
+    assert.match(r.stderr, /--log/);
+    const r2 = run(dir, 'close', '--yes', '--log', '261030-a');
+    assert.equal(readState(dir).last_session_id, '261030-a', r2.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+// git prints repo-top-relative paths: a cockpit living in a subdirectory of its
+// repository must still detect its log (audit finding on the fix above).
+test('close: cockpit in a subdirectory of its repo still detects the log from git', () => {
+  const { dir } = scaffold();
+  try {
+    mkdirSync(join(dir, 'proj'));
+    for (const d of ['casp', 'docs', 'session-logs']) git(dir, 'mv', d, `proj/${d}`);
+    git(dir, 'commit', '-q', '-m', 'move into proj/');
+    writeFileSync(join(dir, 'proj', 'session-logs', '261024b-sub.md'), '# sub\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'log');
+    const proj = join(dir, 'proj');
+    const r = run(proj, 'close', '--yes');
+    assert.equal(readState(proj).last_session_id, '261024b-sub', r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test('close: a log renamed in the index counts as this session\'s log', () => {
+  const { dir } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', '261030-draft.md'), '# draft\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'draft');
+    git(dir, 'mv', 'session-logs/261030-draft.md', 'session-logs/261031-final.md');
+    const r = run(dir, 'close', '--yes');
+    assert.equal(readState(dir).last_session_id, '261031-final', r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
+// Never go backwards: "older" is git's add order, never the filename. An old
+// log deleted, then restored untracked, must not displace the current one.
+test('close: refuses a candidate git added before the current log', () => {
+  const { dir, sessionId } = scaffold();
+  try {
+    writeFileSync(join(dir, 'session-logs', '261020-current.md'), '# current\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'current');
+    run(dir, 'close', '--yes');
+    assert.equal(readState(dir).last_session_id, '261020-current');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'state');
+    git(dir, 'rm', '-q', `session-logs/${sessionId}.md`);
+    git(dir, 'commit', '-q', '-m', 'drop old log');
+    writeFileSync(join(dir, 'session-logs', `${sessionId}.md`), '# restored\n');
+    const r = run(dir, 'close', '--yes');
+    assert.match(r.stderr, /refusing/);
+    assert.equal(readState(dir).last_session_id, '261020-current', r.stderr);
+  } finally {
+    cleanup(dir);
+  }
+});
+
 /* ---- the blank-cockpit class (CASP-PROMPT-001 / -005) ----------------- */
 
 // Field history: a session closed with next_prompt set to the STRING "none"
