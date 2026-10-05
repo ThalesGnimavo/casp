@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-10-02",
-  "last_session_id": "26-10-02-001-close-log-from-git",
-  "last_commit": "4d347bc",
+  "updated_at": "2026-10-05",
+  "last_session_id": "26-10-05-001-claude-plugin-namespace",
+  "last_commit": "5586b89",
   "current_phase": "site-schedule-surface",
   "next_phase": "npx-cache-trap",
   "next_prompt": "docs/plan/sessions/PHASE-NPX-CACHE-TRAP.md",
@@ -61,6 +61,6 @@
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "site-schedule-surface shipped: casp.sh now describes the ninth rule area and the schedule verb in 18 languages, measured against the published 0.18.0 binary (35 rules, 9 areas) rather than from memory. The five-verb command deck stayed intact -- schedule is tooling ergonomics, not protocol canon. The site's recorded rule-count method was itself a false measurement: unpinned npx reused a cached 0.17.0 and returned 31 while the registry latest enforced 35, with every fact assertion passing. PHASE-NPX-CACHE-TRAP is queued from that measurement and PHASE-DEMAND-GATED-TAIL re-chained behind it, so the head stays movable while the tail stays gated on demand.",
-  "casp_version": "0.18.2"
+  "notes": "claude-plugin-namespace (0.19.0, built, not yet published): the Claude Code skills ship as one skills-directory plugin named casp. claude-plugin/ is the folder users copy to ~/.claude/skills/casp; /casp stays (root skill), next, fleet and audit-batch become /casp:next, /casp:fleet, /casp:audit-batch. casp doctor warns on pre-0.19 flat copies and on a copied plugin whose version differs from the CLI; check gains no rule. Proof due: Windows Copy-Item install on a real Windows machine. Site and presentation follow the npm publish. Head unchanged: npx-cache-trap.",
+  "casp_version": "0.19.0"
 }
