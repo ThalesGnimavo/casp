@@ -11,7 +11,7 @@ description: |
   as routine per-session ceremony.
 ---
 
-# /audit-batch — the batched deep-audit, before a cutover
+# /casp:audit-batch — the batched deep-audit, before a cutover
 
 You are running the **expensive holistic pass** that must NOT run every session:
 an adversarial sub-agent audit + the full e2e battery + a security review, over

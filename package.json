@@ -1,6 +1,6 @@
 {
   "name": "@justethales/casp",
-  "version": "0.18.2",
+  "version": "0.19.0",
   "description": "Your agent says the phase shipped; git says it didn't. CASP validates a project's recorded state against git and blocks the push on drift. Deterministic, local-only, zero telemetry. Works with Claude Code, Cursor, Aider.",
   "type": "module",
   "license": "MIT",
@@ -57,7 +57,8 @@
     "smoke": "tsx src/cli.ts --version",
     "pretest": "npm run build",
     "test": "node --test",
-    "prepublishOnly": "npm run build"
+    "version": "node scripts/sync-plugin-version.mjs && git add claude-plugin/.claude-plugin/plugin.json",
+    "prepublishOnly": "node scripts/sync-plugin-version.mjs --check && npm run build"
   },
   "dependencies": {
     "yaml": "^2.7.0"
@@ -70,7 +71,7 @@
   "files": [
     "dist",
     "templates",
-    "skills",
+    "claude-plugin",
     "schemas",
     "README.md",
     "LICENSE",

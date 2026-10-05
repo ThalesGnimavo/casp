@@ -10,7 +10,7 @@ description: |
   are a deliberate decision — never as the default mode.
 ---
 
-# /fleet — several sessions, one controller
+# /casp:fleet — several sessions, one controller
 
 Invoking this skill makes YOUR session the **controller**. From the moment the
 first worker session is launched, the controller stops producing code of its
@@ -145,7 +145,7 @@ One consolidated report, not one per worker:
 Then update the shared surfaces, commit by pathspec, push, and stop. The next
 wave needs an explicit go from the human running the fleet.
 
-## What /fleet is NOT
+## What /casp:fleet is NOT
 
 - **Not a CASP feature.** See the boundary above; the protocol validates
   state against git and never launches anything.

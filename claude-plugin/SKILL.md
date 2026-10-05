@@ -65,6 +65,6 @@ Degraded mode :
 
 ## What `/casp` is NOT
 
-- Not `/next` — casp reports, next acts.
+- Not `/casp:next` — casp reports, next acts.
 - Not an editor — never bumps state.json or rewrites now.md.
 - Not a planner — surfaces the existing plan, doesn't propose new ones.

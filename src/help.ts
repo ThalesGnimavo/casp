@@ -235,7 +235,7 @@ const COMMANDS: CmdHelp[] = [
       'expensive batch pass (adversarial sub-agent audit + full e2e + security ' +
       'review, on demand). `status` shows last_deep_audit..HEAD; `bump` records ' +
       'HEAD as deep-audited. A production-cutover gate, never a merge gate — the ' +
-      '`/audit-batch` skill drives it.',
+      '`/casp:audit-batch` skill drives it.',
     usage: ['casp audit status [--json]', 'casp audit bump [<sha>]'],
     flags: [['--json', 'Emit the status as data (status subcommand)']],
     examples: [
@@ -332,11 +332,12 @@ const COMMANDS: CmdHelp[] = [
   },
   {
     name: 'doctor',
-    summary: 'Diagnose the environment (Node, git, cockpit, hook) — never gates',
+    summary: 'Diagnose the environment (Node, git, cockpit, hook, Claude Code skills) — never gates',
     blurb:
       'A read-only onboarding diagnostic: checks Node version, the git binary ' +
       'and repository, casp/state.json, the resolved sessions/logs directories, ' +
-      'the pre-push hook and core.hooksPath. Reports PASS/WARN/FAIL per line but ' +
+      'the pre-push hook and core.hooksPath, and the copied Claude Code plugin (a ' +
+      'stale version, or pre-0.19 flat skills that shadow commands). Reports PASS/WARN/FAIL per line but ' +
       'ALWAYS exits 0 — it maps what to fix, it never blocks (check is the gate).',
     usage: ['casp doctor [--plain] [--json]'],
     flags: [
@@ -506,7 +507,8 @@ COMMANDS
   explain <CODE>                Print one rule's full definition (verifies /
                                   evidence / remediation); e.g. CASP-GIT-001
   doctor                        Diagnose the environment (Node, git, cockpit,
-                                  pre-push hook, core.hooksPath) — PASS/WARN/FAIL
+                                  pre-push hook, core.hooksPath, Claude Code
+                                  skills) — PASS/WARN/FAIL
                                   per line; never gates (always exits 0)
   version                       Print the version; --json for a machine handoff
                                   { name, version, node, schema_version }

@@ -10,9 +10,9 @@ description: |
   re-orient the agent on session start.
 ---
 
-# /next — Start the next implementation session
+# /casp:next — Start the next implementation session
 
-You are an **execution agent**, not a reporter. The user typed `/next` because they want work to begin. Your job is to (1) discover what the next session is, (2) load its full context, (3) start executing it. Do NOT stop and ask "shall I proceed" — proceed.
+You are an **execution agent**, not a reporter. The user typed `/casp:next` because they want work to begin. Your job is to (1) discover what the next session is, (2) load its full context, (3) start executing it. Do NOT stop and ask "shall I proceed" — proceed.
 
 This is the opposite of `/casp` in posture : casp reports, next acts.
 
@@ -122,7 +122,7 @@ If the prompt is silent on the next-session prompt draft, draft it anyway via `n
 
 - **Never paste a long copy of `casp/now.md` or the prompt body into your reply.** The user reads files themselves ; your job is to act.
 - **Never report "I've read the state, what would you like me to do?"** That's the friction this skill removes. If the state names a next-prompt, execute it.
-- **Never re-run `/casp` from inside `/next`.** Duplicates work.
+- **Never re-run `/casp` from inside `/casp:next`.** Duplicates work.
 - **Always honor `pwd`.** Never reach for a sibling project's casp state.
 - **Never modify `casp/state.json` until the session's work is shipping.** The skill is a starting gun, not a state-bump tool.
 
@@ -130,7 +130,7 @@ If the prompt is silent on the next-session prompt draft, draft it anyway via `n
 
 ## Failure modes
 
-- **`pwd` is not in a git repo** : print "_not in a git repository ; `/next` needs a project root_" and stop.
+- **`pwd` is not in a git repo** : print "_not in a git repository ; `/casp:next` needs a project root_" and stop.
 - **No `casp/`, no `docs/plan/sessions/`, no obvious next work** : print "_no casp state, no session prompts ; tell me what to start_" and suggest `npx @justethales/casp init`.
 - **`next_prompt` points at a missing file** : the `casp check` above catches this. Surface + ask whether to draft the missing prompt or fix state.json.
 - **`next_prompt` points at a `shipped` prompt** : `casp check` catches this. Surface + ask whether to update state.json to the real next slice OR re-execute the shipped prompt.
@@ -138,7 +138,7 @@ If the prompt is silent on the next-session prompt draft, draft it anyway via `n
 
 ---
 
-## What `/next` is NOT
+## What `/casp:next` is NOT
 
 - It is **not** `/casp`. Casp reports, next acts.
 - It is **not** a planner. The prompt file IS the plan.

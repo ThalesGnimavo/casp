@@ -1,0 +1,10 @@
+{
+  "name": "casp",
+  "displayName": "CASP",
+  "description": "Coding-Agent State Protocol: state lookups, next session, fleet, deep audit. The CLI is the contract; these skills are a convenience.",
+  "version": "0.19.0",
+  "author": { "name": "Juste Thales Gnimavo", "url": "https://casp.sh" },
+  "homepage": "https://casp.sh",
+  "repository": "https://github.com/ThalesGnimavo/casp",
+  "license": "MIT"
+}

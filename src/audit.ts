@@ -19,7 +19,7 @@
  *   casp audit status         what's unaudited: <last_deep_audit>..HEAD (read-only)
  *   casp audit bump [<sha>]    record HEAD (or <sha>) as deep-audited (writes state)
  *
- * The `/audit-batch` skill calls `status` to scope the review and `bump` on GO.
+ * The `/casp:audit-batch` skill calls `status` to scope the review and `bump` on GO.
  * `casp check` never blocks on the watermark — the batch pass is a deploy gate,
  * not a merge gate. Skipping it delays a deploy; it never blocks a commit.
  */
@@ -120,7 +120,7 @@ function runStatus(root: string, json: boolean): void {
   if (s.watermark === null) {
     console.log(`  ${c.yellow('no deep-audit watermark set')} — the whole tree is unaudited.`);
     console.log(c.gray(`     ${s.unauditedCount} commit(s) in history at ${c.cyan(s.head)}.`));
-    console.log(c.gray('     → run `/audit-batch`, or set a baseline with `casp audit bump`.'));
+    console.log(c.gray('     → run `/casp:audit-batch`, or set a baseline with `casp audit bump`.'));
     console.log('');
     exit(0);
   }
@@ -140,7 +140,7 @@ function runStatus(root: string, json: boolean): void {
   for (const line of s.commits.slice(0, 15)) console.log(`    ${c.gray(line)}`);
   if (s.commits.length > 15) console.log(c.gray(`    … and ${s.commits.length - 15} more`));
   console.log('');
-  console.log(c.gray('  → run `/audit-batch` before the next production cutover.'));
+  console.log(c.gray('  → run `/casp:audit-batch` before the next production cutover.'));
   console.log('');
   exit(0);
 }

@@ -12,7 +12,8 @@
  * hook-detection the rest of the binary uses, so its verdicts never diverge.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { exit } from 'node:process';
 import { c, git, isDir, loadState, pkgVersion, resolveDirs, setColor } from './shared.js';
@@ -222,7 +223,120 @@ export function runChecks(root: string): DoctorCheck[] {
     );
   }
 
+  /* 8. Claude Code skills ------------------------------------------------ */
+  checks.push(...skillsChecks());
+
   return checks;
+}
+
+/**
+ * The personal skills directory Claude Code reads: `$CLAUDE_CONFIG_DIR/skills`
+ * when that variable is set, `~/.claude/skills` otherwise.
+ */
+function claudeSkillsDir(): string {
+  const configDir = process.env.CLAUDE_CONFIG_DIR?.trim();
+  return join(configDir ? configDir : join(homedir(), '.claude'), 'skills');
+}
+
+/**
+ * The opening of each skill's frontmatter `description` in every release that
+ * shipped it flat under `skills/<name>/`, before 0.19.0 moved them into the
+ * `casp` plugin. A flat copy is recognised by its name AND one of these
+ * openings, so a user's own skill that merely shares the name is left alone.
+ */
+const LEGACY_FLAT_SKILLS: Record<string, readonly string[]> = {
+  next: ['Start the next implementation session.'],
+  fleet: ['Coordinate several parallel coding-agent sessions on one repository.'],
+  'audit-batch': ['Run the expensive holistic verification pass'],
+  casp: ['Quick state lookups for any CASP-managed project.'],
+  cockpit: ['Quick KPI lookups for any cockpit-managed project.']
+};
+
+/** `name` and the first line of `description` from a SKILL.md frontmatter. */
+function readSkillHead(path: string): { name: string; description: string } | null {
+  let text: string;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!fm) return null;
+  const lines = fm[1].split(/\r?\n/);
+  const unquote = (v: string): string => v.trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+  const name = unquote(lines.find((l) => /^name:/.test(l))?.replace(/^name:\s*/, '') ?? '');
+  const at = lines.findIndex((l) => /^description:/.test(l));
+  let description = '';
+  if (at >= 0) {
+    const inline = lines[at].replace(/^description:\s*/, '').trim();
+    description = unquote(/^[|>][-+]?$/.test(inline) || inline === '' ? (lines[at + 1] ?? '') : inline);
+  }
+  return { name, description };
+}
+
+/**
+ * Two WARN-only probes of the Claude Code skills casp ships. Read-only, and
+ * silent when neither applies: a machine without Claude Code gets no row.
+ *
+ *   skills.legacy_flat — a pre-0.19 flat copy (`~/.claude/skills/next/` with no
+ *     `.claude-plugin/`): a personal skill outranks a project one and replaces a
+ *     built-in command of the same name, so `/next` masks the rest.
+ *   skills.plugin_version — the copied `casp` plugin's manifest version differs
+ *     from this CLI's: the copy is not refreshed by `npm i -g`.
+ */
+function skillsChecks(): DoctorCheck[] {
+  const out: DoctorCheck[] = [];
+  const skills = claudeSkillsDir();
+  if (!isDir(skills)) return out;
+
+  const legacy: string[] = [];
+  for (const [dir, openings] of Object.entries(LEGACY_FLAT_SKILLS)) {
+    const base = join(skills, dir);
+    if (existsSync(join(base, '.claude-plugin'))) continue;
+    const head = readSkillHead(join(base, 'SKILL.md'));
+    if (head && head.name === dir && openings.some((o) => head.description.startsWith(o))) {
+      legacy.push(dir);
+    }
+  }
+  if (legacy.length > 0) {
+    out.push({
+      id: 'skills.legacy_flat',
+      severity: 'warn',
+      label: `flat copies of casp skills in ${skills}: ${legacy.join(', ')}`,
+      detail:
+        'a pre-0.19.0 install, or your fork of one: a flat name shadows every command of that name — delete the copies (rename your forks) and copy claude-plugin/ as skills/casp (see the README)'
+    });
+  }
+
+  const manifest = join(skills, 'casp', '.claude-plugin', 'plugin.json');
+  if (existsSync(manifest)) {
+    let plugin: { name?: unknown; version?: unknown } | null = null;
+    try {
+      plugin = JSON.parse(readFileSync(manifest, 'utf8'));
+    } catch {
+      plugin = null;
+    }
+    if (plugin && plugin.name === 'casp') {
+      const installed = pkgVersion();
+      const copied = typeof plugin.version === 'string' ? plugin.version : 'unversioned';
+      if (copied === installed) {
+        out.push({
+          id: 'skills.plugin_version',
+          severity: 'pass',
+          label: `casp skills plugin current with casp ${installed}`,
+          detail: manifest
+        });
+      } else {
+        out.push({
+          id: 'skills.plugin_version',
+          severity: 'warn',
+          label: `casp skills plugin is ${copied}, casp ${installed} installed`,
+          detail: `delete ${join(skills, 'casp')} and copy claude-plugin/ again — npm does not refresh the copy`
+        });
+      }
+    }
+  }
+  return out;
 }
 
 function summarize(checks: DoctorCheck[]): { pass: number; warn: number; fail: number } {

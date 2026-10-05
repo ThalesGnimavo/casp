@@ -1,7 +1,7 @@
 /**
  * `casp next` — print the next session's prompt, straight from state.next_prompt.
  *
- * The CLI analogue of the `/next` slash-command: it resolves the canonical next
+ * The CLI analogue of the `/casp:next` slash-command: it resolves the canonical next
  * move from casp/state.json and emits the prompt so a human (or an agent piping
  * the output) can start executing immediately — no copy-paste, no guessing.
  *

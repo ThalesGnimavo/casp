@@ -12,12 +12,12 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const SKILL_PATH = join(process.cwd(), 'skills', 'fleet', 'SKILL.md');
+const SKILL_PATH = join(process.cwd(), 'claude-plugin', 'skills', 'fleet', 'SKILL.md');
 
-test('skills/fleet/SKILL.md ships in the package', () => {
-  assert.ok(existsSync(SKILL_PATH), 'skills/fleet/SKILL.md must exist');
+test('claude-plugin/skills/fleet/SKILL.md ships in the package', () => {
+  assert.ok(existsSync(SKILL_PATH), 'claude-plugin/skills/fleet/SKILL.md must exist');
   const files = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')).files;
-  assert.ok(files.includes('skills'), "package.json 'files' must include 'skills'");
+  assert.ok(files.includes('claude-plugin'), "package.json 'files' must include 'claude-plugin'");
 });
 
 const body = () => readFileSync(SKILL_PATH, 'utf8');

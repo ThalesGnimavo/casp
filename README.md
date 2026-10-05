@@ -399,13 +399,13 @@ is trivially typed: one syllable, no homographs, the same in English, French or 
 | `casp install-hook` | Write `.git/hooks/pre-push` so `casp check --quiet` runs on every push — the gate stops depending on discipline. Refuses to clobber a foreign hook (`--force` to override); `--remove` uninstalls a hook CASP wrote. Explicit opt-in — `casp init` never installs it, and it never touches `core.hooksPath`. |
 | `casp verify <commit>` | Run the validator against a historical commit in a throwaway worktree — proves whether that commit's recorded state was in sync. Exits with that verdict; never mutates the worktree, index or history. |
 | `casp state diff [A] [B]` | Field-level diff of `casp/state.json` between two commits (default `HEAD~1` → `HEAD`), with element-level deltas for array fields. `--json` for data. |
-| `casp audit status` / `bump` | The deep-audit watermark: separates the cheap per-merge gate (`check`, every session) from the expensive batch pass (adversarial sub-agent audit + full e2e + security review, on demand). `status` shows the unaudited range `last_deep_audit..HEAD` (`--json` for data); `bump [<sha>]` records HEAD as deep-audited. A **production-cutover gate, never a merge gate** — `check` doesn't block on it. Driven by the `/audit-batch` skill. |
+| `casp audit status` / `bump` | The deep-audit watermark: separates the cheap per-merge gate (`check`, every session) from the expensive batch pass (adversarial sub-agent audit + full e2e + security review, on demand). `status` shows the unaudited range `last_deep_audit..HEAD` (`--json` for data); `bump [<sha>]` records HEAD as deep-audited. A **production-cutover gate, never a merge gate** — `check` doesn't block on it. Driven by the `/casp:audit-batch` skill. |
 | `casp live claim` / `release` / `claims` / `controller` / `watch` / `tail` / `hook` / `install` / `off` / `on` | Coordination between parallel sessions on **one machine** — the in-flight record beside the durable one. `claim` holds a repo-relative path prefix for a session with a TTL and a holder-liveness probe (overlap with a foreign claim is refused in both directions; segment-boundary prefixes, no globs). `hook` is one command wired for every harness event: as `PreToolUse` it refuses a file-writing tool call on a path a living foreign session holds (**the only non-zero exit in the verb**), otherwise it journals. `controller` declares the one session allowed to write shared state — the cockpit, session logs, root instruction files, lockfiles — and is **dormant unless a fleet is demonstrably flying**, so a solo session is never blocked from its own `casp/state.json`. `watch` / `tail` are the human's view of `casp/live/journal.jsonl`. **Fails open by contract** and stands down entirely on `CASP_LIVE=0` or `casp live off [--global]`. `casp/live/` is machine-local runtime state, self-gitignored — **`casp check` never reads it and it never gates a push**. **It guards path writes, not the side effects of shared state**: a `git commit` without a pathspec publishes the whole index, an install regenerates a shared lockfile — in-lane actions with out-of-lane effects that no claim sees ([threat model](https://github.com/ThalesGnimavo/casp/blob/main/docs/threat-model.md)). |
 | `casp fact list` / `check` / `stale` / `verify <id>` | The facts layer (opt-in via `casp/facts.json` — see [docs/rules.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/rules.md#the-facts-layer)): claims verified once, kept fresh by comparing a source hash and a TTL, never by a model judging prose. `list`/`check`/`stale` are read-only; `verify <id>` replays the fact's declared method, shows the before/after, and asks for confirmation (`--yes` to skip it) before writing. The one deliberate code-execution surface in the binary — everything else only reads, and no gating path can reach it. |
 | `casp schedule` | Measure the shipping pace from git and print the recorded dates (opt-in via `casp/schedule.json` — see [docs/rules.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/rules.md#the-schedule-layer)). Four blocks in one screen: the pace, walked from the history of `casp/state.json`; the derived length of the queue (`phases_queued ÷ pace`) and the date it lands on; every anchor and due date marked `ahead`/`due`/`passed`; and the contradictions `check` would emit. `--since <weeks>` moves the window, which is **always printed next to the rate**; `--json` for data ([docs/schedule-json.md](https://github.com/ThalesGnimavo/casp/blob/main/docs/schedule-json.md)). **Reports, never gates** — exits 0 even on drift. |
 | `casp rules` | List the verification rules `check` enforces — the stable `CASP-<AREA>-<NNN>` codes that appear on every finding. `--json` for data. |
 | `casp explain <CODE>` | Print one rule's full definition: what it verifies, the evidence it inspects, and how to remediate. Accepts a code (`CASP-GIT-001`) or an internal finding id. |
-| `casp doctor` | Read-only environment diagnostic for onboarding: Node, git, `casp/state.json`, the cockpit's CASP version, the resolved sessions/logs dirs, the pre-push hook and `core.hooksPath`. `PASS`/`WARN`/`FAIL` per line (`--json` for data). **Never gates** — always exits 0; it maps what to fix, `check` is the gate. |
+| `casp doctor` | Read-only environment diagnostic for onboarding: Node, git, `casp/state.json`, the cockpit's CASP version, the resolved sessions/logs dirs, the pre-push hook and `core.hooksPath`, and the copied Claude Code plugin (stale version, or pre-0.19 flat copies that shadow commands). `PASS`/`WARN`/`FAIL` per line (`--json` for data). **Never gates** — always exits 0; it maps what to fix, `check` is the gate. |
 | `casp version` | Print the version (same as `-V`). `--json` emits `{ name, version, node, schema_version }` — the machine handoff, where `schema_version` is the `check --json` report schema. |
 | `casp help [command]` | The top-level overview, or one command's focused help (usage, every flag, real examples). `casp <command> --help` is equivalent. `casp help` exits 0 — the most natural thing a user types is first-class. |
 
@@ -413,20 +413,48 @@ is trivially typed: one syllable, no homographs, the same in English, French or 
 
 ## In your editor
 
-CASP ships Claude Code slash-commands so the state lives where you already work. Drop them
-in once:
+CASP ships its Claude Code skills as one plugin named `casp`. Copy it once into your
+personal skills directory; Claude Code loads any folder there that holds a
+`.claude-plugin/plugin.json`, with no marketplace and no install step.
+
+macOS / Linux:
 
 ```bash
-cp -r node_modules/@justethales/casp/skills/casp ~/.claude/skills/
-cp -r node_modules/@justethales/casp/skills/next ~/.claude/skills/
-cp -r node_modules/@justethales/casp/skills/fleet ~/.claude/skills/
+cp -R "$(npm root -g)/@justethales/casp/claude-plugin" ~/.claude/skills/casp
 ```
+
+Windows (PowerShell):
+
+```powershell
+Copy-Item -Recurse "$(npm root -g)\@justethales\casp\claude-plugin" "$HOME\.claude\skills\casp"
+```
+
+Then run `/reload-plugins` in an open session, or start a new one. `claude plugin list`
+shows `casp@skills-dir` as loaded.
 
 | Command | What it does |
 |---|---|
-| `/casp` | Read-only status — the agent reads the current thread before it writes a single line. |
-| `/next` | Auto-start the next session straight from `state.next_prompt`. No copy-paste, no guessing. |
-| `/fleet` | Coordinate several parallel agent sessions on one repository — one writer, N adversarial readers. Distributed by casp, **not part of CASP** (see below). |
+| `/casp` | Read-only status — the agent reads the current thread before it writes a single line. Subcommands: `where`, `roadmap`, `changelog`, `version`, `ship`, `stack`, `status`, `check`. |
+| `/casp:next` | Auto-start the next session straight from `state.next_prompt`. No copy-paste, no guessing. |
+| `/casp:audit-batch` | The batched deep audit before a cutover, over everything merged since the `casp audit` watermark. |
+| `/casp:fleet` | Coordinate several parallel agent sessions on one repository — one writer, N adversarial readers. Distributed by casp, **not part of CASP** (see below). |
+
+**Updating.** The folder loads in place; npm does not refresh it. After each
+`npm i -g @justethales/casp`, delete `~/.claude/skills/casp` and copy it again — copying
+onto an existing folder nests the new one inside it instead of replacing it.
+`casp doctor` warns when the copy and the CLI disagree.
+
+**Migrating from 0.18 or earlier.** Earlier releases copied the skills flat, as
+`~/.claude/skills/{casp,next,fleet,audit-batch}`. Delete those folders (the ones without a
+`.claude-plugin/` inside) before copying the plugin: as long as they exist, `/next` keeps
+masking every other command of that name. `casp doctor` names the ones it finds.
+
+**Why `/casp:next` and not `/next`.** A personal skill outranks a project one, and a skill
+replaces a built-in command of the same name, so a flat `/next` silently shadows any other
+`/next`, today or the day one ships natively. A plugin namespace is the mechanism Claude
+Code guarantees against that ([skills](https://code.claude.com/docs/en/skills),
+[plugin loading](https://code.claude.com/docs/en/plugins/loading)). `/casp` stays
+unprefixed: it is the plugin's root skill, and the name is casp's own.
 
 Works with **Claude Code** · **Cursor** · **Aider** · **Continue** — anything that reads
 files. The CLI is the contract; the slash-commands are an optional convenience.
@@ -596,7 +624,7 @@ Vote on the roadmap with [GitHub issues / reactions](https://github.com/ThalesGn
 
 ## FAQ
 
-**Does this require Claude Code?** No. The CLI works standalone with any agent that runs shell commands. The `/casp` and `/next` slash-commands are an optional bundle for Claude Code users.
+**Does this require Claude Code?** No. The CLI works standalone with any agent that runs shell commands. The `/casp` and `/casp:next` slash-commands are an optional plugin for Claude Code users.
 
 **Is CASP an AI memory product?** No — that's the wedge. Memory tools (Mem0, Letta, Zep) *store and recall*. CASP *validates project execution state against git* and blocks the push on drift. Different artifact, different operation.
 
