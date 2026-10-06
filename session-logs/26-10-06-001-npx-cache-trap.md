@@ -78,3 +78,13 @@ are already pinned: 29 PASS, 0 WARN, 0 FAIL — no false positive on a real fact
 
 - `npx <local-bin>` (for example `npx tsc`) fires too, because a string cannot tell a local
   binary from a published package. It is a WARN, and pinning silences it.
+
+## Addendum — a pinned spec inside the package's own tree
+
+Observed after publishing: inside this repository, `npx --yes @justethales/casp@0.19.0
+version` printed `0.18.2`, while `@0.18.1` printed `0.18.1`, and both print their own
+version from any other directory. npm treats a spec satisfied by the current project
+(same name, same version) as already present and runs the `casp` binary found on `PATH` —
+here an older global install. Pinning therefore holds everywhere except inside the
+package's own source tree at the pinned version; replay such a method from a neutral
+directory. No code change: a string test cannot see the working directory.
