@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-10-05",
-  "last_session_id": "26-10-05-001-claude-plugin-namespace",
-  "last_commit": "5586b89",
-  "current_phase": "site-schedule-surface",
-  "next_phase": "npx-cache-trap",
-  "next_prompt": "docs/plan/sessions/PHASE-NPX-CACHE-TRAP.md",
+  "updated_at": "2026-10-06",
+  "last_session_id": "26-10-06-001-npx-cache-trap",
+  "last_commit": "efc73c3",
+  "current_phase": "npx-cache-trap",
+  "next_phase": "demand-gated-tail",
+  "next_prompt": "docs/plan/sessions/PHASE-DEMAND-GATED-TAIL.md",
   "arbitration": {
     "phase": "npx-cache-trap",
     "shape": "solo",
@@ -54,13 +54,13 @@
     "fleet-ships-with-casp",
     "queue-never-empty",
     "schedule-layer",
-    "site-schedule-surface"
+    "site-schedule-surface",
+    "npx-cache-trap"
   ],
   "phases_queued": [
-    "npx-cache-trap",
     "demand-gated-tail"
   ],
   "phases_backlog": [],
-  "notes": "claude-plugin-namespace (0.19.0, built, not yet published): the Claude Code skills ship as one skills-directory plugin named casp. claude-plugin/ is the folder users copy to ~/.claude/skills/casp; /casp stays (root skill), next, fleet and audit-batch become /casp:next, /casp:fleet, /casp:audit-batch. casp doctor warns on pre-0.19 flat copies and on a copied plugin whose version differs from the CLI; check gains no rule. Proof due: Windows Copy-Item install on a real Windows machine. Site and presentation follow the npm publish. Head unchanged: npx-cache-trap.",
+  "notes": "npx-cache-trap (folded into 0.19.0): CASP-FACT-006 gains the built-in trap npx-unpinned-package, a WARN on a fact method that runs npx / npm exec / bunx / pnpm dlx / yarn dlx on a package with no version specifier, which may execute a cached copy instead of the registry's current one. Traps carry a per-trap severity; estimate traps and project-declared traps stay FAIL and a FAIL always wins. 262 -> 279 tests, casp check = 0. Queue head parks on demand-gated-tail, which ships only on a real demand signal.",
   "casp_version": "0.19.0"
 }
