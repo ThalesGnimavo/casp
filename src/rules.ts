@@ -315,7 +315,7 @@ export const RULES: Rule[] = [
     title: 'method does not match a known measurement trap',
     area: 'FACT',
     verifies:
-      'method does not match a pattern in the trap registry (src/traps.ts) or a project-declared trap in facts.json — a known way to produce an ESTIMATE that reads like a measurement (a planner row-count guess, EXPLAIN without ANALYZE, a single instantaneous sample). This is the rule that would have caught n_live_tup read as an exact row count.',
+      'method does not match a pattern in the trap registry (src/traps.ts) or a project-declared trap in facts.json — a known way to produce an ESTIMATE that reads like a measurement (a planner row-count guess, EXPLAIN without ANALYZE, a single instantaneous sample). This is the rule that would have caught n_live_tup read as an exact row count. FAIL for a trap that is certainly an estimate; WARN for one that may measure the wrong thing — an npx / npm exec / bunx / pnpm dlx call of a package with no version specifier, which can run a cached copy instead of the published one.',
     evidence: 'method\'s text against the static trap registry.',
     remediation: 'Use a real measurement (e.g. count(*) instead of a planner estimate) and re-verify.',
     matches: (id) => id.startsWith('fact.trap.')

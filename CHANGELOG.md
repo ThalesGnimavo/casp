@@ -15,7 +15,8 @@
 
 - **`casp doctor` reads the Claude Code skills directory** (`$CLAUDE_CONFIG_DIR/skills`, else `~/.claude/skills`), read-only, WARN at most, silent on a machine with neither probe applicable. `skills.legacy_flat` names the pre-0.19 flat copies it finds; a folder is one only when its frontmatter `name` matches and its description opens the way a shipped casp skill's did, so a user's own skill that shares a name is left alone. `skills.plugin_version` compares the copied plugin's manifest version with the CLI's: PASS when equal, WARN otherwise. `doctor` still never gates and `check` gains no rule.
 - **`casp help doctor` and the `casp audit status` hints** use the new names and mention the skills probes.
-- **262 → 274 tests.**
+- **`CASP-FACT-006` warns on a method that runs an unpinned package.** A fact whose `method` calls `npx`, `npm exec`, `bunx`, `pnpm dlx` or `yarn dlx` on a package with no version or tag (`npx --yes @justethales/casp rules`) now gets a WARN (`npx-unpinned-package`): the runner may execute a cached older copy instead of the registry's current one, and the output does not say which. Pin it (`pkg@1.2.3`, or `pkg@latest`). Traps now carry a severity: the existing estimate traps and project-declared traps stay FAIL; this one is a suspicion, so it never turns `casp check` red. Measured evidence in `docs/rules.md#measurement-traps-casp-fact-006`.
+- **262 → 279 tests.**
 
 ## 0.18.2 — 2026-10-02
 

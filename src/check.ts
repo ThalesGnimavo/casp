@@ -1076,12 +1076,16 @@ export function checkOne(root: string, opts: CheckOptions = {}): Finding[] {
         if (check.trap.applicable) {
           record(
             `fact.trap.${check.id}`,
-            check.trap.hit ? 'fail' : 'pass',
+            check.trap.hit ? (check.trap.severity ?? 'fail') : 'pass',
             check.trap.hit
               ? `fact '${check.id}': method matches a known measurement trap`
               : `fact '${check.id}': method matches no known trap`,
             check.trap.detail,
-            check.trap.hit ? 'use a real measurement, not an estimate that reads like one — then re-verify' : undefined
+            !check.trap.hit
+              ? undefined
+              : check.trap.severity === 'warn'
+                ? 'make the method measure exactly what the fact names (see the trap detail) — then re-verify'
+                : 'use a real measurement, not an estimate that reads like one — then re-verify'
           );
         }
       }

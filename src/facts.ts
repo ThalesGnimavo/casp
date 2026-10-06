@@ -104,7 +104,7 @@ export interface FactCheck {
   usedIn: FactUsedInCheck[];
   method: { ok: boolean; detail: string };
   /** null when there is no method to check a trap against. */
-  trap: { applicable: boolean; hit: boolean; trapId?: string; why?: string; detail: string };
+  trap: { applicable: boolean; hit: boolean; trapId?: string; why?: string; severity?: 'fail' | 'warn'; detail: string };
 }
 
 export type FactsAnalysis =
@@ -205,7 +205,7 @@ function checkOneFact(root: string, fact: FactEntry, extraTraps: string[]): Fact
   } else {
     const hit = matchTrap(fact.method as string, extraTraps);
     trap = hit
-      ? { applicable: true, hit: true, trapId: hit.id, why: hit.why, detail: `${hit.id}: ${hit.why}` }
+      ? { applicable: true, hit: true, trapId: hit.id, why: hit.why, severity: hit.severity, detail: `${hit.id}: ${hit.why}` }
       : { applicable: true, hit: false, detail: 'no known trap pattern' };
   }
 

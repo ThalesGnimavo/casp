@@ -145,6 +145,42 @@ for confirmation before writing the new `value` / `source_hash` / `verified_at`.
 See `docs/what-casp-proves.md` for what this layer explicitly does **not**
 prove.
 
+### Measurement traps (`CASP-FACT-006`)
+
+A recorded `method` is only worth what it measures. `CASP-FACT-006` tests the
+method **string** against a static registry (`src/traps.ts`) plus any plain
+substrings in the file's own `traps` array; it never runs the method. Two
+severities, decided per trap:
+
+- **FAIL** — the method certainly produces an estimate that reads like a
+  measurement: `n_live_tup` / `n_dead_tup` or `reltuples` read as a row count,
+  `EXPLAIN` without `ANALYZE`, a single `docker stats --no-stream` sample. A
+  project-declared trap is a FAIL too.
+- **WARN** — the method *may* measure something other than what it names.
+  `npx-unpinned-package` fires on `npx`, `npm exec` / `npm x`, `bunx`,
+  `pnpm dlx` or `yarn dlx` running a package with no version or tag specifier.
+  Measured on 2026-09-10, replaying a rule-count fact exactly as recorded:
+
+  ```
+  npx --yes @justethales/casp rules | grep -c '^  CASP-'         → 31
+  npx --yes @justethales/casp@0.18.0 rules | grep -c '^  CASP-'  → 35
+  npm view @justethales/casp version                             → 0.18.0
+  ```
+
+  The unpinned call ran a cached 0.17.0 while the registry's `latest` was
+  0.18.0, and nothing in the output said which version ran. The fact was inside
+  its TTL; only the method was wrong. Pin the package (`pkg@1.2.3`, or
+  `pkg@latest` to force a registry lookup) when the claim is about the
+  published artifact. The trap only fires on a runner in command position
+  (start of the method, or after `|`, `;`, `&`, `$(` or a backtick), so the
+  word `npx` in prose stays silent, as do a path, a URL and a git spec.
+  Known residue: a string cannot tell a project's local binary (`npx tsc`) from
+  a published package, so that form warns too; pinning silences it.
+
+When a method matches several traps, a FAIL wins over a WARN. Like a TTL WARN,
+a WARN trap still lists the fact under `casp fact stale` (exit 1), the verb
+whose job is to name what needs re-verifying; `casp check` stays green.
+
 ### What `next_after` may name
 
 A declaration resolves against evidence the validator already reads. Every match

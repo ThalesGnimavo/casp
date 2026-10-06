@@ -349,6 +349,94 @@ test('CASP-FACT-006: project-declared trap (facts.json `traps`) also FAILs', () 
   }
 });
 
+/* ---- npx-unpinned-package: a method that names one binary, runs another -- */
+// Measured 2026-09-10: `npx --yes @justethales/casp rules | grep -c '^  CASP-'`
+// returned 31 (a cached 0.17.0) while the registry's latest was 0.18.0 (35 rules).
+
+const { unpinnedRunner, matchTrap } = await import('../dist/traps.js');
+
+test('npx-unpinned-package: every unpinned runner form fires', () => {
+  for (const m of [
+    "npx --yes @justethales/casp rules | grep -c '^  CASP-'",
+    'npx -y @scope/pkg --version',
+    'npx pkg',
+    'npm exec pkg -- --help',
+    'npm exec -- pkg --help',
+    'npm x @scope/pkg',
+    'bunx pkg --version',
+    'pnpm dlx pkg',
+    'yarn dlx @scope/pkg',
+    'npx -p @scope/pkg cmd',
+    'npx --package=pkg cmd',
+    'npx --registry https://r.example pkg',
+    'cd site && npx pkg rules',
+    'echo $(npx pkg --version)'
+  ]) {
+    assert.equal(unpinnedRunner(m), true, `should fire: ${m}`);
+  }
+});
+
+test('npx-unpinned-package: every pinned form and every prose mention stays silent', () => {
+  for (const m of [
+    "npx --yes @justethales/casp@0.18.0 rules | grep -c '^  CASP-'",
+    'npx pkg@1.2.3',
+    'npx pkg@latest',
+    'npx -y @scope/pkg@latest --version',
+    'npx pkg@$(npm view pkg version) rules',
+    'npm exec pkg@^2 -- --help',
+    'bunx pkg@1',
+    'pnpm dlx @scope/pkg@next',
+    'npx -p pkg@1.2.3 cmd',
+    'npx --loglevel warn pkg@1.2.3',
+    'npx ./local-dir',
+    'npx github:user/repo',
+    "npx -c 'echo hi'",
+    'counted by hand, not with npx',
+    'read the README of the npx docs',
+    'npm view @justethales/casp version',
+    'git rev-list --count HEAD',
+    'python3 count.py'
+  ]) {
+    assert.equal(unpinnedRunner(m), false, `should not fire: ${m}`);
+  }
+});
+
+test('npx-unpinned-package: a WARN trap never downgrades a FAIL trap', () => {
+  assert.equal(matchTrap('npx pkg | grep legacy-thing', ['legacy-thing']).severity, 'fail');
+  assert.equal(matchTrap("npx pkg -e 'select n_live_tup from t'").severity, 'fail');
+  assert.equal(matchTrap('npx pkg').severity, 'warn');
+});
+
+test('npx-unpinned-package: linear on a long method of many runners', () => {
+  const t0 = Date.now();
+  unpinnedRunner(';npx -c x'.repeat(20000));
+  assert.ok(Date.now() - t0 < 1000, `took ${Date.now() - t0} ms`);
+});
+
+test('CASP-FACT-006: an unpinned npx method is a WARN, never a FAIL', () => {
+  const dir = scaffold();
+  try {
+    writeFacts(dir, [
+      {
+        id: 'rule-count',
+        value: '35',
+        source: 'external:npm',
+        method: "npx --yes @justethales/casp rules | grep -c '^  CASP-'",
+        verified_at: isoDaysAgo(0),
+        ttl_days: 30
+      }
+    ]);
+    commit(dir, 'unpinned npx method');
+    const f = factFindings(dir).find((x) => x.id === 'fact.trap.rule-count');
+    assert.equal(f.severity, 'warn');
+    assert.match(f.detail, /npx-unpinned-package/);
+    const r = spawnSync('node', [CLI, 'check'], { cwd: dir, encoding: 'utf8' });
+    assert.equal(r.status, 0, 'a WARN trap must not turn casp check red');
+  } finally {
+    cleanup(dir);
+  }
+});
+
 /* ---- casp fact list | check | stale | verify --------------------------- */
 
 test('casp fact list: prints inventory, --json is machine-readable', () => {
